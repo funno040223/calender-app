@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadRemote, saveRemote } from "@/lib/sync/remote";
+import { syncImports, type SyncResult } from "@/lib/sync/ical";
 import { DEFAULT_SETTINGS, plan, type Block, type CalendarEvent, type PlanResult, type Settings } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
 import { buildClassEvents, classEventsForPlan, type ClassEvent, type Course, type MockData } from "./model";
@@ -196,11 +197,41 @@ function replan(data: MockData, googleEvents: CalendarEvent[], now: number): Moc
 
 function initialState(): MockState {
   const now = Date.now();
-  return replan(loadData(now) ?? sampleData(now), buildGoogleEvents(now), now);
+  return replan(loadData(now) ?? sampleData(now), readImported() ?? buildGoogleEvents(now), now);
 }
 
 /** 画面を開いたままこれだけ経ったら、戻ってきたときに組み直す */
 const STALE_MS = 10 * 60_000;
+
+const IMPORTED_KEY = `${STORAGE_KEY}:imported`;
+const IMPORT_EVERY_MS = 15 * 60_000;
+const DAY = 24 * 60 * 60_000;
+
+/** 取り込んだ予定の控え（次に開いたとき、すぐに出すため） */
+function readImported(): CalendarEvent[] | undefined {
+  try {
+    const raw = window.localStorage.getItem(IMPORTED_KEY);
+    const v = raw ? JSON.parse(raw) : undefined;
+    return Array.isArray(v) ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+function writeImported(events: CalendarEvent[] | undefined) {
+  try {
+    if (events) window.localStorage.setItem(IMPORTED_KEY, JSON.stringify(events));
+    else window.localStorage.removeItem(IMPORTED_KEY);
+  } catch {
+    // 控えが残せなくても、次に開いたときに取り込み直す
+  }
+}
+
+export interface ImportStatus {
+  state: "idle" | "loading" | "done" | "error";
+  at?: number;
+  sources?: SyncResult["sources"];
+  error?: string;
+}
 
 /** Supabase との同期の状態（画面に出す） */
 export type SyncStatus = "loading" | "synced" | "saving" | "offline";
@@ -240,6 +271,27 @@ export function useMockStore() {
   /** サーバーから読んだ直後の変化は、保存し直さない */
   const fromRemote = useRef(false);
   const remoteAt = useRef(0);
+  const [imports, setImports] = useState<ImportStatus>({ state: "idle" });
+  const lastImportAt = useRef(0);
+
+  /** 登録した iCal カレンダーを取り込み直す。1つも登録がなければ、サンプルの予定のまま */
+  const refreshImports = useCallback(async () => {
+    setImports((p) => ({ ...p, state: "loading" }));
+    try {
+      const now = Date.now();
+      const r = await syncImports(now - DAY, now + 16 * DAY);
+      lastImportAt.current = now;
+      const real = r.sources.length > 0;
+      writeImported(real ? r.events : undefined);
+      // 取り込んだ予定はサーバーの app_state には入れないので、保存し直さない
+      fromRemote.current = true;
+      setState((prev) => replan(prev, real ? r.events : buildGoogleEvents(Date.now()), Date.now()));
+      const failed = r.sources.find((x) => x.error);
+      setImports({ state: failed ? "error" : "done", at: now, sources: r.sources, error: failed?.error });
+    } catch (e) {
+      setImports((p) => ({ ...p, state: "error", error: e instanceof Error ? e.message : "取り込みに失敗しました。" }));
+    }
+  }, []);
 
   const push = useCallback(async () => {
     setSync("saving");
@@ -261,7 +313,7 @@ export function useMockStore() {
       if (remote) {
         fromRemote.current = true;
         const now = Date.now();
-        setState(replan(remote, buildGoogleEvents(now), now));
+        setState(replan(remote, stateRef.current.googleEvents, now));
         setSync("synced");
       } else if (initial) {
         // サーバーにまだ無いか、この端末のほうが新しい → この端末の内容を送る
@@ -278,9 +330,12 @@ export function useMockStore() {
 
   useEffect(() => {
     // 画面を出してからサーバーに問い合わせる
-    const t = window.setTimeout(() => void pull(true), 0);
+    const t = window.setTimeout(async () => {
+      await pull(true);
+      void refreshImports();
+    }, 0);
     return () => window.clearTimeout(t);
-  }, [pull]);
+  }, [pull, refreshImports]);
 
   useEffect(() => {
     saveData(state);
@@ -297,11 +352,13 @@ export function useMockStore() {
   // 別の端末で変えた内容を、戻ってきたときに読み直す
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible" && ready.current) void pull(false);
+      if (document.visibilityState !== "visible" || !ready.current) return;
+      void pull(false);
+      if (Date.now() - lastImportAt.current > IMPORT_EVERY_MS) void refreshImports();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [pull]);
+  }, [pull, refreshImports]);
 
   // 朝に開き直したときなど、古い「今」のままにしない
   useEffect(() => {
@@ -332,12 +389,12 @@ export function useMockStore() {
 
   const reset = useCallback(() => {
     const now = Date.now();
-    setState(replan(sampleData(now), buildGoogleEvents(now), now));
+    setState((prev) => replan(sampleData(now), prev.googleEvents, now));
   }, []);
 
   const setHidden = useCallback((hidden: CalendarId[]) => patch(() => ({ hiddenCalendars: hidden })), [patch]);
 
-  return { state, update, patch, reset, setHidden, sync };
+  return { state, update, patch, reset, setHidden, sync, imports, refreshImports };
 }
 
 export type MockStore = ReturnType<typeof useMockStore>;

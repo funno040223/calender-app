@@ -1,6 +1,7 @@
-export type SectionId = "timetable" | "places" | "habits" | "avoid" | "treats" | "routine" | "basic";
+export type SectionId = "calendars" | "timetable" | "places" | "habits" | "avoid" | "treats" | "routine" | "basic";
 
 export const SECTIONS: Record<SectionId, { title: string; summary: string }> = {
+  calendars: { title: "Google カレンダー", summary: "iCal で予定を取り込む" },
   timetable: { title: "時間割", summary: "時限の時刻と授業・ゼミ" },
   places: { title: "場所", summary: "よく行く場所と移動時間" },
   habits: { title: "習慣", summary: "食事・入浴・散歩など" },

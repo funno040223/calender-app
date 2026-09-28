@@ -17,11 +17,12 @@ const SYNC_LABEL: Record<SyncStatus, string> = {
 };
 
 export default function SettingsScreen() {
-  const { state, reset, sync } = useApp();
+  const { state, reset, sync, imports } = useApp();
   const router = useRouter();
   const s = state.settings;
 
   const detail: Record<SectionId, string> = {
+    calendars: imports.sources ? `${imports.sources.length}件` : "",
     timetable: `${state.courses.length}件`,
     places: `${state.places.length}件`,
     habits: `${state.habits.length}件`,
@@ -32,7 +33,7 @@ export default function SettingsScreen() {
   };
 
   const groups: { title: string; ids: SectionId[] }[] = [
-    { title: "予定", ids: ["timetable", "places"] },
+    { title: "予定", ids: ["calendars", "timetable", "places"] },
     { title: "生活のリズム", ids: ["habits", "avoid", "basic"] },
     { title: "朝", ids: ["routine", "treats"] },
   ];

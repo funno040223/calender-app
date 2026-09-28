@@ -280,9 +280,24 @@ export function DangerButton({ children, onClick, confirm }: { children: ReactNo
   );
 }
 
-export function PrimaryButton({ children, type = "submit", onClick }: { children: ReactNode; type?: "submit" | "button"; onClick?: () => void }) {
+export function PrimaryButton({
+  children,
+  type = "submit",
+  onClick,
+  disabled,
+}: {
+  children: ReactNode;
+  type?: "submit" | "button";
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <button type={type} onClick={onClick} className="w-full rounded-xl bg-accent py-2.5 text-[16px] font-semibold text-white">
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full rounded-xl bg-accent py-2.5 text-[16px] font-semibold text-white disabled:opacity-60"
+    >
       {children}
     </button>
   );

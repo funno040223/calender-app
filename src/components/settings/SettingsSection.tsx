@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SECTIONS, type SectionId } from "./sections";
 import Timetable from "./Timetable";
+import CalendarSources from "./CalendarSources";
 import Places from "./Places";
 import Habits from "./Habits";
 import AvoidWindows from "./AvoidWindows";
@@ -11,6 +12,7 @@ import RoutineSteps from "./RoutineSteps";
 import BasicSettings from "./BasicSettings";
 
 const BODY: Record<SectionId, () => React.ReactNode> = {
+  calendars: CalendarSources,
   timetable: Timetable,
   places: Places,
   habits: Habits,
