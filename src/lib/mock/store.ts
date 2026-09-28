@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_SETTINGS, plan, type Block, type CalendarEvent, type Place, type PlanResult, type Task } from "@/lib/scheduler";
 import type { CalendarId, OwnCalendarId } from "./calendars";
 import {
+  SAMPLE_AVOID_WINDOWS,
   SAMPLE_HABITS,
   SAMPLE_PLACES,
   SAMPLE_TAGS,
@@ -15,7 +16,7 @@ import {
 
 /**
  * 自分で入れた予定。calendarId で「予定」「遊び」を分ける（未指定は「予定」）。
- * 「遊び」だけの日を休日として扱う処理は、あとでエンジン側に入れる予定。
+ * 「遊び」の予定しかない日は、エンジンが休日として扱う。
  */
 export type OwnEvent = CalendarEvent & { calendarId?: OwnCalendarId };
 
@@ -41,6 +42,7 @@ const STORAGE_KEY = "task-rhythm:mock:v1";
 
 export const HABITS = SAMPLE_HABITS;
 export const TAGS = SAMPLE_TAGS;
+export const AVOID_WINDOWS = SAMPLE_AVOID_WINDOWS;
 export const SETTINGS = DEFAULT_SETTINGS;
 
 function sampleData(now: number): MockData {
@@ -86,21 +88,16 @@ function saveData(d: MockData) {
 
 /** エンジンで組み直す。配置のロジックはすべて plan() に任せる */
 function replan(data: MockData, classEvents: CalendarEvent[], googleEvents: CalendarEvent[], now: number): MockState {
-  const taskIds = new Set(data.tasks.map((t) => t.id));
-  const habitIds = new Set(HABITS.map((h) => h.id));
-  // 消したタスクの枠は渡さない
-  const previousBlocks = data.blocks.filter(
-    (b) => (b.kind === "task" && taskIds.has(b.refId)) || (b.kind === "habit" && habitIds.has(b.refId)),
-  );
   const result = plan({
     now,
     settings: SETTINGS,
-    events: [...data.ownEvents, ...classEvents, ...googleEvents],
+    events: [...data.ownEvents.map((e) => ({ ...e, play: e.calendarId === "play" })), ...classEvents, ...googleEvents],
     places: data.places,
     habits: HABITS,
     tags: TAGS,
     tasks: data.tasks,
-    previousBlocks,
+    avoidWindows: AVOID_WINDOWS,
+    previousBlocks: data.blocks,
   });
   return { ...data, classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now };
 }

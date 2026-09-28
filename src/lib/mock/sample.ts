@@ -1,4 +1,4 @@
-import type { CalendarEvent, Habit, Place, Tag, Task } from "@/lib/scheduler";
+import type { AvoidWindow, CalendarEvent, Habit, Place, Tag, Task } from "@/lib/scheduler";
 import type { OwnEvent } from "./store";
 import { DAY_MS, MIN, dayStartOf, weekdayOf } from "./jst";
 
@@ -14,10 +14,56 @@ export const SAMPLE_TAGS: Tag[] = [
   { id: "tag-admin", name: "事務", mode: "gap", defaultMinutes: 30, minChunkMinutes: 15, maxChunkMinutes: 60 },
 ];
 
+/** 生活の中身の議論で決めた習慣。最初は少なめにして、続いたら足す */
 export const SAMPLE_HABITS: Habit[] = [
-  { id: "habit-dinner", name: "夕食", durationMinutes: 60, windowStart: 18 * 60, windowEnd: 20 * 60 + 30, frequency: { type: "daily" }, skippable: false },
+  // 昼食は30分で十分。食後30分の休憩は集中系だけ避ける（合わせて1時間）。多少遅れてもよいので幅は広め
+  {
+    id: "habit-lunch",
+    name: "昼食",
+    durationMinutes: 30,
+    windowStart: 11 * 60,
+    windowEnd: 14 * 60 + 30,
+    frequency: { type: "daily" },
+    skippable: false,
+    avoidFocusAfterMinutes: 30,
+  },
+  {
+    id: "habit-dinner",
+    name: "夕食",
+    durationMinutes: 60,
+    windowStart: 18 * 60,
+    windowEnd: 20 * 60 + 30,
+    frequency: { type: "daily" },
+    skippable: false,
+    avoidFocusAfterMinutes: 60,
+  },
   { id: "habit-bath", name: "入浴", durationMinutes: 30, windowStart: 20 * 60, windowEnd: 23 * 60 + 30, frequency: { type: "daily" }, skippable: false },
-  { id: "habit-exercise", name: "運動", durationMinutes: 30, windowStart: 17 * 60, windowEnd: 21 * 60, frequency: { type: "weekly", times: 3 }, skippable: true },
+  // 今は散歩が運動の代わり。続いたら家での運動15分を足す
+  { id: "habit-walk", name: "散歩", durationMinutes: 20, windowStart: 10 * 60, windowEnd: 18 * 60, frequency: { type: "daily" }, skippable: true },
+  {
+    id: "habit-laundry",
+    name: "洗濯を回す",
+    durationMinutes: 10,
+    windowStart: 9 * 60,
+    windowEnd: 16 * 60,
+    frequency: { type: "weekly", times: 1 },
+    skippable: false,
+    finish: { title: "洗濯物を干す", durationMinutes: 15, afterStartMinutes: 90 },
+  },
+  {
+    id: "habit-tidy",
+    name: "片付け",
+    durationMinutes: 30,
+    windowStart: 0,
+    windowEnd: 24 * 60,
+    frequency: { type: "daily" },
+    skippable: true,
+    duringHabitId: "habit-laundry",
+  },
+];
+
+export const SAMPLE_AVOID_WINDOWS: AvoidWindow[] = [
+  { id: "avoid-holiday-morning", label: "休日の午前", start: 9 * 60, end: 12 * 60, hard: false, dayType: "holiday" },
 ];
 
 const at = (day: number, h: number, mi = 0) => day + (h * 60 + mi) * MIN;

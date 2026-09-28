@@ -12,6 +12,10 @@
   --warn: #fff4e5;
   --sleep: rgba(88, 86, 214, 0.07);
   --sleep-text: #6e6ca8;
+  /* 予定のチップの色の濃さ（通常・アプリが置いた枠・固定した枠） */
+  --ev-mix: 17%;
+  --ev-mix-block: 11%;
+  --ev-mix-pinned: 22%;
 
   --cal-own: #007aff;
   --cal-play: #ff2d55;
@@ -36,6 +40,9 @@
     --warn: #3a2a12;
     --sleep: rgba(94, 92, 230, 0.14);
     --sleep-text: #a5a3f0;
+    --ev-mix: 30%;
+    --ev-mix-block: 20%;
+    --ev-mix-pinned: 38%;
 
     --cal-own: #0a84ff;
     --cal-play: #ff375f;
@@ -254,7 +261,7 @@ body {
   --c: var(--cal-google);
 }
 .app-cal .fc .fc-event.ev {
-  background: color-mix(in srgb, var(--c) 17%, var(--bg));
+  background: color-mix(in srgb, var(--c) var(--ev-mix), var(--bg));
   border: 0;
   border-left: 3px solid var(--c);
   border-radius: 5px;
@@ -270,11 +277,11 @@ body {
   padding: 0;
 }
 .app-cal .fc .fc-event.ev.is-block {
-  background: color-mix(in srgb, var(--c) 11%, var(--bg));
+  background: color-mix(in srgb, var(--c) var(--ev-mix-block), var(--bg));
   border-left-style: dotted;
 }
 .app-cal .fc .fc-event.ev.is-pinned {
-  background: color-mix(in srgb, var(--c) 22%, var(--bg));
+  background: color-mix(in srgb, var(--c) var(--ev-mix-pinned), var(--bg));
   border-left-style: solid;
 }
 .app-cal .fc .fc-event.ev.is-readonly {

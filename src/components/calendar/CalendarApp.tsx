@@ -6,7 +6,7 @@ import type { DatesSetArg } from "@fullcalendar/core";
 import type { Block, Task } from "@/lib/scheduler";
 import { useMockStore, sameBlock, type OwnEvent } from "@/lib/mock/store";
 import type { CalendarId } from "@/lib/mock/calendars";
-import { WEEKDAY_JA, newId } from "@/lib/mock/jst";
+import { newId } from "@/lib/mock/jst";
 import CalendarView, { type EventSource } from "./CalendarView";
 import EventForm from "./EventForm";
 import { BlockSheet, ReadonlyEventSheet } from "./InfoSheet";
@@ -14,8 +14,9 @@ import QuickAddBar from "./QuickAddBar";
 import SidePanel, { warningCount } from "./SidePanel";
 import Sheet from "./Sheet";
 
+// 1日だけの表示は横長で見にくいので、最小は3日表示にする
 const VIEWS = [
-  { id: "timeGridDay", label: "日" },
+  { id: "timeGrid3Day", label: "3日" },
   { id: "timeGridWeek", label: "週" },
   { id: "dayGridMonth", label: "月" },
 ] as const;
@@ -28,9 +29,6 @@ function titleOf(arg: DatesSetArg): { year: string; rest: string; weekday: strin
   const d = arg.view.currentStart;
   const year = `${d.getUTCFullYear()}年`;
   const month = `${d.getUTCMonth() + 1}月`;
-  if (arg.view.type === "timeGridDay") {
-    return { year, rest: `${month}${d.getUTCDate()}日`, weekday: `（${WEEKDAY_JA[d.getUTCDay()]}）` };
-  }
   return { year, rest: month, weekday: "" };
 }
 
@@ -38,7 +36,7 @@ export default function CalendarApp() {
   const { state, update, setHidden, reset } = useMockStore();
   const calRef = useRef<FullCalendar>(null);
   const [initialView] = useState(() =>
-    window.matchMedia("(max-width: 639px)").matches ? "timeGridDay" : "timeGridWeek",
+    window.matchMedia("(max-width: 639px)").matches ? "timeGrid3Day" : "timeGridWeek",
   );
   const [view, setView] = useState<string>(initialView);
   const [title, setTitle] = useState({ year: "", rest: "", weekday: "" });

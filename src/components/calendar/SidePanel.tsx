@@ -4,7 +4,7 @@ import { useState } from "react";
 import { estimateMinutes, type CalendarEvent, type Task } from "@/lib/scheduler";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { HABITS, SETTINGS, TAGS, type MockState } from "@/lib/mock/store";
-import { MIN, formatDate, formatDeadline, formatMinutes } from "@/lib/mock/jst";
+import { MIN, formatDate, formatDeadline, formatMinutes, formatTime } from "@/lib/mock/jst";
 
 const PRIORITY_LABEL = { 1: "低", 2: "中", 3: "高" } as const;
 
@@ -17,6 +17,30 @@ function Section({ title, children, badge }: { title: string; children: React.Re
       </h3>
       {children}
     </section>
+  );
+}
+
+/** 配置し終わったあとの今日の空き時間。カレンダーには入れず、候補として見せるだけ */
+function TodayGaps({ state }: { state: MockState }) {
+  const today = state.result.dayPlans[0];
+  const gaps = today
+    ? state.result.freeGaps.filter((g) => g.end > state.plannedAt && g.start < today.bed)
+    : [];
+  if (gaps.length === 0) {
+    return <p className="px-1 text-[13px] text-muted">今日はまとまった空き時間がありません。</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-1">
+      {gaps.map((g) => {
+        const start = Math.max(g.start, state.plannedAt);
+        return (
+          <li key={g.start} className="px-1 text-[13px]">
+            {formatTime(start)}〜{formatTime(g.end)}（{formatMinutes((g.end - start) / MIN)}）
+            <span className="text-muted">：読書・勉強にどうぞ</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -162,6 +186,10 @@ export default function SidePanel({
             ))}
           </ul>
         )}
+      </Section>
+
+      <Section title="今日のすきま時間">
+        <TodayGaps state={state} />
       </Section>
 
       <Section title={`タスク（${state.tasks.length}）`}>

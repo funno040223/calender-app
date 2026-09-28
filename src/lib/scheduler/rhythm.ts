@@ -1,13 +1,13 @@
 import type { CalendarEvent, DayPlan, Place, Settings, WakeSource } from "./types";
-import { DAY_MS, MIN, minuteOfDay } from "./time";
+import { DAY_MS, MIN } from "./time";
 import { resolveTravel } from "./travel";
 
 /** これより前に始まる予定は、その日の「最初の予定」として扱わない */
 const DAY_BEGINS_AT_MINUTE = 4 * 60;
 
 type RawWake =
-  | { kind: "away"; wake: number; leave: number; first: CalendarEvent }
-  | { kind: "home"; latest: number; first: CalendarEvent }
+  | { kind: "away"; required: number; leave: number; first: CalendarEvent }
+  | { kind: "home"; required: number; first: CalendarEvent }
   | { kind: "none" };
 
 function firstEventOf(dayStart: number, events: CalendarEvent[]): CalendarEvent | undefined {
@@ -21,40 +21,25 @@ function firstEventOf(dayStart: number, events: CalendarEvent[]): CalendarEvent 
   return first;
 }
 
+/** その日に遅くともこの時刻には起きていないといけない、という時刻を求める */
 function rawWakeOf(dayStart: number, events: CalendarEvent[], places: Place[], s: Settings): RawWake {
   const first = firstEventOf(dayStart, events);
   if (!first) return { kind: "none" };
   const travel = resolveTravel(first, places, s);
-  if (travel.atHome) return { kind: "home", latest: first.start - s.homeWakeLeadMinutes * MIN, first };
+  if (travel.atHome) return { kind: "home", required: first.start - s.homeWakeLeadMinutes * MIN, first };
   const leave = first.start - travel.minutes * MIN;
-  return { kind: "away", wake: leave - (s.routineMinutes + s.prepMinutes) * MIN, leave, first };
+  return { kind: "away", required: leave - (s.routineMinutes + s.prepMinutes) * MIN, leave, first };
 }
 
-function wakeTimeOf(raw: RawWake): number | undefined {
-  if (raw.kind === "away") return raw.wake;
-  if (raw.kind === "home") return raw.latest;
-  return undefined;
-}
-
-/** 前後でいちばん近い「予定のある日」の起床時刻（0時からの分）の平均 */
-function neighborMinuteOfDay(raws: RawWake[], i: number, s: Settings): number | undefined {
-  const found: number[] = [];
-  for (let j = i - 1; j >= 0; j--) {
-    const t = wakeTimeOf(raws[j]);
-    if (t !== undefined) {
-      found.push(minuteOfDay(t, s.tzOffsetMinutes));
-      break;
-    }
-  }
-  for (let j = i + 1; j < raws.length; j++) {
-    const t = wakeTimeOf(raws[j]);
-    if (t !== undefined) {
-      found.push(minuteOfDay(t, s.tzOffsetMinutes));
-      break;
-    }
-  }
-  if (found.length === 0) return undefined;
-  return Math.round(found.reduce((a, b) => a + b, 0) / found.length);
+/**
+ * 隣り合う日の起床時刻の差が maxShift 分を超えないように、早いほうへだけ寄せる。
+ * 早めるだけなので、予定に間に合わなくなることはない。
+ */
+function limitDailyShift(minutes: number[], maxShift: number): number[] {
+  const out = [...minutes];
+  for (let i = 1; i < out.length; i++) out[i] = Math.min(out[i], out[i - 1] + maxShift);
+  for (let i = out.length - 2; i >= 0; i--) out[i] = Math.min(out[i], out[i + 1] + maxShift);
+  return out;
 }
 
 /**
@@ -71,18 +56,17 @@ export function computeDayPlans(
   const dayStarts = Array.from({ length: count }, (_, i) => firstDay + i * DAY_MS);
   const raws = dayStarts.map((d) => rawWakeOf(d, events, places, s));
 
+  // 0:00 からの分。予定から決まる時刻と既定の時刻の早いほうに、遅くとも起きる
+  const cap = s.defaultWakeMinuteOfDay;
+  const base = raws.map((raw, i) => (raw.kind === "none" ? cap : Math.min((raw.required - dayStarts[i]) / MIN, cap)));
+  // 早起きの日があれば前後の日も少しずつ早め、睡眠の時刻が日によって大きくずれないようにする
+  const limited = limitDailyShift(base, s.maxWakeShiftMinutesPerDay);
+
   const wakes: { wake: number; source: WakeSource }[] = raws.map((raw, i) => {
-    const dayStart = dayStarts[i];
-    const neighbor = neighborMinuteOfDay(raws, i, s);
-    if (raw.kind === "away") return { wake: raw.wake, source: "away" };
-    if (raw.kind === "home") {
-      // 在宅でも、前後の日に合わせた時刻（なければ既定の時刻）のほうが早ければそちらに起きる
-      const smoothed = dayStart + (neighbor ?? s.defaultWakeMinuteOfDay) * MIN;
-      if (smoothed >= raw.latest) return { wake: raw.latest, source: "home" };
-      return { wake: smoothed, source: neighbor === undefined ? "default" : "neighbors" };
-    }
-    if (neighbor !== undefined) return { wake: dayStart + neighbor * MIN, source: "neighbors" };
-    return { wake: dayStart + s.defaultWakeMinuteOfDay * MIN, source: "default" };
+    const wake = dayStarts[i] + limited[i] * MIN;
+    if (limited[i] < base[i]) return { wake, source: "neighbors" };
+    if (raw.kind !== "none" && base[i] < cap) return { wake, source: raw.kind };
+    return { wake, source: "default" };
   });
 
   if (s.fixedWakeMode) {
@@ -101,6 +85,8 @@ export function computeDayPlans(
 
   return dayStarts.map((dayStart, i) => {
     const raw = raws[i];
+    const dayEnd = dayStart + DAY_MS;
+    const holiday = !events.some((ev) => !ev.play && !ev.allDay && ev.start < dayEnd && ev.end > dayStart);
     const nextWake = i + 1 < count ? wakes[i + 1].wake : wakes[i].wake + DAY_MS;
     return {
       dayStart,
@@ -109,6 +95,7 @@ export function computeDayPlans(
       leave: raw.kind === "away" ? raw.leave : undefined,
       firstEvent: raw.kind === "none" ? undefined : raw.first,
       wakeSource: wakes[i].source,
+      holiday,
     };
   });
 }

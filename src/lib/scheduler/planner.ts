@@ -25,6 +25,9 @@ const FALLBACK_TAG: Omit<Tag, "id" | "name"> = {
   maxChunkMinutes: 120,
 };
 
+/** すきま時間の候補として返す空き時間の最短の長さ（分） */
+const MIN_GAP_MINUTES = 20;
+
 /** 事務系のタスクで「長い空き時間を使ってしまう」とみなす長さ（分） */
 const LONG_SLOT_MINUTES = 120;
 
@@ -39,6 +42,8 @@ const PENALTY = {
   perDayBeforeDeadline: 1,
   /** 前回の配置から動かす */
   movedFromBefore: 1,
+  /** 食後など、習慣のすぐあとの集中作業 */
+  focusAfterHabit: 1.5,
   /** 集中系を細切れにする */
   focusSplit: 1.5,
   /** 事務系を分ける */
@@ -55,19 +60,40 @@ const PENALTY = {
   overDailyCap: 2,
 };
 
+/** days には、最終日の夜が日付をまたぐ分として範囲の翌日も含めて渡す */
 function avoidIntervalsFor(task: Task, windows: AvoidWindow[], days: DayPlan[], tz: number, hard: boolean): Interval[] {
   const out: Interval[] = [];
-  // 最終日の夜は日付をまたぐので、範囲の翌日の日付にも作る
-  const dayStarts = [...days.map((d) => d.dayStart), days.at(-1)!.dayStart + DAY_MS];
   for (const w of windows) {
     if (w.hard !== hard) continue;
     if (w.tagIds && (!task.tagId || !w.tagIds.includes(task.tagId))) continue;
-    for (const dayStart of dayStarts) {
-      if (w.weekdays && !w.weekdays.includes(localWeekday(dayStart, tz))) continue;
-      out.push({ start: dayStart + w.start * MIN, end: dayStart + w.end * MIN });
+    for (const d of days) {
+      if (w.weekdays && !w.weekdays.includes(localWeekday(d.dayStart, tz))) continue;
+      if (w.dayType === "holiday" && !d.holiday) continue;
+      if (w.dayType === "onDay" && d.holiday) continue;
+      out.push({ start: d.dayStart + w.start * MIN, end: d.dayStart + w.end * MIN });
     }
   }
   return out;
+}
+
+function fitsIn(free: Interval[], start: number, end: number): boolean {
+  return free.some((i) => start >= i.start && end <= i.end);
+}
+
+/** slots の中で dur 分が入る最初の開始時刻。prefer（前回の位置）が入ればそれを使う */
+function findStart(
+  slots: Interval[],
+  dur: number,
+  ok: (start: number) => boolean,
+  prefer?: number,
+): number | undefined {
+  if (prefer !== undefined && fitsIn(slots, prefer, prefer + dur) && ok(prefer)) return prefer;
+  for (const i of slots) {
+    for (let st = ceilToStep(i.start); st + dur <= i.end; st += 15 * MIN) {
+      if (ok(st)) return st;
+    }
+  }
+  return undefined;
 }
 
 function overlapMinutes(intervals: Interval[], start: number, end: number): number {
@@ -94,11 +120,17 @@ export function plan(input: PlanInput): PlanResult {
 
   // 始まった枠と固定した枠は残す。朝ルーティンは毎回計算し直す
   const previous = input.previousBlocks.filter((b) => b.kind !== "routine" && b.end > now);
-  const kept = previous.filter((b) => b.start <= now || b.pinned);
+  // 消えたタスク・習慣の枠は、始まっていても固定していても残さない
+  const taskIds = new Set(input.tasks.map((t) => t.id));
+  const habitIds = new Set(input.habits.map((h) => h.id));
+  const exists = (b: Block) => (b.kind === "task" ? taskIds.has(b.refId) : habitIds.has(b.refId));
+  const kept = previous.filter((b) => (b.start <= now || b.pinned) && exists(b));
   const movable = previous.filter((b) => !kept.includes(b));
 
   const travelQuestions: TravelQuestion[] = [];
   const busy: Interval[] = [];
+  /** 家にいない時間（移動を含む） */
+  const away: Interval[] = [];
   /** 予定に関連するタスクの締切（外出なら家を出る時刻） */
   const eventDeadline = new Map<string, number>();
   for (const ev of input.events) {
@@ -112,6 +144,7 @@ export function plan(input: PlanInput): PlanResult {
     if (end <= now || ev.start >= horizonEnd) continue;
     if (t.unknown && ev.location && ev.start > now) travelQuestions.push({ eventId: ev.id, location: ev.location });
     busy.push({ start: ev.start - pad, end });
+    if (!t.atHome) away.push({ start: ev.start - pad, end: ev.end + pad });
   }
 
   const routineBlocks: Block[] = [];
@@ -140,11 +173,37 @@ export function plan(input: PlanInput): PlanResult {
 
   const blocks: Block[] = [...kept, ...routineBlocks];
   const skippedHabits: SkippedHabit[] = [];
-  const placedHabits: { block: Block; skippable: boolean }[] = [];
+  const placedHabits: { block: Block; habit: Habit; releasable: boolean }[] = [];
+  /** 待ち時間のある習慣の、待ち時間（子の習慣を置く場所） */
+  const waits = new Map<string, { dayStart: number; wait: Interval }[]>();
+
+  const placeHabitBlock = (habit: Habit, block: Block, releasable: boolean) => {
+    blocks.push(block);
+    placedHabits.push({ block, habit, releasable });
+    free = subtract(free, [block]);
+  };
 
   // ---- 習慣 ----
-  const habits = [...input.habits].sort((a, b) => Number(a.skippable) - Number(b.skippable));
+  // 飛ばせないものから置く。待ち時間に入れる子の習慣は最後
+  const rank = (h: Habit) => (h.duringHabitId ? 2 : h.skippable ? 1 : 0);
+  const habits = [...input.habits].sort((a, b) => rank(a) - rank(b));
   for (const habit of habits) {
+    const dur = habit.durationMinutes * MIN;
+    const prevOf = (window: Interval) =>
+      movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end)?.start;
+
+    if (habit.duringHabitId) {
+      for (const { dayStart, wait } of waits.get(habit.duringHabitId) ?? []) {
+        const start = findStart(intersect(free, wait), dur, () => true, prevOf(wait));
+        if (start === undefined) {
+          skippedHabits.push({ habitId: habit.id, dayStart, reason: "no_room" });
+          continue;
+        }
+        placeHabitBlock(habit, { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur }, habit.skippable);
+      }
+      continue;
+    }
+
     const windowOf = (d: DayPlan): Interval => ({
       start: d.dayStart + habit.windowStart * MIN,
       end: d.dayStart + habit.windowEnd * MIN,
@@ -155,36 +214,38 @@ export function plan(input: PlanInput): PlanResult {
 
     for (const d of target) {
       const window = windowOf(d);
-      const slots = intersect(free, window);
-      const prev = movable.find(
-        (b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end,
-      );
-      const dur = habit.durationMinutes * MIN;
-      let start: number | undefined;
-      if (prev && slots.some((i) => prev.start >= i.start && prev.start + dur <= i.end)) start = prev.start;
-      else {
-        for (const i of slots) {
-          const st = ceilToStep(i.start);
-          if (st + dur <= i.end) {
-            start = st;
-            break;
-          }
-        }
-      }
+      const finish = habit.finish;
+      // 待ち時間のある作業は、2つ目の枠も空いていて、終わるまで家にいられること
+      const ok = (st: number) => {
+        if (!finish) return true;
+        const fStart = st + finish.afterStartMinutes * MIN;
+        const fEnd = fStart + finish.durationMinutes * MIN;
+        const rest = subtract(free, [{ start: st, end: st + dur }]);
+        return fitsIn(rest, fStart, fEnd) && !away.some((a) => a.start < fEnd && a.end > st);
+      };
+      const start = findStart(intersect(free, window), dur, ok, prevOf(window));
       if (start === undefined) {
         skippedHabits.push({ habitId: habit.id, dayStart: d.dayStart, reason: "no_room" });
         continue;
       }
-      const block: Block = { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur };
-      blocks.push(block);
-      placedHabits.push({ block, skippable: habit.skippable });
-      free = subtract(free, [block]);
+      placeHabitBlock(habit, { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur }, habit.skippable && !finish);
+      if (finish) {
+        const fStart = start + finish.afterStartMinutes * MIN;
+        placeHabitBlock(
+          habit,
+          { kind: "habit", refId: habit.id, title: finish.title, start: fStart, end: fStart + finish.durationMinutes * MIN },
+          false,
+        );
+        const list = waits.get(habit.id) ?? [];
+        list.push({ dayStart: d.dayStart, wait: { start: start + dur, end: fStart } });
+        waits.set(habit.id, list);
+      }
     }
   }
 
   // 締切を守るために、飛ばしてよい習慣を1つ外して空きに戻す
   const releaseHabitBefore = (deadline: number): boolean => {
-    const idx = placedHabits.findIndex((h) => h.skippable && h.block.start >= now && h.block.start < deadline);
+    const idx = placedHabits.findIndex((h) => h.releasable && h.block.start >= now && h.block.start < deadline);
     if (idx < 0) return false;
     const [{ block }] = placedHabits.splice(idx, 1);
     blocks.splice(blocks.indexOf(block), 1);
@@ -205,6 +266,12 @@ export function plan(input: PlanInput): PlanResult {
     if (d) dayLoad.set(d.dayStart, (dayLoad.get(d.dayStart) ?? 0) + (b.end - b.start) / MIN);
   };
   kept.filter((b) => b.kind === "task").forEach(addLoad);
+  // 食後など、習慣のすぐあとは集中系を避ける（食事は飛ばさないので、ここで一度だけ作る）
+  const afterHabit = placedHabits
+    .filter((h) => h.habit.avoidFocusAfterMinutes)
+    .map((h) => ({ start: h.block.end, end: h.block.end + h.habit.avoidFocusAfterMinutes! * MIN }));
+  const dayFreeMinutes = (d: DayPlan) =>
+    intersect(free, { start: d.wake, end: d.bed }).reduce((sum, i) => sum + lengthMinutes(i), 0);
 
   const shortfalls: Shortfall[] = [];
   const deadlineOf = (task: Task): number | undefined => {
@@ -224,20 +291,25 @@ export function plan(input: PlanInput): PlanResult {
     const keptMs = kept
       .filter((b) => b.kind === "task" && b.refId === task.id)
       .reduce((sum, b) => sum + (b.end - Math.max(b.start, now)), 0);
-    let remaining = estimateMinutes(task, tag) - keptMs / MIN;
+    // 作業中の枠の残りは分の端数になるので、15分単位に切り上げて枠の時刻を揃える
+    let remaining = Math.ceil((estimateMinutes(task, tag) - keptMs / MIN) / 15) * 15;
 
     const ownDeadline = deadlineOf(task);
     const beyondHorizon = ownDeadline === undefined || ownDeadline > horizonEnd;
     const deadline = Math.min(ownDeadline ?? horizonEnd, horizonEnd);
     const justBefore = task.timing === "justBefore" && !beyondHorizon;
     const prevStarts = new Set(movable.filter((b) => b.kind === "task" && b.refId === task.id).map((b) => b.start));
-    const hardAvoid = avoidIntervalsFor(task, avoidWindows, days, s.tzOffsetMinutes, true);
-    const softAvoid = avoidIntervalsFor(task, avoidWindows, days, s.tzOffsetMinutes, false);
+    const hardAvoid = avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, true);
+    const softAvoid = avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, false);
+    const restMinutes = tag.restAfterMinutes ?? s.breakMinutes;
+    // まずは1日の余白を守って置く。締切に間に合わないときだけ余白を削る
+    let keepSlack = true;
 
     while (remaining > 0) {
       const need = Math.min(remaining, tag.maxChunkMinutes);
       const minLen = Math.min(tag.minChunkMinutes, remaining);
       let best: { start: number; len: number; penalty: number } | undefined;
+      const freeByDay = new Map(days.map((d) => [d.dayStart, dayFreeMinutes(d)]));
 
       for (const iv of subtract(free, hardAvoid)) {
         if (iv.start >= deadline) break;
@@ -256,6 +328,7 @@ export function plan(input: PlanInput): PlanResult {
         if (tag.mode === "focus") {
           starts.push(ceilToStep(zones.afterWakeEnd));
           endsBefore.push(zones.beforeBedStart);
+          for (const a of afterHabit) starts.push(ceilToStep(a.end));
         }
         for (const e of endsBefore) starts.push(floorToStep(e - need * MIN));
 
@@ -265,6 +338,7 @@ export function plan(input: PlanInput): PlanResult {
           const len = avail >= need ? need : floorMinutesToStep(avail);
           if (len < minLen || len <= 0) continue;
           const end = st + len * MIN;
+          if (keepSlack && (freeByDay.get(d0.dayStart) ?? 0) - len - restMinutes < s.minSlackMinutesPerDay) continue;
 
           let penalty = justBefore
             ? ((deadline - end) / DAY_MS) * PENALTY.perDayBeforeDeadline
@@ -274,6 +348,7 @@ export function plan(input: PlanInput): PlanResult {
           if (tag.mode === "focus") {
             if (st < zones.afterWakeEnd) penalty += PENALTY.focusRightAfterWake;
             if (end > zones.beforeBedStart) penalty += PENALTY.focusBeforeBed;
+            if (overlapMinutes(afterHabit, st, end) > 0) penalty += PENALTY.focusAfterHabit;
           } else if (lengthMinutes(iv) > LONG_SLOT_MINUTES) {
             penalty += PENALTY.gapTaskInLongSlot;
           }
@@ -288,7 +363,14 @@ export function plan(input: PlanInput): PlanResult {
       }
 
       if (!best) {
-        if (!beyondHorizon && releaseHabitBefore(deadline)) continue;
+        if (!beyondHorizon && keepSlack) {
+          keepSlack = false;
+          continue;
+        }
+        if (!beyondHorizon && releaseHabitBefore(deadline)) {
+          keepSlack = true;
+          continue;
+        }
         if (!beyondHorizon) {
           shortfalls.push({ taskId: task.id, title: task.title, deadline, shortfallMinutes: remaining });
         }
@@ -306,11 +388,13 @@ export function plan(input: PlanInput): PlanResult {
       free = subtract(free, [withBreak(block)]);
       addLoad(block);
       remaining -= best.len;
+      keepSlack = true;
     }
   }
 
   blocks.sort((a, b) => a.start - b.start);
-  return { dayPlans: days, blocks, skippedHabits, shortfalls, travelQuestions };
+  const freeGaps = free.filter((i) => lengthMinutes(i) >= MIN_GAP_MINUTES);
+  return { dayPlans: days, blocks, skippedHabits, shortfalls, travelQuestions, freeGaps };
 }
 
 function chooseHabitDays(

@@ -18,6 +18,8 @@ export interface CalendarEvent {
   atHome?: boolean;
   /** 予定（外出なら帰宅）のあとに空ける休憩（分）。未指定なら設定の値 */
   restAfterMinutes?: number;
+  /** 「遊び」の予定。遊び以外の予定がない日は休日になる */
+  play?: boolean;
 }
 
 export interface Place {
@@ -39,8 +41,10 @@ export interface Settings {
   homeWakeLeadMinutes: number;
   /** 就寝前に作業を入れない時間（分） */
   windDownMinutes: number;
-  /** 前後の日から決められないときの起床時刻（0時からの分） */
+  /** 遅くともこの時刻には起きる（0時からの分）。予定がない日の起床時刻 */
   defaultWakeMinuteOfDay: number;
+  /** 隣り合う日の起床時刻の差の上限（分）。睡眠の時刻を日によって大きくずらさない */
+  maxWakeShiftMinutesPerDay: number;
   /** 登録のない場所へ行くときに仮に置く移動時間（分） */
   unknownTravelMinutes: number;
   /** タスクの枠のあとに空ける休憩（分）。タグで上書きできる */
@@ -55,6 +59,8 @@ export interface Settings {
   avoidFocusBeforeBedMinutes: number;
   /** 1日にタスクを入れる量の目安（分）。超えると減点する */
   dailyTaskCapMinutes: number;
+  /** 何も入れない余白を1日にこれだけ残す（分）。締切に間に合わないときだけ削る */
+  minSlackMinutesPerDay: number;
 }
 
 /** 「この時間はやりたくない」時間帯 */
@@ -70,6 +76,8 @@ export interface AvoidWindow {
   tagIds?: string[];
   /** true: 入れない / false: なるべく避ける */
   hard: boolean;
+  /** holiday: 休日だけ / onDay: オンの日だけ。未指定なら両方 */
+  dayType?: "holiday" | "onDay";
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -81,6 +89,7 @@ export const DEFAULT_SETTINGS: Settings = {
   homeWakeLeadMinutes: 20,
   windDownMinutes: 30,
   defaultWakeMinuteOfDay: 9 * 60,
+  maxWakeShiftMinutesPerDay: 30,
   unknownTravelMinutes: 60,
   breakMinutes: 10,
   restAfterAwayEventMinutes: 30,
@@ -88,6 +97,7 @@ export const DEFAULT_SETTINGS: Settings = {
   avoidFocusAfterWakeMinutes: 60,
   avoidFocusBeforeBedMinutes: 120,
   dailyTaskCapMinutes: 360,
+  minSlackMinutesPerDay: 120,
 };
 
 export type HabitFrequency = { type: "daily" } | { type: "weekly"; times: number };
@@ -102,6 +112,15 @@ export interface Habit {
   frequency: HabitFrequency;
   /** 締切が迫ったときに飛ばしてよいか（食事・入浴は false） */
   skippable: boolean;
+  /** このあとの分数は集中系のタスクを避ける（食後など） */
+  avoidFocusAfterMinutes?: number;
+  /**
+   * 待ち時間のある作業の2つ目の枠（洗濯を回す → 待つ → 干す）。
+   * 1つ目の開始から afterStartMinutes 後に始める。その間は家にいる必要がある
+   */
+  finish?: { title: string; durationMinutes: number; afterStartMinutes: number };
+  /** この習慣の待ち時間の中に置く（洗濯の待ち時間に片付けなど）。頻度は親に合わせる */
+  duringHabitId?: string;
 }
 
 /** focus: 長い空き時間に置く / gap: 予定の合間の短い空き時間に詰める */
@@ -161,6 +180,8 @@ export interface DayPlan {
   leave?: number;
   firstEvent?: CalendarEvent;
   wakeSource: WakeSource;
+  /** 遊び以外の予定がない日 */
+  holiday: boolean;
 }
 
 export interface TravelQuestion {
@@ -201,4 +222,6 @@ export interface PlanResult {
   skippedHabits: SkippedHabit[];
   shortfalls: Shortfall[];
   travelQuestions: TravelQuestion[];
+  /** 配置し終わったあとに残った空き時間（すきま時間の候補） */
+  freeGaps: Interval[];
 }

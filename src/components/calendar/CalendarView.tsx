@@ -215,6 +215,7 @@ export default function CalendarView(props: CalendarViewProps) {
       now={() => toFc(Date.now())}
       firstDay={1}
       initialView={props.initialView}
+      views={{ timeGrid3Day: { type: "timeGrid", duration: { days: 3 } } }}
       headerToolbar={false}
       height="100%"
       events={events}
