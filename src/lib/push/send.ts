@@ -19,7 +19,7 @@ function configure() {
   const priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) throw new Error("通知の鍵（VAPID）が設定されていません。");
   // 通知の送り先（Apple など）に伝える連絡先。サイトの URL にしておく
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? "https://calender-app-7kf1.vercel.app", pub, priv);
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? "https://calender-app-umber.vercel.app", pub, priv);
   configured = true;
 }
 

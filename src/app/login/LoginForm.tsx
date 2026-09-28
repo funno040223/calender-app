@@ -20,11 +20,7 @@ export default function LoginForm() {
     const { error } = await createClient().auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) {
-      setError(
-        error.message.includes("Invalid login credentials")
-          ? "メールアドレスかパスワードが違います。"
-          : "ログインできませんでした。時間をおいてもう一度試してください。",
-      );
+      setError(loginErrorMessage(error));
       return;
     }
     // 外部のサイトへは戻さない（同じアプリの中の場所だけ）
@@ -72,4 +68,18 @@ export default function LoginForm() {
       </button>
     </form>
   );
+}
+
+/** 何が起きたかがわかるように、よくある理由ごとに言い分ける */
+function loginErrorMessage(error: { message: string; status?: number; code?: string }): string {
+  if (error.code === "invalid_credentials" || error.message.includes("Invalid login credentials")) {
+    return "メールアドレスかパスワードが違います。";
+  }
+  if (error.status === 429 || error.code === "over_request_rate_limit") {
+    return "短い時間に何度も試したため、一時的に止められています。数分待ってから試してください。";
+  }
+  if (!error.status || error.message.includes("fetch")) {
+    return "Supabase につながりませんでした。電波や、コンテンツブロッカー・VPN などの設定を確かめてください。";
+  }
+  return `ログインできませんでした（${error.code ?? error.status}）。時間をおいてもう一度試してください。`;
 }
