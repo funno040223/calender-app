@@ -1,26 +1,372 @@
 @import "tailwindcss";
 
+/* iOS のカレンダーに近い配色。ダークモードは端末の設定に合わせる */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --bg: #ffffff;
+  --fg: #000000;
+  --muted: #8e8e93;
+  --line: #e5e5ea;
+  --surface: #ffffff;
+  --surface2: #f2f2f7;
+  --accent: #ff3b30;
+  --warn: #fff4e5;
+  --sleep: rgba(88, 86, 214, 0.07);
+  --sleep-text: #6e6ca8;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --cal-own: #007aff;
+  --cal-play: #ff2d55;
+  --cal-class: #ff9500;
+  --cal-task: #af52de;
+  --cal-habit: #34c759;
+  --cal-routine: #30b0c7;
+  --cal-google: #5856d6;
+
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #000000;
+    --fg: #ffffff;
+    --muted: #8e8e93;
+    --line: #2c2c2e;
+    --surface: #1c1c1e;
+    --surface2: #2c2c2e;
+    --accent: #ff453a;
+    --warn: #3a2a12;
+    --sleep: rgba(94, 92, 230, 0.14);
+    --sleep-text: #a5a3f0;
+
+    --cal-own: #0a84ff;
+    --cal-play: #ff375f;
+    --cal-class: #ff9f0a;
+    --cal-task: #bf5af2;
+    --cal-habit: #30d158;
+    --cal-routine: #40c8e0;
+    --cal-google: #5e5ce6;
+
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-accent: var(--accent);
+  --color-warn: var(--warn);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Segoe UI", Meiryo, sans-serif;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS 風のスイッチ */
+.ios-switch {
+  appearance: none;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--line);
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ios-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s;
+}
+.ios-switch:checked {
+  background: #34c759;
+}
+.ios-switch:checked::after {
+  transform: translateX(18px);
+}
+
+/* ---------- FullCalendar ---------- */
+.app-cal .fc {
+  --fc-border-color: var(--line);
+  --fc-page-bg-color: var(--bg);
+  --fc-neutral-bg-color: var(--surface2);
+  --fc-today-bg-color: transparent;
+  --fc-now-indicator-color: var(--accent);
+  --fc-highlight-color: color-mix(in srgb, var(--cal-own) 14%, transparent);
+  --fc-small-font-size: 11px;
+  font-size: 13px;
+  height: 100%;
+}
+.app-cal .fc .fc-scrollgrid {
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+.app-cal .fc-theme-standard td,
+.app-cal .fc-theme-standard th {
+  border-color: var(--line);
+}
+.app-cal .fc .fc-col-header-cell {
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+.app-cal .fc .fc-col-header-cell-cushion {
+  padding: 4px 0;
+  color: var(--fg);
+  text-decoration: none;
+}
+.app-cal .dh {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1;
+}
+.app-cal .dh-wd {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.app-cal .dh-num {
+  font-size: 18px;
+  font-weight: 500;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+.app-cal .dh-num.is-today {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+.app-cal .fc .fc-timegrid-axis-cushion,
+.app-cal .fc .fc-timegrid-slot-label-cushion {
+  font-size: 11px;
+  color: var(--muted);
+}
+.app-cal .fc .fc-timegrid-slot {
+  height: 2.6em;
+}
+.app-cal .fc .fc-timegrid-slot-minor {
+  border-top-style: none;
+}
+.app-cal .fc .fc-timegrid-slot-label {
+  vertical-align: top;
+  border-top: 0;
+}
+.app-cal .fc .fc-timegrid-slot-label-cushion {
+  position: relative;
+  top: -0.7em;
+  background: var(--bg);
+  padding: 0 4px;
+}
+.app-cal .fc .fc-timegrid-now-indicator-line {
+  border-width: 2px 0 0;
+}
+.app-cal .fc .fc-timegrid-now-indicator-arrow {
+  border: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: var(--accent);
+  left: auto;
+  right: 0;
+}
+
+/* 月表示 */
+.app-cal .fc .fc-daygrid-day-top {
+  flex-direction: row;
+  justify-content: center;
+}
+.app-cal .fc .fc-daygrid-day-number {
+  font-size: 13px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--fg);
+  text-decoration: none;
+}
+.app-cal .fc .fc-day-other .fc-daygrid-day-number {
+  color: var(--muted);
+}
+.app-cal .fc .fc-dayGridMonth-view .fc-day-today .fc-daygrid-day-number {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+.app-cal .fc .fc-daygrid-more-link {
+  font-size: 11px;
+  color: var(--muted);
+}
+.app-cal .fc .fc-popover {
+  background: var(--surface);
+  border-color: var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* 予定の見た目（やわらかい角丸のチップ） */
+.app-cal .fc .ev.cal-own {
+  --c: var(--cal-own);
+}
+.app-cal .fc .ev.cal-play {
+  --c: var(--cal-play);
+}
+.app-cal .fc .ev.cal-class {
+  --c: var(--cal-class);
+}
+.app-cal .fc .ev.cal-task {
+  --c: var(--cal-task);
+}
+.app-cal .fc .ev.cal-habit {
+  --c: var(--cal-habit);
+}
+.app-cal .fc .ev.cal-routine {
+  --c: var(--cal-routine);
+}
+.app-cal .fc .ev.cal-google {
+  --c: var(--cal-google);
+}
+.app-cal .fc .fc-event.ev {
+  background: color-mix(in srgb, var(--c) 17%, var(--bg));
+  border: 0;
+  border-left: 3px solid var(--c);
+  border-radius: 5px;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--c) 65%, var(--fg));
+  overflow: hidden;
+}
+.app-cal .fc .fc-timegrid-event-harness-inset .fc-timegrid-event.ev {
+  box-shadow: 0 0 0 1px var(--bg);
+}
+.app-cal .fc .fc-event.ev .fc-event-main {
+  color: inherit;
+  padding: 0;
+}
+.app-cal .fc .fc-event.ev.is-block {
+  background: color-mix(in srgb, var(--c) 11%, var(--bg));
+  border-left-style: dotted;
+}
+.app-cal .fc .fc-event.ev.is-pinned {
+  background: color-mix(in srgb, var(--c) 22%, var(--bg));
+  border-left-style: solid;
+}
+.app-cal .fc .fc-event.ev.is-readonly {
+  cursor: default;
+}
+.app-cal .fc .fc-event.ev.fc-event-mirror,
+.app-cal .fc .fc-event.ev.fc-event-dragging {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  opacity: 0.92;
+}
+.app-cal .fc .fc-timegrid-event .fc-event-main,
+.app-cal .fc .fc-daygrid-event .fc-event-main {
+  padding: 0;
+}
+.app-cal .ev-inner {
+  padding: 2px 4px;
+  line-height: 1.25;
+  font-size: 12px;
+  overflow: hidden;
+}
+.app-cal .ev-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-cal .fc-timegrid-event .ev-title {
+  white-space: normal;
+}
+.app-cal .ev-time,
+.app-cal .ev-loc {
+  font-size: 11px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-cal .ev-pin {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 2px;
+}
+
+/* 月表示の時刻つきの予定は、iOS と同じく点＋タイトル */
+/* .ev を重ねて、枠（is-block / is-pinned）の指定より優先させる */
+.app-cal .fc .fc-daygrid-dot-event.ev.ev.ev {
+  background: transparent;
+  border-left: 0;
+  color: var(--fg);
+  padding: 0 2px;
+}
+.app-cal .ev-dot-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  font-size: 11px;
+  width: 100%;
+}
+.app-cal .ev-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--c);
+  flex-shrink: 0;
+}
+.app-cal .ev-dot-row .ev-title {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+}
+.app-cal .ev-dot-time {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+@media (max-width: 639px) {
+  .app-cal .ev-dot-time {
+    display: none;
+  }
+}
+
+/* 睡眠の帯 */
+.app-cal .fc .fc-bg-event.sleep-band {
+  background: var(--sleep);
+  opacity: 1;
+}
+.app-cal .sleep-label {
+  font-size: 10px;
+  color: var(--sleep-text);
+  padding: 2px 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
