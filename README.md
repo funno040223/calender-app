@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# task-rhythm-app
 
-## Getting Started
+予定と生活リズムから空き時間を毎日計算し、習慣とタスクを自動で配置する個人用のカレンダーアプリです。
+要件と設計は、別にある要件定義のドキュメントにまとめています。
 
-First, run the development server:
+> 現在は開発中です。データはブラウザの中にだけ保存されます（Supabase とつなぐ前の仮の状態）。
+
+## 1. 必要なもの
+
+| もの | 確認のしかた |
+| --- | --- |
+| Mac | — |
+| Node.js（v20 以上。開発では v24 を使用） | `node -v` でバージョンが表示される |
+| npm（Node.js に同梱） | `npm -v` でバージョンが表示される |
+
+Node.js が入っていない場合は、[nodejs.org](https://nodejs.org/) から LTS 版の macOS インストーラーを入れてください。
+
+## 2. 初回のセットアップ
+
+ターミナルでプロジェクトのフォルダーに移動し、必要なパッケージを入れます。
+
+```bash
+cd ~/Desktop/task-rhythm-app
+```
+
+```bash
+npm install
+```
+
+## 3. アプリを動かす（Mac）
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+起動したら、ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
+止めるときは、ターミナルで `Ctrl + C` を押します。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 4. テストを動かす
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+配置エンジン（起床・就寝の計算、タスクの配置、クイック追加の読み取り）のテストです。
 
-## Learn More
+```bash
+npm test
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 5. 公開前の確認
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+型チェック、lint、本番用のビルドがすべて通ることを確認します。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npx tsc --noEmit -p .
+```
 
-## Deploy on Vercel
+```bash
+npm run lint
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 6. iPhone で使う（準備中）
+
+iPhone のホーム画面に追加して通知を受け取るには、HTTPS で公開されている必要があります。
+Vercel で公開したあとに、次の手順で追加できるようにする予定です。
+
+1. iPhone の Safari で、公開したアプリの URL を開く
+2. 共有ボタンから「ホーム画面に追加」を選ぶ
+3. ホーム画面のアイコンから開き、通知を許可する
+
+## 7. 今後の設定（準備中）
+
+次の段階で、ここに手順を追加します。
+
+- **Supabase**：データの保存、定期実行（pg_cron）
+- **Vercel と GitHub**：公開と自動デプロイ
+- **Google カレンダーの取り込み**：Google カレンダーの設定画面にある「iCal 形式の非公開アドレス」を、アプリの設定画面に入力する。この URL を知っている人は誰でも予定を読めるので、チャットや git には載せない
+
+## フォルダーの構成
+
+| 場所 | 中身 |
+| --- | --- |
+| `src/lib/scheduler/` | 配置エンジン（画面やデータベースに依存しない純粋な TypeScript） |
+| `src/app/` | 画面（Next.js の App Router） |
