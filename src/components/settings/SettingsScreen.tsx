@@ -29,6 +29,7 @@ export default function SettingsScreen() {
     avoid: `${state.avoidWindows.length}件`,
     treats: `${state.treats.length}件`,
     routine: `${state.routineSteps.length}つ`,
+    notifications: "",
     basic: `睡眠${formatMinutes(s.sleepMinutes)}・${formatMinuteOfDay(s.defaultWakeMinuteOfDay)}起床`,
   };
 
@@ -36,6 +37,7 @@ export default function SettingsScreen() {
     { title: "予定", ids: ["calendars", "timetable", "places"] },
     { title: "生活のリズム", ids: ["habits", "avoid", "basic"] },
     { title: "朝", ids: ["routine", "treats"] },
+    { title: "通知", ids: ["notifications"] },
   ];
 
   return (

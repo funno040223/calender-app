@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 秘密の値が入る SQL（pg_cron の合言葉など）
+/supabase/local/

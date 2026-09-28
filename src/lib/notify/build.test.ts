@@ -1,0 +1,60 @@
+import { describe, expect, it } from "vitest";
+import { DEFAULT_SETTINGS, type DayPlan } from "@/lib/scheduler";
+import { jst } from "@/lib/scheduler/test-helpers";
+import { buildNotices, type NoticeInput } from "./build";
+
+const day = (d: number, wakeH: number, bedH: number): DayPlan => ({
+  dayStart: jst(2026, 10, d),
+  wake: jst(2026, 10, d, wakeH),
+  bed: jst(2026, 10, d, bedH),
+  wakeSource: "default",
+  holiday: false,
+});
+
+function input(overrides: Partial<NoticeInput> = {}): NoticeInput {
+  return {
+    now: jst(2026, 10, 1, 6),
+    result: { dayPlans: [day(1, 8, 25), day(2, 8, 25), day(3, 8, 25)], blocks: [], shortfalls: [] },
+    events: [],
+    places: [{ id: "p1", name: "大学", keywords: ["キャンパス"], travelMinutes: 45 }],
+    settings: DEFAULT_SETTINGS,
+    ...overrides,
+  };
+}
+
+describe("buildNotices", () => {
+  it("在宅の予定は15分前、外出の予定は家を出る15分前に知らせる", () => {
+    const home = { id: "a", title: "オンライン面談", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 14) };
+    const away = { id: "b", title: "ゼミ", start: jst(2026, 10, 1, 16), end: jst(2026, 10, 1, 17), location: "キャンパス" };
+    const got = buildNotices(input({ events: [home, away] })).filter((n) => n.key.startsWith("event:"));
+    expect(got.map((n) => n.at)).toEqual([jst(2026, 10, 1, 12, 45), jst(2026, 10, 1, 15)]);
+    expect(got[1].title).toBe("15:15 に出発：ゼミ");
+  });
+
+  it("習慣とタスクの枠は始まりに知らせ、朝ルーティンは知らせない", () => {
+    const blocks = [
+      { kind: "routine" as const, refId: "r", title: "朝ルーティン", start: jst(2026, 10, 1, 8), end: jst(2026, 10, 1, 8, 15) },
+      { kind: "task" as const, refId: "t1", title: "レポート", start: jst(2026, 10, 1, 10), end: jst(2026, 10, 1, 11) },
+    ];
+    const got = buildNotices(input({ result: { ...input().result, blocks } })).filter((n) => n.key.startsWith("block:"));
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ at: jst(2026, 10, 1, 10), title: "レポート", body: "10:00〜11:00" });
+  });
+
+  it("毎朝、起床の時刻にまとめを送る", () => {
+    const ev = { id: "a", title: "授業", start: jst(2026, 10, 2, 10, 40), end: jst(2026, 10, 2, 12, 10) };
+    const got = buildNotices(input({ events: [ev] })).filter((n) => n.key.startsWith("morning:"));
+    expect(got.map((n) => n.at)).toEqual([jst(2026, 10, 1, 8), jst(2026, 10, 2, 8)]);
+    expect(got[1].body).toContain("予定1件（最初は 10:40 授業）");
+  });
+
+  it("就寝から次の起床までと、過ぎた時刻と、48時間より先は送らない", () => {
+    const events = [
+      { id: "late", title: "夜の配信", start: jst(2026, 10, 2, 2), end: jst(2026, 10, 2, 3) },
+      { id: "past", title: "もう始まった", start: jst(2026, 10, 1, 6, 10), end: jst(2026, 10, 1, 7) },
+      { id: "far", title: "先の予定", start: jst(2026, 10, 3, 12), end: jst(2026, 10, 3, 13) },
+      { id: "allday", title: "終日", start: jst(2026, 10, 1), end: jst(2026, 10, 2), allDay: true },
+    ];
+    expect(buildNotices(input({ events })).filter((n) => n.key.startsWith("event:"))).toEqual([]);
+  });
+});

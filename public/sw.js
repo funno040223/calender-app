@@ -1,8 +1,8 @@
 // 電波がなくても画面を開けるようにする。データは localStorage の控えから出るので、ここでは画面の部品だけを持つ
 // 中身を変えたら VERSION を上げる（古い控えを消すため）
-const VERSION = "v2";
+const VERSION = "v3";
 // 電波がなくても移れるように、開いたときにまとめて控える画面
-const SHELL = ["/", "/calendar", "/tasks", "/settings", "/settings/basic", "/settings/routine", "/settings/habits", "/settings/places", "/settings/timetable", "/settings/avoid", "/settings/treats", "/settings/calendars"];
+const SHELL = ["/", "/calendar", "/tasks", "/settings", "/settings/basic", "/settings/routine", "/settings/habits", "/settings/places", "/settings/timetable", "/settings/avoid", "/settings/treats", "/settings/calendars", "/settings/notifications"];
 const PAGES = `pages-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 
@@ -92,3 +92,39 @@ async function networkFirst(req) {
     );
   }
 }
+
+// 通知を受け取って出す（サーバーの /api/push/dispatch から届く）
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: event.data?.text() ?? "リズム カレンダー" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "リズム カレンダー", {
+      body: data.body || "",
+      tag: data.tag,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/" },
+    }),
+  );
+});
+
+// 押したら、開いているアプリに切り替える（なければ開く）
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    (async () => {
+      const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const win = wins.find((w) => new URL(w.url).origin === self.location.origin);
+      if (win) {
+        await win.focus();
+        return win.navigate(url).catch(() => undefined);
+      }
+      return self.clients.openWindow(url);
+    })(),
+  );
+});

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadRemote, saveRemote } from "@/lib/sync/remote";
 import { syncImports, type SyncResult } from "@/lib/sync/ical";
+import { saveSchedule } from "@/lib/sync/push";
+import { buildNotices } from "@/lib/notify/build";
 import { DEFAULT_SETTINGS, plan, type Block, type CalendarEvent, type PlanResult, type Settings } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
 import { buildClassEvents, classEventsForPlan, type ClassEvent, type Course, type MockData } from "./model";
@@ -163,6 +165,15 @@ function saveData(d: MockData) {
   }
 }
 
+/** plan() に渡す予定（自分の予定・授業・取り込んだ予定）。通知もこれを使う */
+export function planEvents(data: Pick<MockData, "events">, classEvents: ClassEvent[], googleEvents: CalendarEvent[]): CalendarEvent[] {
+  return [
+    ...data.events.map((e) => ({ ...e, play: e.calendarId === "play" })),
+    ...classEventsForPlan(classEvents),
+    ...googleEvents,
+  ];
+}
+
 /** エンジンで組み直す。配置のロジックはすべて plan() に任せる */
 function replan(data: MockData, googleEvents: CalendarEvent[], now: number): MockState {
   const classEvents = buildClassEvents(data.courses, data.periods);
@@ -178,11 +189,7 @@ function replan(data: MockData, googleEvents: CalendarEvent[], now: number): Moc
   const result = plan({
     now,
     settings: data.settings,
-    events: [
-      ...data.events.map((e) => ({ ...e, play: e.calendarId === "play" })),
-      ...classEventsForPlan(classEvents),
-      ...googleEvents,
-    ],
+    events: planEvents(data, classEvents, googleEvents),
     places: data.places,
     habits: data.habits,
     tags: TAGS,
@@ -238,6 +245,8 @@ export type SyncStatus = "loading" | "synced" | "saving" | "offline";
 
 const EDITED_AT_KEY = `${STORAGE_KEY}:editedAt`;
 const SAVE_DELAY_MS = 800;
+/** 通知の一覧は、組み直しが落ち着いてから送る */
+const NOTICE_DELAY_MS = 3000;
 
 function readEditedAt(): number {
   try {
@@ -371,6 +380,28 @@ export function useMockStore() {
       window.removeEventListener("online", onOnline);
     };
   }, [pull, refreshImports]);
+
+  // 組み直すたびに、これから送る通知の一覧をサーバーに置く（送るのはサーバーの定期実行）
+  const noticesSent = useRef("");
+  useEffect(() => {
+    if (!ready.current || sync === "loading") return;
+    const t = window.setTimeout(() => {
+      const items = buildNotices({
+        now: Date.now(),
+        result: state.result,
+        events: planEvents(state, state.classEvents, state.googleEvents),
+        places: state.places,
+        settings: state.settings,
+      });
+      const json = JSON.stringify(items);
+      if (json === noticesSent.current) return;
+      saveSchedule(items).then(
+        () => (noticesSent.current = json),
+        (e) => console.warn("通知の一覧を保存できませんでした", e instanceof Error ? e.message : e),
+      );
+    }, NOTICE_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [state, sync]);
 
   // 朝に開き直したときなど、古い「今」のままにしない
   useEffect(() => {

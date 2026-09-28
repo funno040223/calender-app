@@ -10,9 +10,11 @@ import AvoidWindows from "./AvoidWindows";
 import Treats from "./Treats";
 import RoutineSteps from "./RoutineSteps";
 import BasicSettings from "./BasicSettings";
+import Notifications from "./Notifications";
 
 const BODY: Record<SectionId, () => React.ReactNode> = {
   calendars: CalendarSources,
+  notifications: Notifications,
   timetable: Timetable,
   places: Places,
   habits: Habits,
