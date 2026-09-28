@@ -9,6 +9,7 @@ import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
 import { warningCount } from "@/components/today/Notices";
 import { AppContext, type AppContextValue } from "./StoreProvider";
+import OfflineNotice from "./OfflineNotice";
 import { CalendarIcon, SettingsIcon, TasksIcon, TodayIcon } from "./icons";
 
 const TABS = [
@@ -87,6 +88,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1">{children}</div>
+          <OfflineNotice />
           {showQuickAdd && <QuickAddBar onAdd={addTask} />}
 
           {/* スマホ：iOS 風の下のタブ */}

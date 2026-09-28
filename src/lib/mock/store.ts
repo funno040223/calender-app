@@ -350,14 +350,26 @@ export function useMockStore() {
   }, [state, push]);
 
   // 別の端末で変えた内容を、戻ってきたときに読み直す
+  // つながらなかったあとは、この端末で変えた分が残っているかもしれないので、比べ直して送る
+  const syncRef = useRef(sync);
+  useEffect(() => {
+    syncRef.current = sync;
+  }, [sync]);
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible" || !ready.current) return;
-      void pull(false);
+      void pull(syncRef.current === "offline");
       if (Date.now() - lastImportAt.current > IMPORT_EVERY_MS) void refreshImports();
     };
+    const onOnline = () => {
+      if (ready.current && syncRef.current === "offline") void pull(true);
+    };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onOnline);
+    };
   }, [pull, refreshImports]);
 
   // 朝に開き直したときなど、古い「今」のままにしない
