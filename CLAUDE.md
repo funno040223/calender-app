@@ -44,10 +44,10 @@
 - どちらの表も RLS で本人だけ。未ログインでは読めず書けないことを確認済み
 
 ## 状況（2026-09-28 時点）
-- ブランチ `feat/screens` にすべての作業がある（main は最初のひな形のまま）。GitHub にはまだ push していない
-- 完了：要件定義・設計、配置エンジン、画面（今日・カレンダー3日/週/月・タスク・設定）、ログイン必須、Supabase への保存、Google カレンダーの取り込み（ユーザーの実カレンダーを1件登録済み）
+- GitHub の非公開リポジトリ `funno040223/calender-app`（origin）。`main` と `feat/screens` は同じ内容。push はユーザーが自分の端末で行う（トークン認証。Mac のキーチェーンに保存済み）
+- 公開先：https://calender-app-7kf1.vercel.app（Vercel。`main` を公開。環境変数は2つとも設定済み）。Supabase の Site URL / Redirect URLs も設定済み。iPhone の Safari でもログインとデータの表示を確認済み
+- 完了：要件定義・設計、配置エンジン、画面（今日・カレンダー3日/週/月・タスク・設定）、ログイン必須、Supabase への保存、Google カレンダーの取り込み（ユーザーの実カレンダーを1件登録済み）、公開（ステップ7）
 - 残り（完成まで）：
-  7. 公開：GitHub の非公開リポジトリに push（**事前に確認**）→ Vercel に接続、環境変数、Supabase の Auth の URL 設定（Site URL / Redirect URLs）
   8. iPhone 対応：manifest、アイコン、service worker、ホーム画面に追加、オフライン表示
   9. 通知と定期実行：Web Push（予定の前・枠の終わり）、pg_cron（毎朝の組み直し、取り込み）
   10. アプリの予定の iCal 配信（推測できないトークン付き URL、読み取り専用）
