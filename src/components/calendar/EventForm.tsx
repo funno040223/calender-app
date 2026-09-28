@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import type { OwnEvent } from "@/lib/mock/store";
 import { OWN_CALENDARS, type OwnCalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, fromInputDateTime, newId, toInputDate, toInputDateTime } from "@/lib/mock/jst";
-import Sheet from "./Sheet";
+import Sheet from "@/components/ui/Sheet";
 
 interface Draft {
   calendarId: OwnCalendarId;
@@ -16,6 +16,7 @@ interface Draft {
   description: string;
   travelMinutes: string;
   atHome: boolean;
+  awayFromHome: boolean;
 }
 
 function toDraft(ev: OwnEvent): Draft {
@@ -30,6 +31,7 @@ function toDraft(ev: OwnEvent): Draft {
     description: ev.description ?? "",
     travelMinutes: ev.travelMinutes === undefined ? "" : String(ev.travelMinutes),
     atHome: !!ev.atHome,
+    awayFromHome: !!ev.awayFromHome,
   };
 }
 
@@ -42,7 +44,10 @@ export default function EventForm({
   onSave,
   onDelete,
   onClose,
+  extra,
 }: {
+  /** 関連するタスクなど、フォームの下に出すもの */
+  extra?: ReactNode;
   initial: OwnEvent;
   isNew: boolean;
   onSave: (ev: OwnEvent) => void;
@@ -88,6 +93,7 @@ export default function EventForm({
       ...(d.description.trim() ? { description: d.description.trim() } : {}),
       ...(travel !== undefined ? { travelMinutes: travel } : {}),
       ...(d.atHome ? { atHome: true } : {}),
+      ...(d.allDay && d.awayFromHome ? { awayFromHome: true } : {}),
     };
     onSave(ev);
   };
@@ -147,6 +153,15 @@ export default function EventForm({
             onChange={(e) => set("end", e.target.value)}
           />
         </label>
+        {d.allDay && (
+          <label className="flex items-center justify-between gap-3 text-[15px]">
+            <span>
+              <span className="block">家にいない（帰省・旅行など）</span>
+              <span className="block text-[12px] text-muted">この間は自炊と洗濯を入れず、食事は外食・お弁当にします</span>
+            </span>
+            <input type="checkbox" className="ios-switch" checked={d.awayFromHome} onChange={(e) => set("awayFromHome", e.target.checked)} />
+          </label>
+        )}
         <input className={inputCls} placeholder="場所" aria-label="場所" value={d.location} onChange={(e) => set("location", e.target.value)} />
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1 text-[13px] text-muted">
@@ -174,6 +189,7 @@ export default function EventForm({
           value={d.description}
           onChange={(e) => set("description", e.target.value)}
         />
+        {extra}
         {error && <p className="text-[14px] text-accent">{error}</p>}
         <button type="submit" className="rounded-xl bg-accent py-2.5 text-[16px] font-semibold text-white">
           {isNew ? "追加" : "保存"}

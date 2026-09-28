@@ -1,0 +1,420 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import type { DayPlan, WakeSource } from "@/lib/scheduler";
+import { useApp } from "@/components/app/StoreProvider";
+import { LinkIcon } from "@/components/app/icons";
+import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
+import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
+import { TREAT_CATEGORIES, dateKeyOf, treatFor, wakeStreak, type WakeLog } from "@/lib/mock/model";
+import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
+import { Group, ScreenHeader } from "@/components/ui/controls";
+import Notices from "./Notices";
+
+const WAKE_REASON: Record<WakeSource, string> = {
+  away: "外出の予定に合わせて",
+  home: "在宅の予定に合わせて",
+  neighbors: "前後の日とそろえて",
+  default: "予定がないので、いつもの時刻",
+  fixed: "1週間の起床をそろえて",
+};
+
+const colorOf = (id: CalendarId) => CALENDARS.find((c) => c.id === id)?.colorVar ?? "var(--muted)";
+
+/** 1分ごとに「今」を進める */
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+  return now;
+}
+
+/** 日付をまたいだ時刻には「翌」をつける */
+function timeOn(day: number, ms: number) {
+  return `${ms >= day + DAY_MS ? "翌" : ""}${formatTime(ms)}`;
+}
+
+function SleepCard({ day, next, today }: { day: DayPlan; next?: DayPlan; today: number }) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="rounded-xl bg-surface px-4 py-3">
+        <p className="text-[13px] font-medium text-muted">起床</p>
+        <p className="text-[34px] font-semibold leading-tight tabular-nums">{formatTime(day.wake)}</p>
+        <p className="text-[12px] leading-snug text-muted">{WAKE_REASON[day.wakeSource]}</p>
+      </div>
+      <div className="rounded-xl bg-surface px-4 py-3">
+        <p className="text-[13px] font-medium text-muted">就寝</p>
+        <p className="text-[34px] font-semibold leading-tight tabular-nums">{timeOn(today, day.bed)}</p>
+        <p className="text-[12px] leading-snug text-muted">{next ? `明日は${formatTime(next.wake)}に起きる` : ""}</p>
+      </div>
+      {day.firstEvent && (
+        <p className="col-span-2 px-1 text-[13px] text-muted">
+          最初の予定は{formatTime(day.firstEvent.start)}「{day.firstEvent.title}」
+          {day.leave ? `。${formatTime(day.leave)}に家を出ます` : ""}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CheckCircle({ on }: { on: boolean }) {
+  return (
+    <span
+      className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 ${on ? "border-ok bg-ok" : "border-line"}`}
+    >
+      {on && (
+        <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden>
+          <path d="M2.5 6.2 5 8.5l4.5-5" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
+  const { state, patch } = useApp();
+  const today = dayStartOf(now);
+  const key = dateKeyOf(today);
+  const log: WakeLog = state.wakeLogs.find((l) => l.date === key) ?? { date: key, doneStepIds: [] };
+  const streak = wakeStreak(state.wakeLogs, today);
+  const steps = state.routineSteps;
+
+  const setLog = (fn: (l: WakeLog) => WakeLog) =>
+    patch((d) => {
+      const cur = d.wakeLogs.find((l) => l.date === key) ?? { date: key, doneStepIds: [] };
+      const next = fn(cur);
+      // 記録は1年ぶんだけ残す
+      const rest = d.wakeLogs.filter((l) => l.date !== key);
+      return { wakeLogs: [...rest, next].sort((a, b) => a.date.localeCompare(b.date)).slice(-400) };
+    });
+
+  const toggleStep = (id: string) =>
+    setLog((l) => {
+      const done = l.doneStepIds.includes(id) ? l.doneStepIds.filter((x) => x !== id) : [...l.doneStepIds, id];
+      const all = steps.length > 0 && steps.every((s) => done.includes(s.id));
+      const next: WakeLog = { ...l, doneStepIds: done };
+      if (all) next.routineDoneAt = l.routineDoneAt ?? Date.now();
+      else delete next.routineDoneAt;
+      return next;
+    });
+
+  const lateBy = log.wokeAt !== undefined && day ? Math.round((log.wokeAt - day.wake) / MIN) : 0;
+
+  return (
+    <Group
+      title={
+        <span className="flex items-center justify-between">
+          朝ルーティン
+          {streak > 0 && <span className="font-semibold text-ok">連続 {streak}日</span>}
+        </span>
+      }
+    >
+      <div className="px-4 py-3">
+        {log.wokeAt === undefined ? (
+          <button
+            type="button"
+            onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now() }))}
+            className="w-full rounded-2xl bg-accent py-4 text-[20px] font-bold text-white shadow-sm active:opacity-80"
+          >
+            起きた
+          </button>
+        ) : (
+          <div className="flex items-center gap-3">
+            <CheckCircle on />
+            <p className="min-w-0 flex-1 text-[15px]">
+              {formatTime(log.wokeAt)}に起きました
+              {day && Math.abs(lateBy) >= 5 && (
+                <span className="text-muted">（予定より{formatMinutes(Math.abs(lateBy))}{lateBy > 0 ? "遅く" : "早く"}）</span>
+              )}
+            </p>
+            <button
+              type="button"
+              className="shrink-0 text-[13px] text-muted underline"
+              onClick={() =>
+                setLog((l) => {
+                  const next = { ...l };
+                  delete next.wokeAt;
+                  return next;
+                })
+              }
+            >
+              取り消す
+            </button>
+          </div>
+        )}
+      </div>
+      {steps.length === 0 ? (
+        <p className="px-4 py-3 text-[14px] text-muted">
+          手順は<Link href="/settings/routine" className="text-accent">設定</Link>で追加できます。
+        </p>
+      ) : (
+        steps.map((s) => {
+          const on = log.doneStepIds.includes(s.id);
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="checkbox"
+              aria-checked={on}
+              onClick={() => toggleStep(s.id)}
+              className="flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left active:bg-surface2"
+            >
+              <CheckCircle on={on} />
+              <span className={`text-[16px] ${on ? "text-muted line-through" : ""}`}>{s.title}</span>
+            </button>
+          );
+        })
+      )}
+      {log.routineDoneAt !== undefined && (
+        <p className="px-4 py-2.5 text-[14px] font-medium text-ok">{formatTime(log.routineDoneAt)}に朝ルーティンが終わりました</p>
+      )}
+    </Group>
+  );
+}
+
+function TreatCard({ today }: { today: number }) {
+  const { state } = useApp();
+  const treat = treatFor(today, state.treats);
+  return (
+    <Group title="今日の楽しみ">
+      {treat ? (
+        <div className="px-4 py-3">
+          <p className="text-[12px] font-medium text-muted">{TREAT_CATEGORIES.find((c) => c.id === treat.category)?.label}</p>
+          <p className="text-[20px] font-semibold leading-snug">{treat.name}</p>
+          {treat.condition && <p className="mt-0.5 text-[13px] text-muted">{treat.condition}</p>}
+        </div>
+      ) : (
+        <p className="px-4 py-3 text-[14px] text-muted">
+          <Link href="/settings/treats" className="text-accent">楽しみのリスト</Link>に追加すると、毎日1つ選びます。
+        </p>
+      )}
+    </Group>
+  );
+}
+
+interface TimelineItem {
+  key: string;
+  title: string;
+  start: number;
+  end: number;
+  color: string;
+  sub?: string;
+  relatedCount?: number;
+  taskId?: string;
+  /** 任意参加で参加しない回など、空き時間として扱うもの */
+  dim?: boolean;
+}
+
+function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
+  const { state, openTask } = useApp();
+  const events = eventIndex(state);
+  const related = tasksByEvent(state.tasks, events);
+  const items: TimelineItem[] = [];
+
+  for (const r of allEventRefs(state)) {
+    const ev = r.event;
+    if (ev.allDay || ev.end <= now || ev.start >= dayEnd) continue;
+    items.push({
+      key: `${r.source}:${ev.id}`,
+      title: ev.title,
+      start: ev.start,
+      end: ev.end,
+      color: colorOf(r.calendarId),
+      sub:
+        [r.skipped ? "任意参加・参加しない" : r.source === "class" ? "授業" : r.source === "google" ? "取り込み" : undefined, ev.location]
+          .filter(Boolean)
+          .join("・") || undefined,
+      dim: r.skipped,
+      relatedCount: related.get(ev.id)?.length,
+    });
+  }
+  for (const b of state.result.blocks) {
+    if (b.end <= now || b.start >= dayEnd) continue;
+    const task = b.kind === "task" ? state.tasks.find((t) => t.id === b.refId) : undefined;
+    const rel = task?.relatedEventId ? events.get(task.relatedEventId) : undefined;
+    items.push({
+      key: `block:${b.kind}:${b.refId}:${b.start}`,
+      title: b.title,
+      start: b.start,
+      end: b.end,
+      color: b.kind === "task" ? (rel ? colorOf(rel.calendarId) : "var(--cal-task)") : b.kind === "habit" ? "var(--cal-habit)" : "var(--cal-routine)",
+      sub:
+        b.kind === "task"
+          ? rel
+            ? `→ ${rel.event.title} ${formatEventWhen(rel.event)}`
+            : "タスク"
+          : b.kind === "habit"
+            ? "習慣"
+            : undefined,
+      taskId: task?.id,
+    });
+  }
+  items.sort((a, b) => a.start - b.start || a.end - b.end);
+  const nextIdx = items.findIndex((i) => i.start > now && !i.dim);
+  const allDay = allEventRefs(state).filter((r) => r.event.allDay && r.event.start < dayEnd && r.event.end > now);
+
+  return (
+    <Group title="今日の流れ">
+      {allDay.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-4 py-2.5">
+          {allDay.map((r) => (
+            <span key={r.event.id} className="rounded-md px-2 py-0.5 text-[13px]" style={{ background: `color-mix(in srgb, ${colorOf(r.calendarId)} 18%, transparent)` }}>
+              終日：{r.event.title}
+            </span>
+          ))}
+        </div>
+      )}
+      {items.length === 0 ? (
+        <p className="px-4 py-3 text-[14px] text-muted">今日の残りの予定はありません。</p>
+      ) : (
+        <ol className="flex flex-col py-1">
+          {items.map((it, i) => {
+            const current = it.start <= now && it.end > now;
+            const next = i === nextIdx;
+            const body = (
+              <>
+                <div className="w-12 shrink-0 pt-0.5 text-right text-[13px] tabular-nums text-muted">{formatTime(it.start)}</div>
+                <div className="relative flex w-3 shrink-0 justify-center self-stretch">
+                  <span className="absolute inset-y-0 w-px bg-line" />
+                  <span className="relative mt-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-surface" style={{ background: it.color }} />
+                </div>
+                <div
+                  className={`min-w-0 flex-1 rounded-lg px-2.5 py-1.5 ${next ? "ring-2 ring-accent" : ""}`}
+                  style={{ background: `color-mix(in srgb, ${it.color} ${current || next ? 16 : 9}%, transparent)` }}
+                >
+                  <p className="flex items-center gap-1.5 text-[15px] font-medium">
+                    <span className="min-w-0 truncate">{it.title}</span>
+                    {it.relatedCount ? (
+                      <span className="flex shrink-0 items-center gap-0.5 text-[12px] text-muted" aria-label={`関連するタスク${it.relatedCount}件`}>
+                        <LinkIcon size={11} />
+                        {it.relatedCount}
+                      </span>
+                    ) : null}
+                    {current && <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 text-[11px] leading-[18px] text-white">いま</span>}
+                    {next && <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 text-[11px] leading-[18px] text-white">次</span>}
+                  </p>
+                  <p className="truncate text-[12px] text-muted">
+                    {formatTime(it.start)}〜{formatTime(it.end)}
+                    {it.sub ? `・${it.sub}` : ""}
+                  </p>
+                </div>
+              </>
+            );
+            return (
+              <li key={it.key} className={it.dim ? "opacity-55" : undefined}>
+                {it.taskId ? (
+                  <button type="button" onClick={() => openTask(it.taskId)} className="flex w-full gap-2 px-3 py-1 text-left">
+                    {body}
+                  </button>
+                ) : (
+                  <div className="flex gap-2 px-3 py-1">{body}</div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </Group>
+  );
+}
+
+function Gaps({ now, day }: { now: number; day: DayPlan }) {
+  const { state } = useApp();
+  const gaps = state.result.freeGaps
+    .filter((g) => g.end > now && g.start < day.bed)
+    .map((g) => ({ start: Math.max(g.start, now), end: g.end }))
+    .filter((g) => g.end - g.start >= 20 * MIN);
+  return (
+    <Group title="今日のすきま時間" footer="カレンダーには入れません。空いたときの候補です。">
+      {gaps.length === 0 ? (
+        <p className="px-4 py-3 text-[14px] text-muted">今日はまとまった空き時間がありません。</p>
+      ) : (
+        gaps.map((g) => {
+          const len = (g.end - g.start) / MIN;
+          return (
+            <div key={g.start} className="flex items-center gap-3 px-4 py-2.5">
+              <span className="shrink-0 whitespace-nowrap text-[15px] tabular-nums">
+                {formatTime(g.start)}〜{formatTime(g.end)}
+              </span>
+              <span className="min-w-0 flex-1 text-[14px] text-muted">
+                {formatMinutes(len)}・{len >= 60 ? "勉強や読書をまとめて" : "本を少し・単語の復習に"}
+              </span>
+            </div>
+          );
+        })
+      )}
+    </Group>
+  );
+}
+
+/** 今日の行動ポイント。上限を超える日は、発散の時間を提案する */
+function EnergyCard({ today }: { today: number }) {
+  const { state } = useApp();
+  const e = state.result.dayEnergy.find((x) => x.dayStart === today);
+  if (!e) return null;
+  const ratio = Math.min(1, e.used / e.budget);
+  const over = e.used > e.budget;
+  return (
+    <Group title="今日の行動ポイント">
+      <div className="flex flex-col gap-2 px-4 py-3">
+        <p className="text-[15px] tabular-nums">
+          <span className="text-[22px] font-semibold">{e.used}</span>
+          <span className="text-muted"> / {e.budget} ポイント</span>
+        </p>
+        <div className="h-2 overflow-hidden rounded-full bg-surface2" role="meter" aria-valuenow={e.used} aria-valuemin={0} aria-valuemax={e.budget} aria-label="今日の行動ポイント">
+          <div className={`h-full rounded-full ${over ? "bg-accent" : "bg-ok"}`} style={{ width: `${ratio * 100}%` }} />
+        </div>
+        {over ? (
+          <p className="text-[14px]">
+            今日はしんどそうです。
+            {e.suggestion
+              ? `${formatTime(e.suggestion.start)}〜${formatTime(e.suggestion.end)} に「${e.suggestion.name}」で少し回復しましょう。`
+              : "休憩を多めにとってください。"}
+          </p>
+        ) : (
+          <p className="text-[13px] text-muted">あと {Math.round((e.budget - e.used) * 10) / 10} ポイントの余裕があります。</p>
+        )}
+      </div>
+    </Group>
+  );
+}
+
+export default function TodayScreen() {
+  const { state, update, openTask } = useApp();
+  const now = useNow();
+  const today = dayStartOf(now);
+  const days = state.result.dayPlans;
+  const idx = days.findIndex((d) => d.dayStart === today);
+  const day = idx >= 0 ? days[idx] : undefined;
+  const dayEnd = Math.max(day?.bed ?? 0, today + DAY_MS);
+
+  const registerPlace = (location: string, minutes: number) =>
+    update((d) => ({
+      ...d,
+      places: [...d.places, { id: newId("place"), name: location, keywords: [location], travelMinutes: minutes }],
+    }));
+
+  return (
+    <div className="h-full overflow-y-auto bg-grouped">
+      <ScreenHeader title="今日" sub={formatDate(today)} width="max-w-5xl" />
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
+        <div className="flex flex-col gap-6">
+          {day && <SleepCard day={day} next={days[idx + 1]} today={today} />}
+          <EnergyCard today={today} />
+          <MorningCard day={day} now={now} />
+          <TreatCard today={today} />
+        </div>
+        <div className="flex flex-col gap-6">
+          <Timeline now={now} dayEnd={dayEnd} />
+          <Group title="お知らせ">
+            <Notices state={state} onRegisterPlace={registerPlace} onOpenTask={openTask} />
+          </Group>
+          {day && <Gaps now={now} day={day} />}
+        </div>
+      </div>
+    </div>
+  );
+}

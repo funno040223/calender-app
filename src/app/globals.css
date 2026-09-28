@@ -10,6 +10,9 @@
   --surface2: #f2f2f7;
   --accent: #ff3b30;
   --warn: #fff4e5;
+  /* iOS の設定アプリのような、グループ表示の背景 */
+  --grouped: #f2f2f7;
+  --ok: #34c759;
   --sleep: rgba(88, 86, 214, 0.07);
   --sleep-text: #6e6ca8;
   /* 予定のチップの色の濃さ（通常・アプリが置いた枠・固定した枠） */
@@ -38,6 +41,8 @@
     --surface2: #2c2c2e;
     --accent: #ff453a;
     --warn: #3a2a12;
+    --grouped: #000000;
+    --ok: #30d158;
     --sleep: rgba(94, 92, 230, 0.14);
     --sleep-text: #a5a3f0;
     --ev-mix: 30%;
@@ -65,6 +70,8 @@
   --color-surface2: var(--surface2);
   --color-accent: var(--accent);
   --color-warn: var(--warn);
+  --color-grouped: var(--grouped);
+  --color-ok: var(--ok);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "Noto Sans JP", "Segoe UI", Meiryo, sans-serif;
 }
@@ -263,7 +270,8 @@ body {
 .app-cal .fc .fc-event.ev {
   background: color-mix(in srgb, var(--c) var(--ev-mix), var(--bg));
   border: 0;
-  border-left: 3px solid var(--c);
+  /* 関連する予定があるタスクは、左の線を予定の色にする */
+  border-left: 3px solid var(--stripe, var(--c));
   border-radius: 5px;
   box-shadow: none;
   color: color-mix(in srgb, var(--c) 65%, var(--fg));
@@ -286,6 +294,47 @@ body {
 }
 .app-cal .fc .fc-event.ev.is-readonly {
   cursor: default;
+}
+/* 任意参加で参加しない授業の回。空き時間として扱うので薄く、点線にする */
+.app-cal .fc .fc-event.ev.is-optional {
+  background: color-mix(in srgb, var(--c) 6%, var(--bg));
+  border: 1px dashed color-mix(in srgb, var(--c) 60%, transparent);
+  border-left: 3px dashed var(--c);
+  color: color-mix(in srgb, var(--c) 45%, var(--muted));
+  cursor: pointer;
+}
+.app-cal .fc .ev.rel-own {
+  --stripe: var(--cal-own);
+}
+.app-cal .fc .ev.rel-play {
+  --stripe: var(--cal-play);
+}
+.app-cal .fc .ev.rel-class {
+  --stripe: var(--cal-class);
+}
+.app-cal .fc .ev.rel-google {
+  --stripe: var(--cal-google);
+}
+.app-cal .fc .fc-event.ev {
+  transition: opacity 0.15s;
+}
+.app-cal .ev-rel {
+  font-size: 11px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--stripe, var(--c)) 75%, var(--fg));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-cal .ev-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: -1px;
+  opacity: 0.9;
 }
 .app-cal .fc .fc-event.ev.fc-event-mirror,
 .app-cal .fc .fc-event.ev.fc-event-dragging {

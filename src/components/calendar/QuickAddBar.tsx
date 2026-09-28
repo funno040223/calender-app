@@ -60,7 +60,7 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
   return (
     <form
       onSubmit={submit}
-      className="border-t border-line bg-surface/95 px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] backdrop-blur"
+      className="border-t border-line bg-surface/95 px-3 pt-2 pb-2 backdrop-blur sm:pb-[max(8px,env(safe-area-inset-bottom))]"
     >
       <div className="flex items-center gap-2">
         <input
