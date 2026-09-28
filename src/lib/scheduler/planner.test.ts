@@ -10,10 +10,10 @@ const taskBlocks = (r: ReturnType<typeof plan>) => r.blocks.filter((b) => b.kind
 
 describe("タスクの配置（減点方式）", () => {
   it("集中系は起きてすぐを避ける", () => {
-    // 7:00 起床、7:55 に朝ルーティンと準備が終わる → 8:55 までは減点
+    // 9:00 起床、9:55 に朝ルーティンと準備が終わる → 10:55 までは減点
     const [b] = taskBlocks(plan(baseInput(now, { tags: [focus], tasks: [report] })));
-    expect(b.start).toBe(jst(2026, 10, 1, 9));
-    expect(b.end).toBe(jst(2026, 10, 1, 11));
+    expect(b.start).toBe(jst(2026, 10, 1, 11));
+    expect(b.end).toBe(jst(2026, 10, 1, 13));
   });
 
   it("「なるべく避ける」時間帯を外して置く", () => {

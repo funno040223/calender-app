@@ -29,8 +29,8 @@ describe("起床・就寝の計算", () => {
   it("在宅の遅い予定だけの日でも、前後に予定がなければ既定の時刻に起きる", () => {
     const late = { id: "e3", title: "面接", start: jst(2026, 10, 2, 15), end: jst(2026, 10, 2, 16), location: "Zoom" };
     const [d0, d1] = computeDayPlans(firstDay, 3, [late], places, s);
-    expect(d1.wake).toBe(jst(2026, 10, 2, 7));
-    expect(d0.bed).toBe(jst(2026, 10, 2, 0));
+    expect(d1.wake).toBe(jst(2026, 10, 2, 9));
+    expect(d0.bed).toBe(jst(2026, 10, 2, 2));
   });
 
   it("就寝は翌日の起床の7時間前", () => {
@@ -40,7 +40,7 @@ describe("起床・就寝の計算", () => {
 
   it("予定がまったくない日は既定の起床時刻", () => {
     const [d0] = computeDayPlans(firstDay, 2, [], places, s);
-    expect(d0.wake).toBe(jst(2026, 10, 1, 7));
+    expect(d0.wake).toBe(jst(2026, 10, 1, 9));
     expect(d0.wakeSource).toBe("default");
   });
 

@@ -80,7 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
   routineMinutes: 15,
   homeWakeLeadMinutes: 20,
   windDownMinutes: 30,
-  defaultWakeMinuteOfDay: 7 * 60,
+  defaultWakeMinuteOfDay: 9 * 60,
   unknownTravelMinutes: 60,
   breakMinutes: 10,
   restAfterAwayEventMinutes: 30,

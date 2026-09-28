@@ -57,12 +57,14 @@ const PENALTY = {
 
 function avoidIntervalsFor(task: Task, windows: AvoidWindow[], days: DayPlan[], tz: number, hard: boolean): Interval[] {
   const out: Interval[] = [];
+  // 最終日の夜は日付をまたぐので、範囲の翌日の日付にも作る
+  const dayStarts = [...days.map((d) => d.dayStart), days.at(-1)!.dayStart + DAY_MS];
   for (const w of windows) {
     if (w.hard !== hard) continue;
     if (w.tagIds && (!task.tagId || !w.tagIds.includes(task.tagId))) continue;
-    for (const d of days) {
-      if (w.weekdays && !w.weekdays.includes(localWeekday(d.dayStart, tz))) continue;
-      out.push({ start: d.dayStart + w.start * MIN, end: d.dayStart + w.end * MIN });
+    for (const dayStart of dayStarts) {
+      if (w.weekdays && !w.weekdays.includes(localWeekday(dayStart, tz))) continue;
+      out.push({ start: dayStart + w.start * MIN, end: dayStart + w.end * MIN });
     }
   }
   return out;
