@@ -1,6 +1,6 @@
 // 電波がなくても画面を開けるようにする。データは localStorage の控えから出るので、ここでは画面の部品だけを持つ
 // 中身を変えたら VERSION を上げる（古い控えを消すため）
-const VERSION = "v1";
+const VERSION = "v2";
 // 電波がなくても移れるように、開いたときにまとめて控える画面
 const SHELL = ["/", "/calendar", "/tasks", "/settings", "/settings/basic", "/settings/routine", "/settings/habits", "/settings/places", "/settings/timetable", "/settings/avoid", "/settings/treats", "/settings/calendars"];
 const PAGES = `pages-${VERSION}`;
@@ -20,8 +20,13 @@ self.addEventListener("activate", (event) => {
 });
 
 // 画面から「warm」が来たら、主な画面とその部品を控え直す（公開し直すと部品の名前が変わるため、毎回）
+// ログイン前は控えられないので、画面が切り替わるたびに頼まれる。うまくいったら10分は控え直さない
+let warmedAt = 0;
+let warming = null;
 self.addEventListener("message", (event) => {
-  if (event.data === "warm") event.waitUntil(warm());
+  if (event.data !== "warm" || Date.now() - warmedAt < 10 * 60 * 1000) return;
+  warming ??= warm().finally(() => (warming = null));
+  event.waitUntil(warming);
 });
 
 async function warm() {
@@ -33,6 +38,7 @@ async function warm() {
       if (!res.ok || res.redirected) continue; // ログインが切れているときは控えない
       const html = await res.clone().text();
       await pages.put(path, res);
+      warmedAt = Date.now();
       const parts = new Set(html.match(/\/_next\/static\/[^"'\s)]+/g) ?? []);
       for (const part of parts) {
         if (await assets.match(part)) continue;
