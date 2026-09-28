@@ -20,6 +20,10 @@ export interface CalendarEvent {
   restAfterMinutes?: number;
   /** 「遊び」の予定。遊び以外の予定がない日は休日になる */
   play?: boolean;
+  /** この予定で使う行動ポイント。未指定なら外出・在宅と長さから計算する */
+  energyCost?: number;
+  /** 終日の予定で、その間ずっと家にいない（帰省・旅行など）。外出の日と同じに扱う */
+  awayFromHome?: boolean;
 }
 
 export interface Place {
@@ -61,6 +65,16 @@ export interface Settings {
   dailyTaskCapMinutes: number;
   /** 何も入れない余白を1日にこれだけ残す（分）。締切に間に合わないときだけ削る */
   minSlackMinutesPerDay: number;
+  /** 1日に使ってよい行動ポイント。超える日は重い作業を避け、発散を提案する */
+  dailyEnergyBudget: number;
+  /** 外出する予定1回あたりのポイント */
+  awayEventEnergy: number;
+  /** 外出する予定の1時間あたりのポイント（行き帰りの移動を含む） */
+  awayEventEnergyPerHour: number;
+  /** 在宅の予定の1時間あたりのポイント */
+  homeEventEnergyPerHour: number;
+  /** 家にいない時間（移動を含む）がこの分数以上の日は「外出の日」。自炊や洗濯を入れない */
+  outingDayAwayMinutes: number;
 }
 
 /** 「この時間はやりたくない」時間帯 */
@@ -98,9 +112,20 @@ export const DEFAULT_SETTINGS: Settings = {
   avoidFocusBeforeBedMinutes: 120,
   dailyTaskCapMinutes: 360,
   minSlackMinutesPerDay: 120,
+  dailyEnergyBudget: 10,
+  awayEventEnergy: 2,
+  awayEventEnergyPerHour: 0.5,
+  homeEventEnergyPerHour: 0.5,
+  outingDayAwayMinutes: 360,
 };
 
-export type HabitFrequency = { type: "daily" } | { type: "weekly"; times: number };
+/** whenEnergy: 行動ポイントに余裕がある日だけ（自炊など） */
+/** interval: 前回から minDays〜maxDays 日の間隔で（洗濯など） */
+export type HabitFrequency =
+  | { type: "daily" }
+  | { type: "weekly"; times: number }
+  | { type: "whenEnergy" }
+  | { type: "interval"; minDays: number; maxDays: number };
 
 export interface Habit {
   id: string;
@@ -121,6 +146,10 @@ export interface Habit {
   finish?: { title: string; durationMinutes: number; afterStartMinutes: number };
   /** この習慣の待ち時間の中に置く（洗濯の待ち時間に片付けなど）。頻度は親に合わせる */
   duringHabitId?: string;
+  /** 1回あたりの行動ポイント。マイナスは回復（散歩、発散など） */
+  energyCost?: number;
+  /** 食事。外出の日に外にいる時間と重なるときは、外食・お弁当として置く */
+  meal?: boolean;
 }
 
 /** focus: 長い空き時間に置く / gap: 予定の合間の短い空き時間に詰める */
@@ -135,6 +164,8 @@ export interface Tag {
   maxChunkMinutes: number;
   /** このタグのタスクのあとに空ける休憩（分）。未指定なら設定の値 */
   restAfterMinutes?: number;
+  /** 1時間あたりの行動ポイント。未指定なら集中系 1、事務系 0.5 */
+  energyPerHour?: number;
 }
 
 /** soon: 早めに片付ける / justBefore: 締切の直前に寄せる（面接対策など） */
@@ -196,6 +227,24 @@ export interface Shortfall {
   shortfallMinutes: number;
 }
 
+/** 発散・休憩の候補（上限を超える日に提案する） */
+export interface RecoveryOption {
+  name: string;
+  durationMinutes: number;
+  /** 回復するポイント（マイナスの値） */
+  energy: number;
+}
+
+export interface DayEnergy {
+  dayStart: number;
+  used: number;
+  budget: number;
+  /** 家にいない時間が長い「外出の日」 */
+  outingDay: boolean;
+  /** 上限を超える日の、発散の提案（空き時間に入るもの） */
+  suggestion?: RecoveryOption & { start: number; end: number };
+}
+
 export interface SkippedHabit {
   habitId: string;
   dayStart: number;
@@ -212,6 +261,9 @@ export interface PlanInput {
   tags: Tag[];
   tasks: Task[];
   avoidWindows?: AvoidWindow[];
+  recoveryOptions?: RecoveryOption[];
+  /** 間隔で置く習慣（洗濯など）を最後にした時刻 */
+  habitLastDone?: Record<string, number>;
   /** 前回の配置。始まった枠と固定した枠はそのまま残す */
   previousBlocks: Block[];
 }
@@ -224,4 +276,6 @@ export interface PlanResult {
   travelQuestions: TravelQuestion[];
   /** 配置し終わったあとに残った空き時間（すきま時間の候補） */
   freeGaps: Interval[];
+  /** 日ごとの行動ポイント */
+  dayEnergy: DayEnergy[];
 }

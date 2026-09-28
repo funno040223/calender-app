@@ -1,6 +1,7 @@
 import type {
   AvoidWindow,
   Block,
+  DayEnergy,
   DayPlan,
   Habit,
   Interval,
@@ -58,6 +59,8 @@ const PENALTY = {
   avoidWindow: 3,
   /** 1日の作業の目安を超える */
   overDailyCap: 2,
+  /** 行動ポイントの上限を超える（超えた1ポイントごと） */
+  overEnergyPerPoint: 1.5,
 };
 
 /** days には、最終日の夜が日付をまたぐ分として範囲の翌日も含めて渡す */
@@ -127,6 +130,16 @@ export function plan(input: PlanInput): PlanResult {
   const kept = previous.filter((b) => (b.start <= now || b.pinned) && exists(b));
   const movable = previous.filter((b) => !kept.includes(b));
 
+  // ---- 行動ポイント ----
+  // 深夜の枠はその日の起きている時間に含めるので、日付ではなく「どの日の枠か」で数える
+  const energy = new Map<number, number>();
+  const energyDayOf = (t: number) => dayOf(t)?.dayStart ?? localDayStart(t, s.tzOffsetMinutes);
+  const addEnergy = (t: number, points: number) => {
+    const k = energyDayOf(t);
+    energy.set(k, (energy.get(k) ?? 0) + points);
+  };
+  const energyOn = (d: DayPlan) => energy.get(d.dayStart) ?? 0;
+
   const travelQuestions: TravelQuestion[] = [];
   const busy: Interval[] = [];
   /** 家にいない時間（移動を含む） */
@@ -134,13 +147,28 @@ export function plan(input: PlanInput): PlanResult {
   /** 予定に関連するタスクの締切（外出なら家を出る時刻） */
   const eventDeadline = new Map<string, number>();
   for (const ev of input.events) {
-    if (ev.allDay) continue;
+    if (ev.allDay) {
+      // 帰省や旅行のあいだは家にいない。タスクは入れてよいが、自炊・洗濯はせず、食事は外食にする
+      if (ev.awayFromHome && ev.end > now && ev.start < horizonEnd) away.push({ start: ev.start, end: ev.end });
+      continue;
+    }
     const t = resolveTravel(ev, places, s);
     const pad = t.atHome ? 0 : t.minutes * MIN;
     eventDeadline.set(ev.id, ev.start - pad);
     const rest = (ev.restAfterMinutes ?? (t.atHome ? 0 : s.restAfterAwayEventMinutes)) * MIN;
     // 予定が終わっても、帰りの移動と休憩が終わるまでは埋まっている
     const end = ev.end + pad + rest;
+    if (ev.start >= firstDay && ev.start < horizonEnd) {
+      // 今日のうちに終わった予定も、今日の疲れには数える
+      const hours = (ev.end - ev.start) / (60 * MIN);
+      addEnergy(
+        ev.start,
+        ev.energyCost ??
+          (t.atHome
+            ? s.homeEventEnergyPerHour * hours
+            : s.awayEventEnergy + s.awayEventEnergyPerHour * (hours + (2 * t.minutes) / 60)),
+      );
+    }
     if (end <= now || ev.start >= horizonEnd) continue;
     if (t.unknown && ev.location && ev.start > now) travelQuestions.push({ eventId: ev.id, location: ev.location });
     busy.push({ start: ev.start - pad, end });
@@ -166,6 +194,19 @@ export function plan(input: PlanInput): PlanResult {
       ? { start: b.start, end: b.end + (tagOf(b.refId).restAfterMinutes ?? s.breakMinutes) * MIN }
       : { start: b.start, end: b.end };
 
+  const habitById = new Map(input.habits.map((h) => [h.id, h]));
+  const energyPerHourOf = (tag: Pick<Tag, "mode" | "energyPerHour">) => tag.energyPerHour ?? (tag.mode === "focus" ? 1 : 0.5);
+  /** 待ち時間のある習慣は、2つ目の枠（干すなど）では数えない */
+  const blockEnergy = (b: Block): number => {
+    if (b.kind === "task") return (energyPerHourOf(tagOf(b.refId)) * (b.end - b.start)) / (60 * MIN);
+    if (b.kind === "habit") {
+      const h = habitById.get(b.refId);
+      return h && b.title === h.name ? (h.energyCost ?? 0) : 0;
+    }
+    return 0;
+  };
+  kept.forEach((b) => addEnergy(b.start, blockEnergy(b)));
+
   let free = days
     .map((d) => ({ start: Math.max(d.wake, now), end: d.bed - s.windDownMinutes * MIN }))
     .filter((i) => i.end > i.start);
@@ -181,13 +222,83 @@ export function plan(input: PlanInput): PlanResult {
     blocks.push(block);
     placedHabits.push({ block, habit, releasable });
     free = subtract(free, [block]);
+    addEnergy(block.start, blockEnergy(block));
+  };
+
+  // ---- 外出の日 ----
+  // 家にいない時間（移動を含む）が長い日は、自炊や洗濯を入れず、食事は外食・お弁当にする
+  const mergedAway = merge(away);
+  const outingDays = new Set(
+    days
+      .filter(
+        (d) =>
+          intersect(mergedAway, { start: d.wake, end: d.bed }).reduce((sum, i) => sum + lengthMinutes(i), 0) >=
+          s.outingDayAwayMinutes,
+      )
+      .map((d) => d.dayStart),
+  );
+  const dayIdx = (dayStart: number) => Math.round((dayStart - firstDay) / DAY_MS);
+
+  /**
+   * 前回から minDays〜maxDays 日の間隔で置く（洗濯など）。
+   * 間隔の中に休日があれば休日の軽い日、なければ最後の2日のうち軽い日。外出の日は、最後の日を過ぎるときだけ使う
+   */
+  const placeByInterval = (
+    habit: Habit,
+    minDays: number,
+    maxDays: number,
+    tryPlaceOn: (d: DayPlan) => boolean,
+    windowOf: (d: DayPlan) => Interval,
+  ) => {
+    const keptDays = kept
+      .filter((b) => b.kind === "habit" && b.refId === habit.id && b.title === habit.name)
+      .map((b) => dayIdx(localDayStart(b.start, s.tzOffsetMinutes)));
+    const lastDone = input.habitLastDone?.[habit.id];
+    // 記録がなければ、今日から置いてよいものとする
+    let last = keptDays.length
+      ? Math.max(...keptDays)
+      : lastDone !== undefined
+        ? dayIdx(localDayStart(lastDone, s.tzOffsetMinutes))
+        : -minDays;
+    for (let guard = 0; guard < days.length; guard++) {
+      const from = Math.max(0, last + minDays);
+      const to = last + maxDays;
+      if (from >= days.length) break;
+      const inWindow = days.filter((d) => {
+        const i = dayIdx(d.dayStart);
+        return i >= from && i <= to && windowOf(d).end > now;
+      });
+      if (inWindow.length === 0) {
+        last = to;
+        continue;
+      }
+      const home = inWindow.filter((d) => !outingDays.has(d.dayStart));
+      const lighter = (a: DayPlan, b: DayPlan) => energyOn(a) - energyOn(b) || a.dayStart - b.dayStart;
+      const holidays = home.filter((d) => d.holiday).sort(lighter);
+      const late = home.filter((d) => dayIdx(d.dayStart) >= to - 1).sort(lighter);
+      const rest = home.filter((d) => !holidays.includes(d) && !late.includes(d)).sort(lighter);
+      // 最後の日が範囲の中にあるときだけ、外出の日も最後の手段にする
+      const lastResort = inWindow.filter((d) => outingDays.has(d.dayStart) && dayIdx(d.dayStart) === to);
+      // 休日がなければ、間隔の終わりまで待ってから（間隔の終わりが先なら今は置かない）
+      const order = holidays.length || to < days.length ? [...holidays, ...late, ...rest, ...lastResort] : [];
+      const placed = order.find((d) => tryPlaceOn(d));
+      if (!placed) {
+        if (to < days.length) skippedHabits.push({ habitId: habit.id, dayStart: days[Math.min(to, days.length - 1)].dayStart, reason: "no_room" });
+        last = to;
+        continue;
+      }
+      last = dayIdx(placed.dayStart);
+    }
   };
 
   // ---- 習慣 ----
   // 飛ばせないものから置く。待ち時間に入れる子の習慣は最後
   const rank = (h: Habit) => (h.duringHabitId ? 2 : h.skippable ? 1 : 0);
   const habits = [...input.habits].sort((a, b) => rank(a) - rank(b));
+  // 行動ポイントに余裕がある日だけの習慣（自炊など）は、タスクを置いたあとに置く
+  const energyHabits = habits.filter((h) => h.frequency.type === "whenEnergy");
   for (const habit of habits) {
+    if (habit.frequency.type === "whenEnergy") continue;
     const dur = habit.durationMinutes * MIN;
     const prevOf = (window: Interval) =>
       movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end)?.start;
@@ -208,12 +319,19 @@ export function plan(input: PlanInput): PlanResult {
       start: d.dayStart + habit.windowStart * MIN,
       end: d.dayStart + habit.windowEnd * MIN,
     });
-    const hasKept = (d: DayPlan) =>
-      kept.some((b) => b.kind === "habit" && b.refId === habit.id && b.start >= d.dayStart && b.start < d.dayStart + DAY_MS);
-    const target = chooseHabitDays(habit, days, free, windowOf, hasKept).filter((d) => windowOf(d).end > now);
 
-    for (const d of target) {
+    /** その日の時間帯に置けたら true */
+    const tryPlaceOn = (d: DayPlan): boolean => {
       const window = windowOf(d);
+      // 外出の日に外にいる時間と重なる食事は、外食・お弁当として置く（家での時間は取らない）
+      if (habit.meal && outingDays.has(d.dayStart)) {
+        const out = mergedAway.find((a) => a.start < window.end && a.end > window.start);
+        if (out) {
+          const st = ceilToStep(Math.max(window.start, out.start));
+          blocks.push({ kind: "habit", refId: habit.id, title: `${habit.name}（外食・お弁当）`, start: st, end: st + dur });
+          return true;
+        }
+      }
       const finish = habit.finish;
       // 待ち時間のある作業は、2つ目の枠も空いていて、終わるまで家にいられること
       const ok = (st: number) => {
@@ -224,10 +342,7 @@ export function plan(input: PlanInput): PlanResult {
         return fitsIn(rest, fStart, fEnd) && !away.some((a) => a.start < fEnd && a.end > st);
       };
       const start = findStart(intersect(free, window), dur, ok, prevOf(window));
-      if (start === undefined) {
-        skippedHabits.push({ habitId: habit.id, dayStart: d.dayStart, reason: "no_room" });
-        continue;
-      }
+      if (start === undefined) return false;
       placeHabitBlock(habit, { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur }, habit.skippable && !finish);
       if (finish) {
         const fStart = start + finish.afterStartMinutes * MIN;
@@ -240,6 +355,19 @@ export function plan(input: PlanInput): PlanResult {
         list.push({ dayStart: d.dayStart, wait: { start: start + dur, end: fStart } });
         waits.set(habit.id, list);
       }
+      return true;
+    };
+
+    if (habit.frequency.type === "interval") {
+      placeByInterval(habit, habit.frequency.minDays, habit.frequency.maxDays, tryPlaceOn, windowOf);
+      continue;
+    }
+
+    const hasKept = (d: DayPlan) =>
+      kept.some((b) => b.kind === "habit" && b.refId === habit.id && b.start >= d.dayStart && b.start < d.dayStart + DAY_MS);
+    const target = chooseHabitDays(habit, days, free, windowOf, hasKept, energyOn).filter((d) => windowOf(d).end > now);
+    for (const d of target) {
+      if (!tryPlaceOn(d)) skippedHabits.push({ habitId: habit.id, dayStart: d.dayStart, reason: "no_room" });
     }
   }
 
@@ -250,6 +378,7 @@ export function plan(input: PlanInput): PlanResult {
     const [{ block }] = placedHabits.splice(idx, 1);
     blocks.splice(blocks.indexOf(block), 1);
     free = merge([...free, { start: block.start, end: block.end }]);
+    addEnergy(block.start, -blockEnergy(block));
     skippedHabits.push({ habitId: block.refId, dayStart: localDayStart(block.start, s.tzOffsetMinutes), reason: "deadline" });
     return true;
   };
@@ -355,6 +484,10 @@ export function plan(input: PlanInput): PlanResult {
           const avoided = overlapMinutes(softAvoid, st, end);
           if (avoided > 0) penalty += PENALTY.avoidWindow * Math.max(0.5, avoided / len);
           if ((dayLoad.get(d0.dayStart) ?? 0) + len > s.dailyTaskCapMinutes) penalty += PENALTY.overDailyCap;
+          // 行動ポイントが上限を超える日は、超えた分だけ減点する（締切に余裕があれば軽い日へ回る）
+          const chunkEnergy = (energyPerHourOf(tag) * len) / 60;
+          const over = energyOn(d0) + chunkEnergy - s.dailyEnergyBudget;
+          if (over > 0) penalty += PENALTY.overEnergyPerPoint * Math.min(over, chunkEnergy);
 
           if (!best || penalty < best.penalty || (penalty === best.penalty && st < best.start)) {
             best = { start: st, len, penalty };
@@ -387,14 +520,48 @@ export function plan(input: PlanInput): PlanResult {
       blocks.push(block);
       free = subtract(free, [withBreak(block)]);
       addLoad(block);
+      addEnergy(block.start, blockEnergy(block));
       remaining -= best.len;
       keepSlack = true;
     }
   }
 
+  // ---- 余裕のある日だけの習慣（自炊など） ----
+  for (const habit of energyHabits) {
+    const dur = habit.durationMinutes * MIN;
+    const cost = habit.energyCost ?? 0;
+    for (const d of days) {
+      const window = { start: d.dayStart + habit.windowStart * MIN, end: d.dayStart + habit.windowEnd * MIN };
+      if (window.end <= now || outingDays.has(d.dayStart) || energyOn(d) + cost > s.dailyEnergyBudget) continue;
+      const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);
+      const start = findStart(intersect(free, window), dur, () => true, prev?.start);
+      if (start === undefined) continue;
+      placeHabitBlock(habit, { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur }, habit.skippable);
+    }
+  }
+
   blocks.sort((a, b) => a.start - b.start);
   const freeGaps = free.filter((i) => lengthMinutes(i) >= MIN_GAP_MINUTES);
-  return { dayPlans: days, blocks, skippedHabits, shortfalls, travelQuestions, freeGaps };
+
+  // 上限を超える日は、空き時間に入る発散を1つ提案する
+  const dayEnergy: DayEnergy[] = days.map((d) => {
+    const used = Math.round(energyOn(d) * 10) / 10;
+    const entry: DayEnergy = { dayStart: d.dayStart, used, budget: s.dailyEnergyBudget, outingDay: outingDays.has(d.dayStart) };
+    if (used <= s.dailyEnergyBudget) return entry;
+    for (const opt of input.recoveryOptions ?? []) {
+      const gap = freeGaps.find(
+        (g) => g.start < d.bed && g.end > Math.max(now, d.wake) && g.end - ceilToStep(Math.max(g.start, now)) >= opt.durationMinutes * MIN,
+      );
+      if (gap) {
+        const start = ceilToStep(Math.max(gap.start, now));
+        entry.suggestion = { ...opt, start, end: start + opt.durationMinutes * MIN };
+        break;
+      }
+    }
+    return entry;
+  });
+
+  return { dayPlans: days, blocks, skippedHabits, shortfalls, travelQuestions, freeGaps, dayEnergy };
 }
 
 function chooseHabitDays(
@@ -403,19 +570,24 @@ function chooseHabitDays(
   free: Interval[],
   windowOf: (d: DayPlan) => Interval,
   hasKept: (d: DayPlan) => boolean,
+  energyOn: (d: DayPlan) => number,
 ): DayPlan[] {
   if (habit.frequency.type === "daily") return days.filter((d) => !hasKept(d));
+  if (habit.frequency.type !== "weekly") return [];
+  const times = habit.frequency.times;
+  // 行動ポイントを使う習慣（洗濯など）は、軽い日から選ぶ
+  const heavy = (habit.energyCost ?? 0) > 0;
 
   const chosen: DayPlan[] = [];
   for (let w = 0; w < days.length; w += 7) {
     const week = days.slice(w, w + 7);
-    const needed = habit.frequency.times - week.filter(hasKept).length;
+    const needed = times - week.filter(hasKept).length;
     if (needed <= 0) continue;
     const roomy = week
       .filter((d) => !hasKept(d))
       .map((d) => ({ d, room: intersect(free, windowOf(d)).reduce((sum, i) => sum + lengthMinutes(i), 0) }))
       .filter((x) => x.room >= habit.durationMinutes)
-      .sort((a, b) => b.room - a.room || a.d.dayStart - b.d.dayStart);
+      .sort((a, b) => (heavy ? energyOn(a.d) - energyOn(b.d) : 0) || b.room - a.room || a.d.dayStart - b.d.dayStart);
     chosen.push(...roomy.slice(0, needed).map((x) => x.d));
   }
   return chosen.sort((a, b) => a.dayStart - b.dayStart);

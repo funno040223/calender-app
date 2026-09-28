@@ -233,3 +233,209 @@ describe("生活の中身から決めた配置", () => {
     expect(r.freeGaps.some((g) => g.start < b.end && g.end > b.start)).toBe(false);
   });
 });
+
+describe("行動ポイント", () => {
+  // 在宅で1時間だけの予定に、重さ（行動ポイント）を直接つけて、その日を「しんどい日」にする
+  const heavyOn = (day: number, points: number) => ({
+    id: `heavy-${day}`,
+    title: "重い予定",
+    start: jst(2026, 10, day, 20),
+    end: jst(2026, 10, day, 21),
+    energyCost: points,
+  });
+
+  it("予定・タスク・習慣のポイントを日ごとに数える", () => {
+    const univ = { id: "univ", name: "大学", keywords: [], travelMinutes: 10 };
+    // 大学 13:00〜15:00：外出 2 ＋ 0.5 ×（2時間 ＋ 行き帰り20分）
+    const zemi = { id: "z", title: "ゼミ", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 15), location: "大学" };
+    const r = plan(baseInput(now, { events: [zemi], places: [univ] }));
+    expect(r.dayEnergy[0].used).toBeCloseTo(2 + 0.5 * (2 + 20 / 60), 1);
+    expect(r.dayEnergy[0].budget).toBe(10);
+  });
+
+  it("洗濯のように疲れる週ごとの習慣は、軽い日を選ぶ", () => {
+    const laundry: Habit = {
+      id: "laundry",
+      name: "洗濯を回す",
+      durationMinutes: 10,
+      windowStart: 9 * 60,
+      windowEnd: 18 * 60,
+      frequency: { type: "weekly", times: 1 },
+      skippable: false,
+      energyCost: 1,
+    };
+    const settings = { ...baseInput(now).settings, planningDays: 7 };
+    // 10/1〜10/6 は重く、10/7 だけ軽い
+    const events = [1, 2, 3, 4, 5, 6].map((d) => heavyOn(d, 8));
+    const r = plan(baseInput(now, { settings, events, habits: [laundry] }));
+    const b = r.blocks.find((x) => x.refId === "laundry")!;
+    expect(b.start).toBeGreaterThanOrEqual(jst(2026, 10, 7));
+  });
+
+  it("上限を超える日は、締切に余裕があるタスクを軽い日へ回す", () => {
+    const task: Task = { id: "t", title: "資料整理", durationMinutes: 120, priority: 2, deadline: jst(2026, 10, 4) };
+    const r = plan(baseInput(now, { events: [heavyOn(1, 9.5)], tasks: [task] }));
+    expect(taskBlocks(r)[0].start).toBeGreaterThanOrEqual(jst(2026, 10, 2));
+  });
+
+  it("自炊のような「余裕がある日だけ」の習慣は、上限を超えない日にだけ入る", () => {
+    const cook: Habit = {
+      id: "cook",
+      name: "自炊",
+      durationMinutes: 45,
+      windowStart: 17 * 60,
+      windowEnd: 19 * 60,
+      frequency: { type: "whenEnergy" },
+      skippable: true,
+      energyCost: 2,
+    };
+    const settings = { ...baseInput(now).settings, planningDays: 2 };
+    const r = plan(baseInput(now, { settings, events: [heavyOn(1, 9)], habits: [cook] }));
+    const cooks = r.blocks.filter((b) => b.refId === "cook");
+    expect(cooks).toHaveLength(1);
+    expect(cooks[0].start).toBeGreaterThanOrEqual(jst(2026, 10, 2));
+  });
+
+  it("上限を超える日は、空き時間に入る発散を提案する", () => {
+    const recoveryOptions = [{ name: "ゲーム・動画", durationMinutes: 30, energy: -1.5 }];
+    const r = plan(baseInput(now, { events: [heavyOn(1, 12)], recoveryOptions }));
+    const today = r.dayEnergy[0];
+    expect(today.used).toBeGreaterThan(today.budget);
+    expect(today.suggestion?.name).toBe("ゲーム・動画");
+    expect(today.suggestion!.end - today.suggestion!.start).toBe(30 * 60_000);
+    // 軽い日には提案しない
+    expect(r.dayEnergy[1].suggestion).toBeUndefined();
+  });
+});
+
+describe("洗濯の間隔と外出の日", () => {
+  const laundry: Habit = {
+    id: "laundry",
+    name: "洗濯を回す",
+    durationMinutes: 10,
+    windowStart: 9 * 60,
+    windowEnd: 16 * 60,
+    frequency: { type: "interval", minDays: 4, maxDays: 7 },
+    skippable: false,
+    energyCost: 1,
+  };
+  const starts = (r: ReturnType<typeof plan>, id = "laundry") =>
+    r.blocks.filter((b) => b.refId === id && b.title === "洗濯を回す").map((b) => b.start);
+  const dayNo = (ms: number) => Math.floor((ms - jst(2026, 10, 1)) / 86_400_000);
+  // 在宅の短い予定（オンの日にするため）
+  const onDay = (day: number) => ({ id: `on${day}`, title: "オンライン授業", start: jst(2026, 10, day, 20), end: jst(2026, 10, day, 21) });
+  // 移動を含めて家にいない時間が長い日（外出の日）
+  const outing = (day: number) => ({
+    id: `out${day}`,
+    title: "一日外出",
+    start: jst(2026, 10, day, 10),
+    end: jst(2026, 10, day, 17),
+    location: "駅前",
+    travelMinutes: 30,
+  });
+
+  it("前回から4〜7日の間隔を守る", () => {
+    const r = plan(baseInput(now, { habits: [laundry] }));
+    const days = starts(r).map(dayNo);
+    expect(days.length).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < days.length; i++) {
+      expect(days[i] - days[i - 1]).toBeGreaterThanOrEqual(4);
+      expect(days[i] - days[i - 1]).toBeLessThanOrEqual(7);
+    }
+  });
+
+  it("間隔の中に休日があれば休日にする", () => {
+    // 前回は 9/28 → 10/2〜10/5 のうち、10/2〜10/4 はオンの日、10/5 だけ休日
+    const events = [2, 3, 4].map(onDay);
+    const r = plan(baseInput(now, { events, habits: [laundry], habitLastDone: { laundry: jst(2026, 9, 28, 10) } }));
+    expect(dayNo(starts(r)[0])).toBe(4);
+  });
+
+  it("休日がなければ、間隔の終わりごろの軽い日にする", () => {
+    // 前回は 9/28 → 10/2〜10/5。どの日もオンの日
+    const events = [1, 2, 3, 4, 5, 6, 7].map(onDay);
+    const r = plan(baseInput(now, { events, habits: [laundry], habitLastDone: { laundry: jst(2026, 9, 28, 10) } }));
+    expect(dayNo(starts(r)[0])).toBeGreaterThanOrEqual(3);
+  });
+
+  it("外出の日には、自炊も洗濯も入れない", () => {
+    const cook: Habit = {
+      id: "cook",
+      name: "自炊（夕）",
+      durationMinutes: 45,
+      windowStart: 17 * 60,
+      windowEnd: 20 * 60,
+      frequency: { type: "whenEnergy" },
+      skippable: true,
+      energyCost: 2,
+    };
+    // 10/1 は外出の日だが、行動ポイントは低くしておく（ポイントではなく外出の日の決まりで外れることを確かめる）
+    const settings = { ...baseInput(now).settings, planningDays: 2 };
+    const out = { ...outing(1), energyCost: 1 };
+    const r = plan(baseInput(now, { settings, events: [out], habits: [laundry, cook] }));
+    expect(r.dayEnergy[0].outingDay).toBe(true);
+    expect(r.blocks.filter((b) => b.refId === "cook").map((b) => dayNo(b.start))).toEqual([1]);
+    expect(starts(r).map(dayNo)).toEqual([1]);
+  });
+
+  it("外出の日に外にいる時間と重なる食事は、外食・お弁当にする", () => {
+    const lunch: Habit = {
+      id: "lunch",
+      name: "昼食",
+      durationMinutes: 30,
+      windowStart: 11 * 60,
+      windowEnd: 14 * 60 + 30,
+      frequency: { type: "daily" },
+      skippable: false,
+      meal: true,
+    };
+    const settings = { ...baseInput(now).settings, planningDays: 2 };
+    const r = plan(baseInput(now, { settings, events: [outing(1)], habits: [lunch] }));
+    const meals = r.blocks.filter((b) => b.refId === "lunch");
+    expect(meals[0].title).toBe("昼食（外食・お弁当）");
+    expect(meals[0].start).toBe(jst(2026, 10, 1, 11));
+    // 次の日は家で
+    expect(meals[1].title).toBe("昼食");
+  });
+});
+
+describe("帰省・旅行のような終日の予定", () => {
+  const cook: Habit = {
+    id: "cook",
+    name: "自炊（夕）",
+    durationMinutes: 45,
+    windowStart: 17 * 60,
+    windowEnd: 20 * 60,
+    frequency: { type: "whenEnergy" },
+    skippable: true,
+    energyCost: 2,
+  };
+  const dinner: Habit = {
+    id: "dinner",
+    name: "夕食",
+    durationMinutes: 60,
+    windowStart: 18 * 60,
+    windowEnd: 20 * 60 + 30,
+    frequency: { type: "daily" },
+    skippable: false,
+    meal: true,
+  };
+  const settings = { ...baseInput(now).settings, planningDays: 4 };
+  // 10/2〜10/3 の2日間（終わりは 10/4 0:00）
+  const trip = { id: "trip", title: "帰省", start: jst(2026, 10, 2), end: jst(2026, 10, 4), allDay: true };
+
+  it("「家にいない」にした日は外出の日になり、自炊をせず、食事は外食にする", () => {
+    const r = plan(baseInput(now, { settings, events: [{ ...trip, awayFromHome: true }], habits: [cook, dinner] }));
+    expect(r.dayEnergy.map((d) => d.outingDay)).toEqual([false, true, true, false]);
+    const cookDays = r.blocks.filter((b) => b.refId === "cook").map((b) => new Date(b.start + 9 * 3600e3).getUTCDate());
+    expect(cookDays).toEqual([1, 4]);
+    const dinners = r.blocks.filter((b) => b.refId === "dinner").map((b) => b.title);
+    expect(dinners).toEqual(["夕食", "夕食（外食・お弁当）", "夕食（外食・お弁当）", "夕食"]);
+  });
+
+  it("印がない終日の予定（誕生日など）は、ふだんどおり", () => {
+    const r = plan(baseInput(now, { settings, events: [trip], habits: [cook] }));
+    expect(r.dayEnergy.every((d) => !d.outingDay)).toBe(true);
+    expect(r.blocks.filter((b) => b.refId === "cook")).toHaveLength(4);
+  });
+});
