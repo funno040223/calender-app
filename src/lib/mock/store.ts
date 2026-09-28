@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { loadRemote, saveRemote } from "@/lib/sync/remote";
 import { DEFAULT_SETTINGS, plan, type Block, type CalendarEvent, type PlanResult, type Settings } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
 import { buildClassEvents, classEventsForPlan, type ClassEvent, type Course, type MockData } from "./model";
@@ -201,12 +202,106 @@ function initialState(): MockState {
 /** 画面を開いたままこれだけ経ったら、戻ってきたときに組み直す */
 const STALE_MS = 10 * 60_000;
 
+/** Supabase との同期の状態（画面に出す） */
+export type SyncStatus = "loading" | "synced" | "saving" | "offline";
+
+const EDITED_AT_KEY = `${STORAGE_KEY}:editedAt`;
+const SAVE_DELAY_MS = 800;
+
+function readEditedAt(): number {
+  try {
+    return Number(window.localStorage.getItem(EDITED_AT_KEY) ?? 0);
+  } catch {
+    return 0;
+  }
+}
+function writeEditedAt(ms: number) {
+  try {
+    window.localStorage.setItem(EDITED_AT_KEY, String(ms));
+  } catch {
+    // 保存できない環境では、次に開いたときにサーバーの内容を使う
+  }
+}
+
+/**
+ * データの本体は Supabase（app_state）。ブラウザの localStorage は、すぐ開くための控え。
+ * 開いたときにサーバーの内容を読み、変えたら少し待ってから保存する。
+ * 別の端末で変えた内容は、アプリに戻ってきたときに読み直す（後から保存したほうが残る）。
+ */
 export function useMockStore() {
   const [state, setState] = useState<MockState>(initialState);
+  const [sync, setSync] = useState<SyncStatus>("loading");
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  /** サーバーの内容を読み終えるまでは保存しない（古い控えで上書きしないため） */
+  const ready = useRef(false);
+  /** サーバーから読んだ直後の変化は、保存し直さない */
+  const fromRemote = useRef(false);
+  const remoteAt = useRef(0);
+
+  const push = useCallback(async () => {
+    setSync("saving");
+    try {
+      remoteAt.current = await saveRemote(toData(stateRef.current));
+      setSync("synced");
+    } catch (e) {
+      console.warn("サーバーへの保存に失敗しました", e instanceof Error ? e.message : e);
+      setSync("offline");
+    }
+  }, []);
+
+  const pull = useCallback(async (initial: boolean) => {
+    try {
+      const row = await loadRemote();
+      const newer = row && (initial ? row.updatedAt >= readEditedAt() : row.updatedAt > remoteAt.current);
+      const remote = row && newer ? fromStoredV2(row.data, Date.now()) : undefined;
+      if (row) remoteAt.current = Math.max(remoteAt.current, row.updatedAt);
+      if (remote) {
+        fromRemote.current = true;
+        const now = Date.now();
+        setState(replan(remote, buildGoogleEvents(now), now));
+        setSync("synced");
+      } else if (initial) {
+        // サーバーにまだ無いか、この端末のほうが新しい → この端末の内容を送る
+        ready.current = true;
+        await push();
+      }
+    } catch (e) {
+      console.warn("サーバーからの読み込みに失敗しました", e instanceof Error ? e.message : (e as { message?: string })?.message ?? e);
+      setSync("offline");
+    } finally {
+      ready.current = true;
+    }
+  }, [push]);
+
+  useEffect(() => {
+    // 画面を出してからサーバーに問い合わせる
+    const t = window.setTimeout(() => void pull(true), 0);
+    return () => window.clearTimeout(t);
+  }, [pull]);
 
   useEffect(() => {
     saveData(state);
-  }, [state]);
+    if (!ready.current) return;
+    if (fromRemote.current) {
+      fromRemote.current = false;
+      return;
+    }
+    writeEditedAt(Date.now());
+    const t = window.setTimeout(() => void push(), SAVE_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [state, push]);
+
+  // 別の端末で変えた内容を、戻ってきたときに読み直す
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && ready.current) void pull(false);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [pull]);
 
   // 朝に開き直したときなど、古い「今」のままにしない
   useEffect(() => {
@@ -242,7 +337,7 @@ export function useMockStore() {
 
   const setHidden = useCallback((hidden: CalendarId[]) => patch(() => ({ hiddenCalendars: hidden })), [patch]);
 
-  return { state, update, patch, reset, setHidden };
+  return { state, update, patch, reset, setHidden, sync };
 }
 
 export type MockStore = ReturnType<typeof useMockStore>;

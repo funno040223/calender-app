@@ -6,9 +6,18 @@ import { DangerButton, Group, Row, ScreenHeader } from "@/components/ui/controls
 import { formatMinuteOfDay } from "@/lib/mock/model";
 import { formatMinutes } from "@/lib/mock/jst";
 import { SECTIONS, type SectionId } from "./sections";
+import { signOut } from "@/lib/sync/remote";
+import type { SyncStatus } from "@/lib/mock/store";
+
+const SYNC_LABEL: Record<SyncStatus, string> = {
+  loading: "サーバーから読み込み中…",
+  synced: "サーバーに保存済み",
+  saving: "保存中…",
+  offline: "サーバーに接続できません（この端末には保存しています）",
+};
 
 export default function SettingsScreen() {
-  const { state, reset } = useApp();
+  const { state, reset, sync } = useApp();
   const router = useRouter();
   const s = state.settings;
 
@@ -39,6 +48,19 @@ export default function SettingsScreen() {
             ))}
           </Group>
         ))}
+        <Group title="アカウント" footer="データはサーバー（Supabase）に保存され、ほかの端末でも同じ内容になります。">
+          <Row label="同期" detail={SYNC_LABEL[sync]} />
+          <DangerButton
+            confirm="ログアウトします。次に開くときは、もう一度ログインが必要です。よろしいですか？"
+            onClick={async () => {
+              await signOut();
+              router.replace("/login");
+              router.refresh();
+            }}
+          >
+            ログアウト
+          </DangerButton>
+        </Group>
         <Group title="データ" footer="予定・タスク・時間割・習慣・朝の記録など、すべてをサンプルの状態に戻します。">
           <DangerButton
             confirm="すべてのデータをサンプルの状態に戻します。自分で入れた予定やタスク、設定も消えます。よろしいですか？"
