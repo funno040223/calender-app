@@ -100,11 +100,11 @@ export interface WakeLog {
   /** 朝ルーティンの手順をすべて終えた時刻 */
   routineDoneAt?: number;
   doneStepIds: string[];
-  /** 「起きた」のあとに答えた、前の晩の眠り */
-  sleep?: SleepAnswer;
+  /** 「起きた」のあとに答えた、朝の疲れ（1 元気 〜 5 ぐったり）。行動ポイントの値を合わせる正解に使う */
+  fatigue?: MorningFatigue;
 }
 
-export type SleepAnswer = "good" | "ok" | "poor";
+export type MorningFatigue = 1 | 2 | 3 | 4 | 5;
 
 /** 帰宅時に体力を答えたときの、行動ポイントの予測（あとで値を合わせるための記録） */
 export interface EnergyCheck {

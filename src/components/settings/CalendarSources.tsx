@@ -34,7 +34,6 @@ function AddForm({ onClose, onAdded }: { onClose: () => void; onAdded: () => voi
       </Field>
       <Field
         label="iCal 形式の非公開アドレス"
-        help="Google カレンダーの「設定」→ 対象のカレンダー →「カレンダーの統合」にあります。知っている人は誰でも予定を読めるので、ほかの人には教えないでください。登録したあとは画面に表示しません。"
       >
         {/* パスワード管理に保存されないよう、ふつうのテキストとして受け取る */}
         <input
@@ -82,9 +81,9 @@ export default function CalendarSources() {
 
   return (
     <>
-      <Group footer="15分ごと（アプリを開いたとき）に取り込みます。取り込んだ予定は読み取り専用で、空き時間の計算に使います。">
+      <Group>
         {error && <EmptyNote>{error}</EmptyNote>}
-        {sources?.length === 0 && <EmptyNote>まだ登録していません。登録するまでは、サンプルの予定を表示しています。</EmptyNote>}
+        {sources?.length === 0 && <EmptyNote>まだ登録していません。</EmptyNote>}
         {sources?.map((s) => {
           const r = counts.get(s.id);
           const status = s.lastError

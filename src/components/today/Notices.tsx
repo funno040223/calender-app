@@ -5,6 +5,12 @@ import type { MockState } from "@/lib/mock/store";
 import { formatDate, formatDeadline, formatMinutes } from "@/lib/mock/jst";
 import { eventIndex } from "@/lib/mock/related";
 
+/** 今日の画面に出すお知らせがあるか（なければカードごと出さない） */
+export function hasNotices(state: MockState) {
+  const r = state.result;
+  return r.shortfalls.length + r.travelQuestions.length + r.skippedHabits.filter((s) => s.reason === "deadline").length > 0;
+}
+
 export function warningCount(state: MockState) {
   return state.result.shortfalls.length + state.result.travelQuestions.length;
 }
@@ -69,7 +75,7 @@ export default function Notices({
   const deadlineSkips = result.skippedHabits.filter((s) => s.reason === "deadline");
 
   if (result.shortfalls.length === 0 && result.travelQuestions.length === 0 && deadlineSkips.length === 0) {
-    return <p className="px-4 py-3 text-[14px] text-muted">いまのところ問題はありません。</p>;
+    return null;
   }
   return (
     <ul className="flex flex-col divide-y divide-line">

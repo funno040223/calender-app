@@ -18,7 +18,7 @@ function PeriodsGroup() {
   const used = (n: number) => state.courses.filter((c) => c.period === n).length;
 
   return (
-    <Group title="時限" footer="授業の「時限」はこの時刻で予定になります。時限に合わないゼミなどは、授業ごとに時刻を指定できます。">
+    <Group title="時限">
       {periods.map((p) => (
         <div key={p.number} className="flex min-h-11 items-center gap-2 px-4 py-1.5">
           <span className="w-10 shrink-0 text-[16px] font-medium">{p.number}限</span>
@@ -137,7 +137,7 @@ function CourseForm({ course, onClose }: { course?: Course; onClose: () => void 
       <Field label="曜日">
         <Segmented label="曜日" full value={d.weekday} onChange={(v) => set("weekday", v)} options={WEEK.map((w) => ({ value: w, label: WEEKDAY_JA[w] }))} />
       </Field>
-      <Field label="時刻" help={d.mode === "time" ? "時限に合わないゼミなどは、時刻を直接指定します" : undefined}>
+      <Field label="時刻">
         <Segmented
           label="時刻の決め方"
           full
@@ -171,7 +171,7 @@ function CourseForm({ course, onClose }: { course?: Course; onClose: () => void 
           <input className={inputCls} type="date" aria-label="学期の終了日" value={d.termEnd} onChange={(e) => set("termEnd", e.target.value)} />
         </div>
       </Field>
-      <Field label="場所" help="「場所」に登録した名前を含めると、移動時間がわかります">
+      <Field label="場所">
         <input className={inputCls} value={d.location} onChange={(e) => set("location", e.target.value)} placeholder="例：大学 3号館" />
       </Field>
       <label className="flex items-center justify-between gap-3">
@@ -211,7 +211,7 @@ export default function Timetable() {
 
   return (
     <>
-      <Group title="授業・ゼミ" footer="授業はカレンダーの予定を押すと、その回だけ休講にできます。">
+      <Group title="授業・ゼミ">
         {courses.length === 0 && <EmptyNote>授業はまだありません。</EmptyNote>}
         {courses.map((c) => {
           const t = courseTimes(c, state.periods);

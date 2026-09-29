@@ -80,12 +80,11 @@ export default function TasksScreen() {
       />
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 pb-8 sm:px-6">
         {state.tasks.length === 0 ? (
-          <p className="px-4 py-6 text-center text-[15px] text-muted">タスクはありません。下の入力欄から追加できます。</p>
+          <p className="px-4 py-6 text-center text-[15px] text-muted">タスクはありません。</p>
         ) : (
           <>
             {withDeadline.length > 0 && <Group title="締切が近い順">{withDeadline.map(row)}</Group>}
             {without.length > 0 && <Group title="締切なし">{without.map(row)}</Group>}
-            <p className="px-4 text-[12px] text-muted">バーは、必要な時間のうちカレンダーに置けた分です。</p>
           </>
         )}
       </div>

@@ -39,17 +39,16 @@ export default function Notifications() {
     <>
       <Group
         title="知らせること"
-        footer="就寝から起床までの間は知らせません。予定や枠が変わると、通知の時刻も自動で変わります。"
       >
-        <Row label="予定の前" detail={`${NOTICE_LEAD_MINUTES}分前`} sub="外出する予定は、家を出る時刻の前" />
+        <Row label="予定の前" detail={`${NOTICE_LEAD_MINUTES}分前`} />
         <Row label="習慣・タスクの枠" detail="始まり" />
-        <Row label="毎朝のまとめ" detail="起床の時刻" sub="今日の予定・タスク・出発の時刻" />
+        <Row label="毎朝のまとめ" detail="起床の時刻" />
       </Group>
 
-      <Group title="この端末" footer="通知は端末ごとに設定します。パソコンと iPhone の両方で受け取るなら、それぞれでオンにしてください。">
+      <Group title="この端末">
         {support === "needs-home-screen" && (
           <EmptyNote>
-            iPhone では、ホーム画面に追加したアプリから開いたときだけ通知を受け取れます。Safari の共有ボタン →「ホーム画面に追加」から開き直してください。
+            ホーム画面に追加したアプリから開くと、通知をオンにできます。
           </EmptyNote>
         )}
         {support === "unsupported" && <EmptyNote>このブラウザは通知に対応していません。</EmptyNote>}

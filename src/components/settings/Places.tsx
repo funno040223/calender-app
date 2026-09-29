@@ -45,10 +45,10 @@ function PlaceForm({ place, onClose }: { place?: Place; onClose: () => void }) {
       <Field label="名前">
         <input className={inputCls} value={name} autoFocus={!place} onChange={(e) => setName(e.target.value)} placeholder="例：大学" />
       </Field>
-      <Field label="キーワード" help="予定の場所にこの言葉が入っていれば、この場所とみなします。「、」で区切って複数書けます">
+      <Field label="キーワード">
         <input className={inputCls} value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="例：大学、キャンパス" />
       </Field>
-      <Field label="片道の移動時間（分）" help="0 にすると、家と同じ（移動なし）として扱います">
+      <Field label="片道の移動時間（分）">
         <input className={`${inputBase} w-28`} type="number" inputMode="numeric" min={0} step={5} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
       </Field>
     </EditSheet>
@@ -60,7 +60,7 @@ export default function Places() {
   const [editing, setEditing] = useState<{ place?: Place } | null>(null);
   return (
     <>
-      <Group footer="予定の場所から移動時間を決めます。予定ごとに移動時間を入れた場合は、そちらが優先です。">
+      <Group>
         {state.places.length === 0 && <EmptyNote>場所はまだありません。</EmptyNote>}
         {state.places.map((p) => (
           <Row

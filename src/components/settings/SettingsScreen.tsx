@@ -48,11 +48,11 @@ export default function SettingsScreen() {
         {groups.map((g) => (
           <Group key={g.title} title={g.title}>
             {g.ids.map((id) => (
-              <Row key={id} label={SECTIONS[id].title} sub={SECTIONS[id].summary} detail={detail[id]} onClick={() => router.push(`/settings/${id}`)} />
+              <Row key={id} label={SECTIONS[id].title} detail={detail[id]} onClick={() => router.push(`/settings/${id}`)} />
             ))}
           </Group>
         ))}
-        <Group title="アカウント" footer="データはサーバー（Supabase）に保存され、ほかの端末でも同じ内容になります。">
+        <Group title="アカウント">
           <Row label="同期" detail={SYNC_LABEL[sync]} />
           <DangerButton
             confirm="ログアウトします。次に開くときは、もう一度ログインが必要です。よろしいですか？"
@@ -65,7 +65,7 @@ export default function SettingsScreen() {
             ログアウト
           </DangerButton>
         </Group>
-        <Group title="データ" footer="予定・タスク・時間割・習慣・朝の記録など、すべてをサンプルの状態に戻します。">
+        <Group title="データ">
           <DangerButton
             confirm="すべてのデータをサンプルの状態に戻します。自分で入れた予定やタスク、設定も消えます。よろしいですか？"
             onClick={reset}

@@ -49,19 +49,9 @@ export default function Feed() {
 
   return (
     <>
-      <Group
-        title="配信するもの"
-        footer="Google カレンダーから取り込んだ予定は、もともと Google 側にあるので入れません。カレンダーアプリが読みに来るたびに組み直した内容を返します（読みに来る間隔はアプリしだいで、数分〜数時間）。"
-      >
-        <Row label="組んだ枠" sub="習慣・タスク・朝ルーティン" />
-        <Row label="自分で入れた予定" />
-        <Row label="時間割の授業" detail="出る回だけ" />
-        <Row label="範囲" detail="7日前〜14日先" />
-      </Group>
 
       <Group
         title="配信のアドレス"
-        footer="このアドレスを知っている人は誰でも予定を読めます。ほかの人に教えないでください。漏れたときは作り直せば、前のアドレスは使えなくなります。"
       >
         {feed === undefined && !message && <EmptyNote>読み込み中…</EmptyNote>}
         {feed === null && !url && <EmptyNote>まだ配信していません。</EmptyNote>}
@@ -70,7 +60,7 @@ export default function Feed() {
         )}
         {url && (
           <div className="flex flex-col gap-2 px-4 py-3">
-            <p className="text-[13px] text-muted">アドレスはこの画面を閉じると二度と表示されません。今のうちに登録してください。</p>
+            <p className="text-[13px] text-muted">ほかの人に教えないでください。この画面を閉じると、もう表示されません。</p>
             <p className="select-all break-all rounded-lg bg-grouped px-3 py-2 font-mono text-[12px]">{url}</p>
             <div className="flex gap-4 text-[15px]">
               <button type="button" className="text-accent" onClick={() => void copy()}>
@@ -110,9 +100,8 @@ export default function Feed() {
         </button>
       )}
 
-      <Group title="登録のしかた">
-        <Row label="iPhone" sub="上の「iPhone のカレンダーに追加」を押す → 照会（購読）" />
-        <Row label="Google カレンダー" sub="パソコンで「他のカレンダー」の＋ →「URL で追加」にアドレスを貼る" />
+      <Group title="Google カレンダーへの登録">
+        <Row label="「他のカレンダー」の＋ →「URL で追加」" />
       </Group>
     </>
   );

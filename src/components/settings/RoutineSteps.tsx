@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useApp } from "@/components/app/StoreProvider";
 import { AddRow, EmptyNote, Group } from "@/components/ui/controls";
-import { formatMinutes, newId } from "@/lib/mock/jst";
+import { newId } from "@/lib/mock/jst";
 import type { RoutineStep } from "@/lib/mock/model";
 
 function StepRow({
@@ -64,7 +64,6 @@ export default function RoutineSteps() {
 
   return (
     <Group
-      footer={`「今日」の画面のチェックリストになります。朝ルーティンの時間（${formatMinutes(state.settings.routineMinutes)}）は「基本の設定」で変えられます。`}
     >
       {steps.length === 0 && <EmptyNote>手順はまだありません。</EmptyNote>}
       {steps.map((s, i) => (

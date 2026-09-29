@@ -177,7 +177,7 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
       </Field>
 
       {!d.hasFinish && parents.length > 0 && (
-        <Field label="ほかの習慣の待ち時間に行う" help={during ? "時間帯と頻度は、その習慣に合わせます" : undefined}>
+        <Field label="ほかの習慣の待ち時間に行う">
           <select className={inputCls} value={d.parentId} onChange={(e) => set("parentId", e.target.value)} aria-label="待ち時間に行う習慣">
             <option value="">しない</option>
             {parents.map((p) => (
@@ -193,13 +193,6 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
         <>
           <Field
             label="時間帯"
-            help={
-              d.anchor === "clock"
-                ? "この時間の中のどこかに置きます。終わりが始まりより前なら翌日の時刻です"
-                : d.anchor === "wake"
-                  ? "その日の起床時刻から数えます（朝の散歩など）"
-                  : "その日の就寝時刻から逆に数えます（入浴など）"
-            }
           >
             <Segmented
               label="時間帯の決め方"
@@ -265,7 +258,7 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
         </>
       )}
 
-      <Field label="締切が迫ったとき" help="「なるべく残す」は、ほかにお休みにできる習慣がないときだけお休みにします">
+      <Field label="締切が迫ったとき">
         <Segmented
           label="締切が迫ったとき"
           full
@@ -291,12 +284,11 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
 
       <Field
         label="行動ポイント（任意）"
-        help="1回でどれだけ疲れるか。洗濯 1、自炊 2 など。散歩や発散のように回復するものはマイナス（-1 など）。空欄なら 0"
       >
         <input className={`${inputBase} w-28`} type="number" inputMode="decimal" step={0.5} placeholder="0" value={d.energy} onChange={(e) => set("energy", e.target.value)} />
       </Field>
 
-      <Field label="このあとの休憩（分・任意）" help="食後など、このあとしばらく集中するタスクを避けます。空欄ならなし">
+      <Field label="このあとの休憩（分・任意）">
         <input className={`${inputBase} w-28`} type="number" inputMode="numeric" min={0} step={5} placeholder="なし" value={d.avoidAfter} onChange={(e) => set("avoidAfter", e.target.value)} />
       </Field>
 
@@ -364,7 +356,7 @@ export default function Habits() {
   const [editing, setEditing] = useState<{ habit?: Habit } | null>(null);
   return (
     <>
-      <Group footer="習慣は時間帯の中の空いているところに毎回置き直します。飛ばしてよい習慣は、締切が迫るとお休みになります。">
+      <Group>
         {state.habits.length === 0 && <EmptyNote>習慣はまだありません。</EmptyNote>}
         {state.habits.map((h) => (
           <Row

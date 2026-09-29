@@ -159,10 +159,7 @@ export default function EventForm({
         </label>
         {d.allDay && (
           <label className="flex items-center justify-between gap-3 text-[15px]">
-            <span>
-              <span className="block">家にいない（帰省・旅行など）</span>
-              <span className="block text-[12px] text-muted">この間は自炊と洗濯を入れず、食事は外食・お弁当にします</span>
-            </span>
+            <span>家にいない（帰省・旅行など）</span>
             <input type="checkbox" className="ios-switch" checked={d.awayFromHome} onChange={(e) => set("awayFromHome", e.target.checked)} />
           </label>
         )}
@@ -187,10 +184,7 @@ export default function EventForm({
           </label>
         </div>
         <label className="flex items-center justify-between gap-2 rounded-lg border border-line px-3 py-2 text-[15px]">
-          <span>
-            顔を出す（身支度をする）
-            <span className="block text-[12px] text-muted">外出する予定と、会議のリンクがある予定は自動で身支度をします</span>
-          </span>
+          <span>顔を出す（身支度をする）</span>
           <input type="checkbox" className="ios-switch" checked={d.needsPrep} onChange={(e) => set("needsPrep", e.target.checked)} />
         </label>
         <textarea

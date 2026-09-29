@@ -125,7 +125,6 @@ export default function TaskForm({
     onSave(next);
   };
 
-  const hasTarget = d.hasDeadline || !!related;
 
   return (
     <Sheet title={task ? "タスクを編集" : "新規タスク"} onClose={onClose}>
@@ -177,7 +176,6 @@ export default function TaskForm({
               />
             </div>
           )}
-          {d.hasDeadline && !d.deadlineTime && <p className="text-[12px] text-muted">時刻が空なら、その日の終わりまで</p>}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -250,8 +248,6 @@ export default function TaskForm({
           </select>
           {d.relatedEventId && !related ? (
             <p className="text-[12px] text-accent">関連する予定が見つかりません</p>
-          ) : related ? (
-            <p className="text-[12px] text-muted">この予定の前（外出なら家を出る時刻）までに終えます</p>
           ) : null}
         </div>
 
@@ -267,9 +263,6 @@ export default function TaskForm({
               { value: "justBefore", label: "直前に寄せる" },
             ]}
           />
-          {d.timing === "justBefore" && !hasTarget && (
-            <p className="text-[12px] text-muted">締切か関連する予定がないときは、早めに片付けます</p>
-          )}
         </div>
 
         {error && <p className="text-[14px] text-accent">{error}</p>}

@@ -65,14 +65,14 @@ function AvoidForm({ win, onClose }: { win?: AvoidWindow; onClose: () => void })
       <Field label="名前">
         <input className={inputCls} value={label} autoFocus={!win} onChange={(e) => setLabel(e.target.value)} placeholder="例：夜は作業しない" />
       </Field>
-      <Field label="時間" help="終わりが始まりより前なら、翌日の時刻です">
+      <Field label="時間">
         <div className="flex items-center gap-2">
           <input className={inputCls} type="time" step={300} aria-label="始まり" value={start} onChange={(e) => setStart(e.target.value)} />
           <span className="text-muted">〜</span>
           <input className={inputCls} type="time" step={300} aria-label="終わり" value={end} onChange={(e) => setEnd(e.target.value)} />
         </div>
       </Field>
-      <Field label="曜日" help={weekdays.length === 0 || weekdays.length === 7 ? "選ばなければ毎日" : undefined}>
+      <Field label="曜日">
         <div className="flex flex-wrap gap-1.5">
           {WEEK.map((w) => (
             <Chip key={w} on={weekdays.includes(w)} onClick={() => setWeekdays(toggle(weekdays, w))}>
@@ -81,10 +81,10 @@ function AvoidForm({ win, onClose }: { win?: AvoidWindow; onClose: () => void })
           ))}
         </div>
       </Field>
-      <Field label="対象の日" help="休日は「遊び」以外の予定がない日、オンの日はそれ以外の日です">
+      <Field label="対象の日">
         <Segmented label="対象の日" full value={dayType} onChange={setDayType} options={DAY_TYPES} />
       </Field>
-      <Field label="対象のタスク" help={tagIds.length === 0 ? "選ばなければ、すべてのタスク" : undefined}>
+      <Field label="対象のタスク">
         <div className="flex flex-wrap gap-1.5">
           {TAGS.map((t) => (
             <Chip key={t.id} on={tagIds.includes(t.id)} onClick={() => setTagIds(toggle(tagIds, t.id))}>
@@ -93,7 +93,7 @@ function AvoidForm({ win, onClose }: { win?: AvoidWindow; onClose: () => void })
           ))}
         </div>
       </Field>
-      <Field label="強さ" help={hard ? "この時間には入れません" : "ほかに場所がないときだけ入れます"}>
+      <Field label="強さ">
         <Segmented
           label="強さ"
           full
@@ -121,7 +121,7 @@ export default function AvoidWindows() {
   const [editing, setEditing] = useState<{ win?: AvoidWindow } | null>(null);
   return (
     <>
-      <Group footer="タスクを置くときに、この時間を避けます。予定や習慣には影響しません。">
+      <Group>
         {state.avoidWindows.length === 0 && <EmptyNote>まだありません。</EmptyNote>}
         {state.avoidWindows.map((w) => (
           <Row key={w.id} label={w.label} sub={summary(w)} detail={w.hard ? "入れない" : "なるべく避ける"} onClick={() => setEditing({ win: w })} />

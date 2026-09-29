@@ -46,7 +46,7 @@ function TreatForm({ treat, category, onClose }: { treat?: Treat; category: Trea
         <Segmented label="種類" full value={cat} onChange={setCat} options={TREAT_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))} />
       </Field>
       {cat === "reward" && (
-        <Field label="条件（任意）" help="ご褒美をもらえる条件です">
+        <Field label="条件（任意）">
           <input className={inputCls} value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="例：朝ルーティンが終わったら" />
         </Field>
       )}

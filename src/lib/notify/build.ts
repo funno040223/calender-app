@@ -31,9 +31,9 @@ export const NOTICE_HORIZON_MS = 48 * 60 * MIN;
 export const SMOKE_CUTOFF_MINUTES = 180;
 /** 寝る準備の合図（就寝の何分前） */
 export const BED_PREP_MINUTES = 30;
-/** 入浴：40〜42.5℃で10分以上、就寝の1〜2時間前（Haghayegh 2019）。入浴中に Watch を充電して、寝るときの記録に間に合わせる */
+/** 入浴中に Watch を充電して、寝るときの記録に間に合わせる */
 const BATH_HABIT_ID = "habit-bath";
-const BATH_NOTE = "。お湯は40〜42℃で10分以上。入浴中に Apple Watch を充電";
+const BATH_NOTE = "。入浴中に Apple Watch を充電";
 
 /**
  * 配置の結果から、これから送る通知を作る。
@@ -105,7 +105,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
         key: `home:${d.dayStart}`,
         at: d.homeAt,
         title: "おかえりなさい",
-        body: "残りの体力を教えてください。今夜の予定をそれに合わせます。",
+        body: "残りの体力は？",
         url: "/?checkin=1",
       });
     }
@@ -113,14 +113,14 @@ export function buildNotices(input: NoticeInput): Notice[] {
       key: `smoke:${d.dayStart}`,
       at: d.bed - SMOKE_CUTOFF_MINUTES * MIN,
       title: "今日のタバコはここまで",
-      body: `就寝は ${formatTime(d.bed)}。寝つきのために、ここからは吸わずに過ごしましょう。`,
+      body: `就寝 ${formatTime(d.bed)}`,
       url: "/",
     });
     add({
       key: `bedprep:${d.dayStart}`,
       at: d.bed - BED_PREP_MINUTES * MIN,
       title: "寝る準備の時間です",
-      body: `歯みがきをして、スマホを充電場所へ。Apple Watch をつけて、就寝は ${formatTime(d.bed)}。`,
+      body: `Apple Watch をつける・スマホは充電場所へ。就寝 ${formatTime(d.bed)}`,
       url: "/",
     });
   }

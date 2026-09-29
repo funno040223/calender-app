@@ -2,23 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { DayPlan, EveningEnergy, WakeSource } from "@/lib/scheduler";
+import type { DayPlan, EveningEnergy } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { TREAT_CATEGORIES, dateKeyOf, treatFor, wakeStreak, type SleepAnswer, type WakeLog } from "@/lib/mock/model";
+import { TREAT_CATEGORIES, dateKeyOf, treatFor, wakeStreak, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
-import Notices from "./Notices";
-
-const WAKE_REASON: Record<WakeSource, string> = {
-  away: "外出の予定に合わせて",
-  home: "在宅の予定に合わせて",
-  neighbors: "前後の日とそろえて",
-  default: "予定がないので、いつもの時刻",
-  fixed: "1週間の起床をそろえて",
-};
+import Notices, { hasNotices } from "./Notices";
 
 const colorOf = (id: CalendarId) => CALENDARS.find((c) => c.id === id)?.colorVar ?? "var(--muted)";
 
@@ -37,18 +29,16 @@ function timeOn(day: number, ms: number) {
   return `${ms >= day + DAY_MS ? "翌" : ""}${formatTime(ms)}`;
 }
 
-function SleepCard({ day, next, today }: { day: DayPlan; next?: DayPlan; today: number }) {
+function SleepCard({ day, today }: { day: DayPlan; today: number }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="rounded-xl bg-surface px-4 py-3">
         <p className="text-[13px] font-medium text-muted">起床</p>
         <p className="text-[34px] font-semibold leading-tight tabular-nums">{formatTime(day.wake)}</p>
-        <p className="text-[12px] leading-snug text-muted">{WAKE_REASON[day.wakeSource]}</p>
       </div>
       <div className="rounded-xl bg-surface px-4 py-3">
         <p className="text-[13px] font-medium text-muted">就寝</p>
         <p className="text-[34px] font-semibold leading-tight tabular-nums">{timeOn(today, day.bed)}</p>
-        <p className="text-[12px] leading-snug text-muted">{next ? `明日は${formatTime(next.wake)}に起きる` : ""}</p>
       </div>
       {day.firstEvent && (
         <p className="col-span-2 px-1 text-[13px] text-muted">
@@ -74,10 +64,12 @@ function CheckCircle({ on }: { on: boolean }) {
   );
 }
 
-const SLEEP_OPTIONS: { value: SleepAnswer; label: string }[] = [
-  { value: "good", label: "よく眠れた" },
-  { value: "ok", label: "ふつう" },
-  { value: "poor", label: "いまいち" },
+const FATIGUE_OPTIONS: { value: MorningFatigue; label: string }[] = [
+  { value: 1, label: "元気" },
+  { value: 2, label: "少し" },
+  { value: 3, label: "ふつう" },
+  { value: 4, label: "かなり" },
+  { value: 5, label: "ぐったり" },
 ];
 
 function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
@@ -153,14 +145,14 @@ function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
         )}
         {log.wokeAt !== undefined && (
           <div className="mt-3">
-            <p className="mb-1.5 text-[13px] text-muted">昨夜はよく眠れましたか？</p>
-            <div className="grid grid-cols-3 gap-2">
-              {SLEEP_OPTIONS.map((o) => (
+            <p className="mb-1.5 text-[13px] text-muted">今の疲れ</p>
+            <div className="grid grid-cols-5 gap-1.5">
+              {FATIGUE_OPTIONS.map((o) => (
                 <button
                   key={o.value}
                   type="button"
-                  onClick={() => setLog((l) => ({ ...l, sleep: o.value }))}
-                  className={`rounded-xl py-2 text-[14px] font-medium ${log.sleep === o.value ? "bg-accent text-white" : "bg-surface2"}`}
+                  onClick={() => setLog((l) => ({ ...l, fatigue: o.value }))}
+                  className={`rounded-xl py-2 text-[13px] font-medium ${log.fatigue === o.value ? "bg-accent text-white" : "bg-surface2"}`}
                 >
                   {o.label}
                 </button>
@@ -368,7 +360,7 @@ function Gaps({ now, day }: { now: number; day: DayPlan }) {
     .map((g) => ({ start: Math.max(g.start, now), end: g.end }))
     .filter((g) => g.end - g.start >= 20 * MIN);
   return (
-    <Group title="今日のすきま時間" footer="カレンダーには入れません。空いたときの候補です。">
+    <Group title="今日のすきま時間">
       {gaps.length === 0 ? (
         <p className="px-4 py-3 text-[14px] text-muted">今日はまとまった空き時間がありません。</p>
       ) : (
@@ -380,7 +372,7 @@ function Gaps({ now, day }: { now: number; day: DayPlan }) {
                 {formatTime(g.start)}〜{formatTime(g.end)}
               </span>
               <span className="min-w-0 flex-1 text-[14px] text-muted">
-                {formatMinutes(len)}・{len >= 60 ? "勉強や読書をまとめて" : "本を少し・単語の復習に"}
+                {formatMinutes(len)}
               </span>
             </div>
           );
@@ -390,10 +382,10 @@ function Gaps({ now, day }: { now: number; day: DayPlan }) {
   );
 }
 
-const EVENING_OPTIONS: { value: EveningEnergy; label: string; note: string }[] = [
-  { value: "high", label: "多い", note: "ふだんどおり。集中する作業も入れます" },
-  { value: "normal", label: "ふつう", note: "軽い作業だけ、合わせて60分まで" },
-  { value: "low", label: "少ない", note: "タスクはほかの日へ。食事・入浴・寝るだけ" },
+const EVENING_OPTIONS: { value: EveningEnergy; label: string }[] = [
+  { value: "high", label: "多い" },
+  { value: "normal", label: "ふつう" },
+  { value: "low", label: "少ない" },
 ];
 
 /** 外出した日の夜：帰宅したら残りの体力を聞き、今夜だけ組み直す */
@@ -421,7 +413,6 @@ function EveningCard({ day, now }: { day: DayPlan; now: number }) {
           <div className="flex items-start justify-between gap-3">
             <p className="text-[15px]">
               今夜の体力：<span className="font-semibold">{picked.label}</span>
-              <span className="block text-[13px] text-muted">{picked.note}</span>
             </p>
             <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-[14px] text-accent">
               変える
@@ -429,7 +420,7 @@ function EveningCard({ day, now }: { day: DayPlan; now: number }) {
           </div>
         ) : (
           <>
-            <p className="text-[15px]">残りの体力は？ 今夜の予定をそれに合わせます。</p>
+            <p className="text-[15px]">残りの体力は？</p>
             <div className="grid grid-cols-3 gap-2">
               {EVENING_OPTIONS.map((o) => (
                 <button
@@ -469,18 +460,14 @@ function EnergyCard({ today }: { today: number }) {
         </div>
         {tired ? (
           <p className="text-[14px]">
-            今夜は回復にあてましょう。
-            {e.suggestion ? `${formatTime(e.suggestion.start)}〜${formatTime(e.suggestion.end)} に「${e.suggestion.name}」はどうですか。` : ""}
+            {e.suggestion ? `${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "今夜は休む"}
           </p>
         ) : over ? (
           <p className="text-[14px]">
-            今日はしんどそうです。
-            {e.suggestion
-              ? `${formatTime(e.suggestion.start)}〜${formatTime(e.suggestion.end)} に「${e.suggestion.name}」で少し回復しましょう。`
-              : "休憩を多めにとってください。"}
+            {e.suggestion ? `上限超え・${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "上限超え"}
           </p>
         ) : (
-          <p className="text-[13px] text-muted">あと {Math.round((e.budget - e.used) * 10) / 10} ポイントの余裕があります。</p>
+          <p className="text-[13px] text-muted">あと {Math.round((e.budget - e.used) * 10) / 10}</p>
         )}
       </div>
     </Group>
@@ -508,16 +495,18 @@ export default function TodayScreen() {
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
           {day && <EveningCard day={day} now={now} />}
-          {day && <SleepCard day={day} next={days[idx + 1]} today={today} />}
+          {day && <SleepCard day={day} today={today} />}
           <EnergyCard today={today} />
           <MorningCard day={day} now={now} />
           <TreatCard today={today} />
         </div>
         <div className="flex flex-col gap-6">
           <Timeline now={now} dayEnd={dayEnd} />
-          <Group title="お知らせ">
-            <Notices state={state} onRegisterPlace={registerPlace} onOpenTask={openTask} />
-          </Group>
+          {hasNotices(state) && (
+            <Group title="お知らせ">
+              <Notices state={state} onRegisterPlace={registerPlace} onOpenTask={openTask} />
+            </Group>
+          )}
           {day && <Gaps now={now} day={day} />}
         </div>
       </div>

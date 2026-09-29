@@ -74,15 +74,8 @@ export function BlockSheet({
             {relatedLabel} の準備
           </p>
         )}
-        {block.kind === "routine" ? (
-          <p className="text-[14px] text-muted">起床時刻から自動で決まる枠です。予定を変えると動きます。</p>
-        ) : (
+        {block.kind === "routine" ? null : (
           <>
-            <p className="text-[14px] text-muted">
-              {block.pinned
-                ? "この枠は固定されています。組み直しても動きません。"
-                : "アプリが置いた枠です。ドラッグで動かすと、その位置に固定されます。"}
-            </p>
             {block.pinned && (
               <button type="button" onClick={() => onTogglePin(block)} className="rounded-xl bg-surface2 py-2.5 font-medium">
                 固定を外して自動に戻す
