@@ -34,6 +34,7 @@
   - `outlook.ts` 今週・来週の見通し（タスクの時間・空き時間、順調／きつい／間に合わない）。タスク画面の上に出す
   - 習慣：時間帯は時刻か起床から（anchor "wake"）か就寝まで（"bed"）、優先度3段階（skippable＋keepLast）、雨の日の代わり（rainAlternative）、頻度「順調な休日」（onTrackHoliday＝締切に足りないタスクがないときの休日だけ）
   - 帰宅時の体力（eveningEnergy：low はタスクなし、normal は事務系60分まで）、身支度は人に会う日だけ（DayPlan.prep。外出か会議リンクか予定の needsPrep）、DayPlan.homeAt＝最後の外出から帰る時刻
+- 取り込んだ予定に場所がないと「家にいる」扱いになる。予定を開いて「移動（片道）」を選ぶと外出として扱う（`importedTravel`、`planEvents` で上書き）
 - `src/lib/ical/` iCal の読み取り（ical.js。繰り返し・除外・変更回・終日・タイムゾーン）と書き出し、URL の許可リスト（Google・iCloud の https のみ）
 - `src/lib/mock/` 画面のデータ（`model.ts` 型、`state.ts` 読み込み・移行・組み直し（画面とサーバーで共通）、`store.ts` 画面用の保存と同期、`sample.ts` 初期データ）。データの移行は `state.ts` の MIGRATIONS で1回だけ
 - `src/lib/sync/` Supabase との同期（`remote.ts` app_state、`ical.ts` 取り込み元）

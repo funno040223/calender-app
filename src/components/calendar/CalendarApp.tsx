@@ -320,6 +320,33 @@ export default function CalendarApp() {
               />
             </label>
           )}
+          {viewing.source === "google" && (
+            <label className="flex items-center justify-between gap-3 rounded-xl bg-surface2 px-3 py-2.5">
+              <span className="text-[15px]">移動（片道）</span>
+              <select
+                aria-label="移動（片道）"
+                className="rounded-lg bg-surface px-2 py-1 text-[15px]"
+                value={state.importedTravel[viewingEvent.id] === undefined ? "" : String(state.importedTravel[viewingEvent.id])}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  update((d) => {
+                    const importedTravel = { ...d.importedTravel };
+                    if (v === "") delete importedTravel[viewingEvent.id];
+                    else importedTravel[viewingEvent.id] = Number(v);
+                    return { ...d, importedTravel };
+                  });
+                }}
+              >
+                <option value="">{viewingEvent.location ? "場所から" : "家にいる"}</option>
+                {viewingEvent.location && <option value="0">家にいる</option>}
+                {[10, 15, 20, 30, 45, 60, 90].map((m) => (
+                  <option key={m} value={m}>
+                    {m}分
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {relatedList(viewingEvent.id)}
           {viewingClass && (
             <button

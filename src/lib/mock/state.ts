@@ -60,6 +60,7 @@ const DATA_KEYS = [
   "taskBlockLog",
   "rewardSpends",
   "doneTasks",
+  "importedTravel",
   "taskChecks",
   "rewardRates",
   "migrations",
@@ -98,6 +99,7 @@ export function sampleData(now: number): MockData {
     taskBlockLog: {},
     rewardSpends: [],
     doneTasks: [],
+    importedTravel: {},
     taskChecks: {},
     rewardRates: DEFAULT_REWARD_RATES,
     migrations: [...MIGRATIONS],
@@ -251,6 +253,9 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     doneTasks: arr<unknown>(d.doneTasks, []).filter(
       (x): x is DoneTask => isRecord(x) && typeof x.id === "string" && typeof x.title === "string" && typeof x.doneAt === "number",
     ),
+    importedTravel: isRecord(d.importedTravel)
+      ? Object.fromEntries(Object.entries(d.importedTravel).filter((e): e is [string, number] => typeof e[1] === "number" && e[1] >= 0))
+      : {},
     taskChecks: isRecord(d.taskChecks)
       ? Object.fromEntries(Object.entries(d.taskChecks).filter((e): e is [string, TaskCheck] => isRecord(e[1]) && typeof e[1].at === "number"))
       : {},
@@ -288,11 +293,12 @@ export function toData(state: MockData): MockData {
 }
 
 /** plan() に渡す予定（自分の予定・授業・取り込んだ予定）。通知もこれを使う */
-export function planEvents(data: Pick<MockData, "events">, classEvents: ClassEvent[], googleEvents: CalendarEvent[]): CalendarEvent[] {
+export function planEvents(data: Pick<MockData, "events" | "importedTravel">, classEvents: ClassEvent[], googleEvents: CalendarEvent[]): CalendarEvent[] {
   return [
     ...data.events.map((e) => ({ ...e, play: e.calendarId === "play" })),
     ...classEventsForPlan(classEvents),
-    ...googleEvents,
+    // 取り込んだ予定は、自分で付けた移動時間があればそれを使う
+    ...googleEvents.map((e) => (data.importedTravel[e.id] !== undefined ? { ...e, travelMinutes: data.importedTravel[e.id] } : e)),
   ];
 }
 
