@@ -448,13 +448,74 @@ export default function CalendarView(props: CalendarViewProps) {
     };
   }, [strip, col]);
 
+  // ---- 上下に動かしている間は、左右に動かさない（iPhone は向きを固定しないので、指が少し斜めだと横にずれる） ----
+  /** "y" のあいだは横のスクロールを止めている。touching は指が画面に触れているか、scrolledAt は最後に動いた時刻 */
+  const axisLock = useRef<{ axis?: "x" | "y"; touching: boolean; scrolledAt: number }>({ touching: false, scrolledAt: 0 });
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!strip || !el) return;
+    let start: { x: number; y: number } | null = null;
+    let endTimer = 0;
+    const unlock = () => {
+      axisLock.current.axis = undefined;
+      el.style.overflowX = "";
+    };
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) {
+        start = null;
+        return;
+      }
+      start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      window.clearTimeout(endTimer);
+      // 向きは動き始めてから決め直す（横の止めは、横に動かしたときに外す）
+      axisLock.current.axis = undefined;
+      axisLock.current.touching = true;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!start || axisLock.current.axis || e.touches.length !== 1) return;
+      const dx = Math.abs(e.touches[0].clientX - start.x);
+      const dy = Math.abs(e.touches[0].clientY - start.y);
+      if (Math.max(dx, dy) < 8) return;
+      axisLock.current.axis = dy > dx ? "y" : "x";
+      el.style.overflowX = axisLock.current.axis === "y" ? "hidden" : "";
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length > 0) return;
+      axisLock.current.touching = false;
+      start = null;
+      // 惰性で動いていなければ、すぐに横のスクロールを戻す
+      window.clearTimeout(endTimer);
+      endTimer = window.setTimeout(() => {
+        if (Date.now() - axisLock.current.scrolledAt > 150) unlock();
+      }, 200);
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+      window.clearTimeout(endTimer);
+      el.style.overflowX = "";
+    };
+  }, [strip]);
+
   const scrollEndTimer = useRef<number | undefined>(undefined);
   const handleScroll = () => {
     const el = wrapRef.current;
     if (!el || col === 0) return;
     setTitleFor(anchor + Math.round(el.scrollLeft / col) * DAY_MS);
+    axisLock.current.scrolledAt = Date.now();
     window.clearTimeout(scrollEndTimer.current);
     scrollEndTimer.current = window.setTimeout(() => {
+      // 上下の動き（惰性を含む）が止まったら、横のスクロールを戻す
+      if (axisLock.current.axis === "y" && !axisLock.current.touching) {
+        axisLock.current.axis = undefined;
+        el.style.overflowX = "";
+      }
       // 止まる仕組みが効かずに日の途中で止まったら、近いほうの日の境目まで動かす
       const off = el.scrollLeft / col;
       if (Math.abs(off - Math.round(off)) * col > 1) {
