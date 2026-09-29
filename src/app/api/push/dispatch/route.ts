@@ -1,19 +1,10 @@
-import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanNotices, sendPush, type PushTarget } from "@/lib/push/send";
+import { authorized } from "@/lib/push/cron";
 
 /** 遅れて届いた一覧でも、この時間までは送る */
 const GRACE_MS = 10 * 60_000;
 const KEEP_SENT_MS = 3 * 24 * 60 * 60_000;
-
-function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  const got = request.headers.get("authorization") ?? "";
-  if (!secret) return false;
-  const a = Buffer.from(got);
-  const b = Buffer.from(`Bearer ${secret}`);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 /**
  * Supabase の pg_cron から1分ごとに呼ばれ、時刻が来た通知を送る。

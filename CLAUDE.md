@@ -46,13 +46,13 @@
 - どちらの表も RLS で本人だけ。未ログインでは読めず書けないことを確認済み
 - 通知（`supabase/migrations/0003_push.sql`、実行済み）：`push_subscriptions`（端末）、`push_schedule`（これから送る通知の一覧。アプリが組み直すたびに `src/lib/notify/build.ts` で作って保存。48時間分）、`push_sent`（送った記録。secret key だけが触る）。予定の15分前（外出は家を出る15分前）・習慣とタスクの枠の始まり・起床時刻に毎朝のまとめ。就寝〜起床は送らない
 - 送信：Supabase の pg_cron（ジョブ名 `push-dispatch`、1分ごと）が pg_net で `/api/push/dispatch` を呼ぶ。合言葉は Vault の `push_cron_secret`。登録の SQL は `supabase/local/0004_cron.sql`（**git に載せない**。合言葉入り）。dispatch は proxy のログイン確認を通さず、`CRON_SECRET` で確かめる
+- 毎時5分に pg_cron（`push-replan`）が `/api/push/replan` を呼び、app_state と iCal から組み直して push_schedule だけを書き換える（app_state は書かない）。組み直しの処理は `src/lib/mock/state.ts`（画面とサーバーで共通。store.ts は画面用）。iCal を1つでも取り込めなかった回は、アプリが作った一覧を残す
 
 ## 状況（2026-09-29 時点）
 - GitHub の非公開リポジトリ `funno040223/calender-app`（origin）。`main` と `feat/screens` は同じ内容。push はユーザーが自分の端末で行う（トークン認証。Mac のキーチェーンに保存済み）。コミットの作者はこのリポジトリだけ `funno040223`（GitHub の noreply アドレス）に設定済み。**作者が GitHub と結びついていないと Vercel の無料プランは公開を止める**
 - 公開先：https://calender-app-umber.vercel.app（Vercel の funno チームの `calender-app`。`main` を公開。7kf1 のほうのプロジェクトは削除した）。環境変数は6つ（Supabase の URL・publishable key、`NEXT_PUBLIC_VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`CRON_SECRET`、`SUPABASE_SECRET_KEY`）。**`NEXT_PUBLIC_` の付くものは Config の種類で作る**（Secret だと編集できなくなる）。値を変えたら Redeploy が必要。Supabase の Site URL / Redirect URLs も設定済み。iPhone の Safari でもログインとデータの表示を確認済み
-- 完了：要件定義・設計、配置エンジン、画面（今日・カレンダー3日/週/月・タスク・設定）、ログイン必須、Supabase への保存、Google カレンダーの取り込み（ユーザーの実カレンダーを1件登録済み）、公開（ステップ7）、iPhone 対応（ステップ8。ホーム画面に追加・機内モードでの表示と、戻ったときの保存を確認済み）、通知（ステップ9の前半。iPhone に届くことを確認済み）
+- 完了：要件定義・設計、配置エンジン、画面（今日・カレンダー3日/週/月・タスク・設定）、ログイン必須、Supabase への保存、Google カレンダーの取り込み（ユーザーの実カレンダーを1件登録済み）、公開（ステップ7）、iPhone 対応（ステップ8。ホーム画面に追加・機内モードでの表示と、戻ったときの保存を確認済み）、通知と定期実行（ステップ9。iPhone に届くことを確認済み）
 - 残り（完成まで）：
-  9. 後半：サーバーでの組み直し（毎時。app_state と iCal から plan() を動かし、push_schedule だけを書き換える。app_state は書かない）
   10. アプリの予定の iCal 配信（推測できないトークン付き URL、読み取り専用）
   11. 1〜2週間使って調整
 - 第2段階以降：しんどさの記録で行動ポイントを合わせる、通知から実績を答える、朝ルーティンの記録の活用、iOS ショートカット・Siri、iPhone の「睡眠」（アラーム）の就寝・起床時刻をこの計算に合わせる（ショートカットで毎日設定する案）、発散の候補の編集、自炊の日の切り替え、天気で洗濯の日を選ぶ、AI での所要時間の推定と文の読み取り、ほかの配置戦略

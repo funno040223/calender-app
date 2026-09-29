@@ -8,7 +8,9 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 export async function proxy(request: NextRequest) {
   // 定期実行からの呼び出しはログインしていない。中で CRON_SECRET を確かめる
-  if (request.nextUrl.pathname === "/api/push/dispatch") return NextResponse.next();
+  if (request.nextUrl.pathname === "/api/push/dispatch" || request.nextUrl.pathname === "/api/push/replan") {
+    return NextResponse.next();
+  }
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
