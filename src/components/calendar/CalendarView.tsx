@@ -31,6 +31,8 @@ type Extended = (
   | { type: "event"; source: EventSource; eventId: string; location?: string; relatedCount?: number }
   | { type: "block"; block: Block; relatedLabel?: string }
   | { type: "sleep" }
+  /** 月表示：タスクの締切（締切の日に出す） */
+  | { type: "deadline"; taskId: string }
 ) & {
   /** 関連する予定とタスクのまとまり。強調するときに使う */
   group?: string;
@@ -64,6 +66,12 @@ export interface CalendarViewProps {
   /** 何もないところを押したとき。true を返したら新規作成しない */
   onEmptyClick: () => boolean;
   onHoverGroup: (group: string | undefined) => void;
+  /** 月表示で日付を押したとき（その日の3日表示・週表示へ） */
+  onPickDay: (dayStart: number) => void;
+  /** 月表示でタスクの締切を押したとき */
+  onDeadlineClick: (taskId: string) => void;
+  /** 3日・週を、この日（日本時間の 0:00）から見せる。なければ今日 */
+  initialDay?: number;
   /** 1回押して選んでいる予定・枠（もう1回押すと詳しく開く） */
   selectedId?: string;
   ref?: Ref<CalendarHandle>;
@@ -115,6 +123,13 @@ function renderEventContent(arg: EventContentArg) {
   const ext = arg.event.extendedProps as Extended;
   if (ext.type === "sleep") {
     return <div className="sleep-label">{arg.event.title}</div>;
+  }
+  if (ext.type === "deadline") {
+    return (
+      <div className="ev-inner">
+        <div className="ev-title">〆 {arg.event.title}</div>
+      </div>
+    );
   }
   const pinned = ext.type === "block" && ext.block.pinned;
   const related = ext.type === "event" && ext.relatedCount ? <RelatedBadge n={ext.relatedCount} /> : null;
@@ -174,7 +189,13 @@ export default function CalendarView(props: CalendarViewProps) {
     const wd = new Date(todayFc).getUTCDay();
     return todayFc - ((wd + 6) % 7) * DAY_MS;
   }, [mode, todayFc]);
-  const [anchor, setAnchor] = useState(() => homeDay() - STRIP_LEAD * DAY_MS);
+  const [anchor, setAnchor] = useState(() => {
+    if (props.initialDay === undefined) return homeDay() - STRIP_LEAD * DAY_MS;
+    const f = toFc(props.initialDay);
+    let day = Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate());
+    if (mode === "week") day -= ((new Date(day).getUTCDay() + 6) % 7) * DAY_MS;
+    return day - STRIP_LEAD * DAY_MS;
+  });
   const [col, setCol] = useState(0);
   const axis = useRef(44);
   const pendingScroll = useRef<number | null>(STRIP_LEAD);
@@ -286,7 +307,30 @@ export default function CalendarView(props: CalendarViewProps) {
     const index = eventIndex(state);
     const related = tasksByEvent(state.tasks, index);
     for (const ref of allEventRefs(state)) {
+      // 月表示は見渡すための画面：時刻の予定は文字にせず、日付の下の点（件数）だけにする
+      if (mode === "month" && !ref.event.allDay) continue;
       if (!hidden.has(ref.calendarId)) out.push(eventToInput(ref, related.get(ref.event.id)?.length ?? 0));
+    }
+
+    if (mode === "month") {
+      const late = new Set(state.result.shortfalls.map((x) => x.taskId));
+      if (!hidden.has("task")) {
+        for (const t of state.tasks) {
+          if (t.deadline === undefined) continue;
+          const f = toFc(t.deadline);
+          const day = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate()));
+          out.push({
+            id: `deadline:${t.id}`,
+            title: t.title,
+            start: day,
+            allDay: true,
+            editable: false,
+            classNames: ["ev", "cal-task", "is-deadline", late.has(t.id) ? "is-late" : ""],
+            extendedProps: { type: "deadline", taskId: t.id } satisfies Extended,
+          });
+        }
+      }
+      return out.map((e) => (e.id && e.id === props.selectedId ? { ...e, classNames: [...((e.classNames as string[]) ?? []), "is-selected"] } : e));
     }
 
     const relatedOfTask = new Map<string, EventRef>();
@@ -349,7 +393,19 @@ export default function CalendarView(props: CalendarViewProps) {
       }
     }
     return out.map((e) => (e.id && e.id === props.selectedId ? { ...e, classNames: [...((e.classNames as string[]) ?? []), "is-selected"] } : e));
-  }, [state, hidden, props.selectedId]);
+  }, [state, hidden, props.selectedId, mode]);
+
+  /** 月表示：日ごとの時刻の予定の件数（日付の下に点で出す） */
+  const timedCount = useMemo(() => {
+    const m = new Map<string, number>();
+    if (mode !== "month") return m;
+    for (const ref of allEventRefs(state)) {
+      if (ref.event.allDay || hidden.has(ref.calendarId) || ref.skipped) continue;
+      const k = toFc(ref.event.start).toISOString().slice(0, 10);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  }, [state, hidden, mode]);
 
   const handleSelect = (arg: DateSelectArg) => {
     arg.view.calendar.unselect();
@@ -358,6 +414,8 @@ export default function CalendarView(props: CalendarViewProps) {
 
   const handleDateClick = (arg: DateClickArg) => {
     if (props.onEmptyClick()) return;
+    // 月表示で日付を押したら、その日から見る（終日の予定は、日をまたいで長押し・ドラッグで作る）
+    if (!strip) return props.onPickDay(fromFc(arg.date));
     const start = fromFc(arg.date);
     if (arg.allDay) props.onCreate(start, start + DAY_MS, true);
     else props.onCreate(start, start + 60 * MIN, false);
@@ -367,6 +425,7 @@ export default function CalendarView(props: CalendarViewProps) {
     const ext = arg.event.extendedProps as Extended;
     if (ext.type === "event") props.onEventClick(ext.source, ext.eventId);
     else if (ext.type === "block") props.onBlockClick(ext.block);
+    else if (ext.type === "deadline") props.onDeadlineClick(ext.taskId);
   };
 
   const handleChange = (arg: EventDropArg | EventResizeDoneArg) => {
@@ -418,7 +477,22 @@ export default function CalendarView(props: CalendarViewProps) {
       eventContent={renderEventContent}
       dayHeaderContent={renderDayHeader}
       // 月表示の日付は「1日」ではなく「1」だけにする（時間表示の終日欄には何も出さない）
-      dayCellContent={(arg) => arg.dayNumberText.replace("日", "")}
+      dayCellContent={(arg) => {
+        const num = arg.dayNumberText.replace("日", "");
+        if (strip) return num;
+        const n = timedCount.get(arg.date.toISOString().slice(0, 10)) ?? 0;
+        return (
+          <span className="mc">
+            <span className="mc-num">{num}</span>
+            {n > 0 && (
+              <span className="mc-dots" aria-label={`予定${n}件`}>
+                {"•".repeat(Math.min(n, 4))}
+                {n > 4 ? "+" : ""}
+              </span>
+            )}
+          </span>
+        );
+      }}
       datesSet={(arg: DatesSetArg) => {
         if (!strip) onTitle({ year: `${arg.view.currentStart.getUTCFullYear()}年`, month: `${arg.view.currentStart.getUTCMonth() + 1}月` });
       }}

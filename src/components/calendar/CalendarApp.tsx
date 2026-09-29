@@ -43,9 +43,10 @@ function FocusStyle({ group }: { group?: string }) {
 export default function CalendarApp() {
   const { state, update, setHidden, openTask } = useApp();
   const calRef = useRef<CalendarHandle>(null);
-  const [view, setView] = useState<CalendarMode>(() =>
-    window.matchMedia("(max-width: 639px)").matches ? "day3" : "week",
-  );
+  const [phone] = useState(() => window.matchMedia("(max-width: 639px)").matches);
+  const [view, setView] = useState<CalendarMode>(phone ? "day3" : "week");
+  /** 月表示で押した日。3日・週をこの日から見せる */
+  const [jumpDay, setJumpDay] = useState<number>();
   const [title, setTitle] = useState({ year: "", month: "" });
   const [editing, setEditing] = useState<Editing | null>(null);
   const [viewing, setViewing] = useState<Viewing | null>(null);
@@ -212,7 +213,10 @@ export default function CalendarApp() {
               type="button"
               role="tab"
               aria-selected={view === v.id}
-              onClick={() => setView(v.id)}
+              onClick={() => {
+                setJumpDay(undefined);
+                setView(v.id);
+              }}
               className={`rounded-md px-2.5 py-1 text-[13px] font-medium ${
                 view === v.id ? "bg-surface text-fg shadow-sm" : "text-muted"
               }`}
@@ -251,6 +255,12 @@ export default function CalendarApp() {
             ref={calRef}
             mode={view}
             onTitle={setTitle}
+            initialDay={jumpDay}
+            onPickDay={(day) => {
+              setJumpDay(day);
+              setView(phone ? "day3" : "week");
+            }}
+            onDeadlineClick={editTask}
             state={state}
             hidden={hidden}
             onCreate={(start, end, allDay) =>

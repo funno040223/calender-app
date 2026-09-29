@@ -474,3 +474,23 @@ body {
 .app-cal .cal-strip .fc .fc-timegrid-slot-label {
   z-index: 4;
 }
+
+/* 月表示：見渡すための画面。日付の下に時刻の予定の件数を点で、締切は〆で出す */
+.app-cal .fc .mc {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+.app-cal .fc .mc-dots {
+  font-size: 10px;
+  letter-spacing: -1px;
+  color: var(--muted);
+}
+.app-cal .fc .fc-event.ev.is-deadline {
+  --c: var(--cal-task);
+}
+.app-cal .fc .fc-event.ev.is-deadline.is-late {
+  --c: var(--accent);
+  font-weight: 600;
+}
