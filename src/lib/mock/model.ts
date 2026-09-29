@@ -104,6 +104,8 @@ export interface WakeLog {
   doneStepIds: string[];
   /** 「起きた」のあとに答えた、朝の疲れ（1 元気 〜 5 ぐったり）。行動ポイントの値を合わせる正解に使う */
   fatigue?: MorningFatigue;
+  /** 前の夜に眠った時間（分）。Apple Watch（ヘルスケア）の睡眠を見て、朝に入れる。疲れの予測を合わせる材料 */
+  sleepMinutes?: number;
 }
 
 export interface TaskBlockLog {

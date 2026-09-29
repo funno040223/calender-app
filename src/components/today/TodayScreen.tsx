@@ -72,6 +72,30 @@ function CheckCircle({ on }: { on: boolean }) {
   );
 }
 
+/** 前の夜の睡眠時間。まだなら予定の睡眠時間から − ＋（15分ずつ）で合わせて記録する */
+function SleepInput({ value, fallback, onChange }: { value?: number; fallback: number; onChange: (m: number) => void }) {
+  const shown = value ?? fallback;
+  const step = (d: number) => onChange(Math.min(16 * 60, Math.max(0, shown + d)));
+  const round = "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-[20px] leading-none";
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <span className="w-12 shrink-0 text-[13px] text-muted">睡眠</span>
+      <button type="button" aria-label="睡眠を15分減らす" onClick={() => step(-15)} className={round}>
+        −
+      </button>
+      <span className={`min-w-0 flex-1 text-center text-[17px] tabular-nums ${value === undefined ? "text-muted" : "font-semibold"}`}>{formatMinutes(shown)}</span>
+      <button type="button" aria-label="睡眠を15分増やす" onClick={() => step(15)} className={round}>
+        ＋
+      </button>
+      {value === undefined && (
+        <button type="button" onClick={() => onChange(shown)} className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[14px] font-medium text-white">
+          記録
+        </button>
+      )}
+    </div>
+  );
+}
+
 const FATIGUE_OPTIONS: { value: MorningFatigue; label: string }[] = [
   { value: 1, label: "元気" },
   { value: 2, label: "少し" },
@@ -167,6 +191,11 @@ function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
                 </button>
               ))}
             </div>
+            <SleepInput
+              value={log.sleepMinutes}
+              fallback={state.settings.sleepMinutes}
+              onChange={(m) => setLog((l) => ({ ...l, sleepMinutes: m }))}
+            />
           </div>
         )}
       </div>

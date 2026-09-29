@@ -4,7 +4,7 @@ import { useState } from "react";
 import { buildOutlook } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import type { RewardRates } from "@/lib/mock/model";
+import { dateKeyOf, type RewardRates } from "@/lib/mock/model";
 import { dailyGrid, dailyReward, periodStats, rewardBalance, rewardEarned, type CellState, type GridRow, type PeriodStats } from "@/lib/mock/stats";
 import { Group, NumberInput, Row, ScreenHeader, Segmented, inputBase } from "@/components/ui/controls";
 
@@ -302,12 +302,15 @@ function Columns({
   labels,
   details,
   label,
+  format = String,
 }: {
   values: number[];
   /** 軸の下の文字（空文字は書かない） */
   labels: string[];
   details: string[];
   label: string;
+  /** いちばん高い棒に書く値の形 */
+  format?: (v: number) => string;
 }) {
   const [picked, setPicked] = useState<number>();
   const W = 336;
@@ -346,12 +349,39 @@ function Columns({
         })}
         {values[maxI] > 0 && (
           <text x={maxI * slot + slot / 2} y={base - (values[maxI] / max) * (base - top) - 4} textAnchor="middle" className="fill-fg text-[10px] font-semibold tabular-nums">
-            {values[maxI]}
+            {format(values[maxI])}
           </text>
         )}
       </svg>
       <p className="min-h-5 pt-1 text-[13px] tabular-nums">{picked !== undefined ? details[picked] : ""}</p>
     </div>
+  );
+}
+
+/** 睡眠：直近14日の、朝に記録した睡眠時間 */
+function Sleep() {
+  const { state } = useApp();
+  const end = dayStartOf(state.plannedAt) + DAY_MS;
+  const days = Array.from({ length: 14 }, (_, i) => end - (14 - i) * DAY_MS);
+  const minutes = days.map((d) => state.wakeLogs.find((l) => l.date === dateKeyOf(d))?.sleepMinutes);
+  const recorded = minutes.filter((m): m is number => m !== undefined);
+  const avg = recorded.length ? recorded.reduce((a, b) => a + b, 0) / recorded.length : undefined;
+  return (
+    <Group title="睡眠（直近2週間）">
+      <div className="flex flex-col gap-2 px-4 py-3">
+        <p className="flex items-baseline gap-3 tabular-nums">
+          <span className="text-[22px] font-semibold">{avg === undefined ? "—" : formatMinutes(Math.round(avg / 5) * 5)}</span>
+          <span className="text-[13px] text-muted">平均・{recorded.length}日分</span>
+        </p>
+        <Columns
+          label="日ごとの睡眠時間"
+          values={minutes.map((m) => m ?? 0)}
+          labels={days.map((d, i) => (i % 2 === 1 || i === 13 ? String(new Date(d + TZ * MIN).getUTCDate()) : ""))}
+          details={days.map((d, i) => `${formatDate(d)} ${minutes[i] === undefined ? "記録なし" : formatMinutes(minutes[i]!)}`)}
+          format={(v) => formatMinutes(v)}
+        />
+      </div>
+    </Group>
   );
 }
 
@@ -435,6 +465,7 @@ export default function StatsScreen() {
           <Adherence />
         </div>
         <div className="flex flex-col gap-6">
+          <Sleep />
           <Smoking />
           <OutlookDetail />
           <Rates />
