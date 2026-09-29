@@ -76,6 +76,13 @@ describe("buildNotices", () => {
     expect(got[0].body).toBe("終わった？");
   });
 
+  it("移動時間が分からない予定は、すぐに1回だけ聞く", () => {
+    const got = buildNotices(input({ travelAsks: [{ id: "g1", title: "富士通", start: jst(2026, 10, 1, 13) }] })).filter((n) => n.key.startsWith("travel:"));
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ key: "travel:g1", at: jst(2026, 10, 1, 6, 1), title: "移動時間は？" });
+    expect(got[0].body).toContain("富士通");
+  });
+
   it("Apple Watch の充電は就寝の2時間前、帰宅がそれより遅い日は帰宅の時刻に", () => {
     const late = { ...day(2, 8, 25), homeAt: jst(2026, 10, 2, 23, 30) };
     const got = buildNotices(input({ result: { ...input().result, dayPlans: [day(1, 8, 25), late, day(3, 8, 25)] } })).filter((n) => n.key.startsWith("watch:"));

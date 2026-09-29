@@ -1,5 +1,5 @@
 import { resolveTravel, type CalendarEvent, type Habit, type Place, type PlanResult, type Settings } from "@/lib/scheduler";
-import { formatTime } from "@/lib/mock/jst";
+import { formatDate, formatTime } from "@/lib/mock/jst";
 
 /** 1件の通知。サーバーが at の時刻に送る。key は同じ通知を2回送らないための名前 */
 export interface Notice {
@@ -13,13 +13,15 @@ export interface Notice {
 
 export interface NoticeInput {
   now: number;
-  result: Pick<PlanResult, "dayPlans" | "blocks" | "shortfalls"> & Partial<Pick<PlanResult, "dayEnergy">>;
+  result: Pick<PlanResult, "dayPlans" | "blocks" | "shortfalls"> & Partial<Pick<PlanResult, "dayEnergy" | "travelQuestions">>;
   /** plan() に渡した予定（自分の予定・授業・取り込んだ予定） */
   events: CalendarEvent[];
   places: Place[];
   settings: Settings;
   /** きっかけがあって記録する習慣は、本文を「まず5分」にする */
   habits?: Pick<Habit, "id" | "cue" | "track">[];
+  /** 移動時間を聞く取り込んだ予定（場所のないもの）。登録のない場所は result.travelQuestions から聞く */
+  travelAsks?: Pick<CalendarEvent, "id" | "title" | "start">[];
   /** 「連絡してみる？」を朝のまとめに添える日（その日の 0:00） */
   contactDays?: number[];
   /** 予定の何分前に知らせるか */
@@ -76,6 +78,17 @@ export function buildNotices(input: NoticeInput): Notice[] {
       url: "/",
     });
   }
+
+  // 移動時間が分からない予定は、すぐに1回だけ聞く（寝ている時間なら、次に組み直したときに起きている時刻で）。
+  // まとめて何件も届かないように、いちばん早い予定の分だけ送る（答えたら次の予定の分が届く）
+  const asks = [
+    ...(input.travelAsks ?? []).map((e) => ({ id: e.id, label: `${formatDate(e.start)}「${e.title}」` })),
+    ...(result.travelQuestions ?? []).map((q) => {
+      const ev = events.find((e) => e.id === q.eventId);
+      return { id: q.eventId, label: ev ? `${formatDate(ev.start)}「${ev.title}」（${q.location}）` : q.location };
+    }),
+  ];
+  if (asks[0]) add({ key: `travel:${asks[0].id}`, at: now + MIN, title: "移動時間は？", body: `${asks[0].label}${asks.length > 1 ? ` ほか${asks.length - 1}件` : ""}`, url: "/" });
 
   // タスクは、その日の最後の枠が終わったら「終わった？」と聞く（押すと今日の画面で答える）
   const lastOfDay = new Map<string, (typeof result.blocks)[number]>();

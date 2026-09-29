@@ -4,16 +4,19 @@ import { useState } from "react";
 import type { MockState } from "@/lib/mock/store";
 import { formatDate, formatDeadline, formatMinutes } from "@/lib/mock/jst";
 import { eventIndex } from "@/lib/mock/related";
+import { travelAsks } from "@/lib/mock/state";
 
 /** 今日の画面に出すお知らせがあるか（なければカードごと出さない） */
 export function hasNotices(state: MockState) {
   const r = state.result;
-  return r.shortfalls.length + r.travelQuestions.length + r.skippedHabits.filter((s) => s.reason === "deadline").length > 0;
+  return r.shortfalls.length + r.travelQuestions.length + travelAsks(state, state.plannedAt).length + r.skippedHabits.filter((s) => s.reason === "deadline").length > 0;
 }
 
 export function warningCount(state: MockState) {
-  return state.result.shortfalls.length + state.result.travelQuestions.length;
+  return state.result.shortfalls.length + state.result.travelQuestions.length + travelAsks(state, state.plannedAt).length;
 }
+
+const TRAVEL_CHOICES = [0, 15, 30, 45, 60, 90];
 
 function TravelQuestionRow({
   label,
@@ -68,18 +71,22 @@ export default function Notices({
   onRegisterPlace,
   onOpenTask,
   onFixShortfall,
+  onSetTravel,
 }: {
   state: MockState;
   onRegisterPlace: (location: string, minutes: number) => void;
   onOpenTask: (id: string) => void;
   /** 足りないときの選択肢：ほかを後に回す／時間帯の外にも入れる／締切を1日延ばす */
   onFixShortfall?: (taskId: string, fix: ShortfallFix) => void;
+  /** 取り込んだ予定の片道の移動時間（0 は家にいる） */
+  onSetTravel?: (eventId: string, minutes: number) => void;
 }) {
   const { result } = state;
   const events = eventIndex(state);
   const deadlineSkips = result.skippedHabits.filter((s) => s.reason === "deadline");
 
-  if (result.shortfalls.length === 0 && result.travelQuestions.length === 0 && deadlineSkips.length === 0) {
+  const asks = travelAsks(state, state.plannedAt);
+  if (result.shortfalls.length === 0 && result.travelQuestions.length === 0 && asks.length === 0 && deadlineSkips.length === 0) {
     return null;
   }
   return (
@@ -130,6 +137,24 @@ export default function Notices({
           />
         );
       })}
+      {onSetTravel &&
+        asks.map((e) => (
+          <li key={e.id} className="flex flex-col gap-2 px-4 py-3">
+            <p className="flex gap-3 text-[14px]">
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
+              <span>
+                {formatDate(e.start)}「{e.title}」の移動（片道）は？
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2 pl-5">
+              {TRAVEL_CHOICES.map((m) => (
+                <button key={m} type="button" onClick={() => onSetTravel(e.id, m)} className="rounded-lg bg-surface2 px-3 py-1.5 text-[13px] tabular-nums">
+                  {m === 0 ? "家にいる" : `${m}分`}
+                </button>
+              ))}
+            </div>
+          </li>
+        ))}
       {deadlineSkips.map((s) => (
         <li key={`${s.habitId}-${s.dayStart}`} className="px-4 py-3 text-[14px] text-muted">
           締切を優先して、{formatDate(s.dayStart)}の「{state.habits.find((h) => h.id === s.habitId)?.name ?? "習慣"}」はお休みにしました。

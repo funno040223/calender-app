@@ -819,6 +819,7 @@ export default function TodayScreen() {
                 state={state}
                 onRegisterPlace={registerPlace}
                 onOpenTask={openTask}
+                onSetTravel={(id, m) => update((d) => ({ ...d, importedTravel: { ...d.importedTravel, [id]: m } }))}
                 onFixShortfall={(id, fix) =>
                   update((d) => ({
                     ...d,

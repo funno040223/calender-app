@@ -380,3 +380,21 @@ export function completeTask(d: MockData, id: string, now: number): MockData {
   const done: DoneTask = { id: t.id, title: t.title, deadline: t.deadline, tagId: t.tagId, estimateMinutes: t.durationMinutes, doneAt: now };
   return { ...d, tasks: d.tasks.filter((x) => x.id !== id), doneTasks: [...d.doneTasks, done] };
 }
+
+/**
+ * 移動時間を聞く取り込んだ予定：場所も移動時間のメモもなく、まだ答えていない7日先までの時刻の予定。
+ * 場所のない予定は「家にいる」扱いになり、外出でも移動を考えずにタスクが入るため
+ */
+export function travelAsks(state: Pick<MockState, "googleEvents" | "importedTravel">, now: number): CalendarEvent[] {
+  return [...state.googleEvents].sort((a, b) => a.start - b.start).filter(
+    (e) =>
+      !e.allDay &&
+      !e.location?.trim() &&
+      e.travelMinutes === undefined &&
+      !e.atHome &&
+      !/移動\s*\d/.test(e.description ?? "") &&
+      state.importedTravel[e.id] === undefined &&
+      e.start > now &&
+      e.start < now + 7 * DAY_MS,
+  );
+}
