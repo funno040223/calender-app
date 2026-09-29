@@ -1,5 +1,5 @@
-import { DEFAULT_SETTINGS, plan, type CalendarEvent, type PlanResult, type Settings } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, type ClassEvent, type Course, type MockData } from "./model";
+import { DEFAULT_SETTINGS, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
+import { buildClassEvents, classEventsForPlan, dayStartOfKey, type ClassEvent, type Course, type MockData } from "./model";
 import {
   SAMPLE_RECOVERY_OPTIONS,
   SAMPLE_AVOID_WINDOWS,
@@ -9,6 +9,8 @@ import {
   SAMPLE_ROUTINE_STEPS,
   SAMPLE_TAGS,
   SAMPLE_TREATS,
+  BATH,
+  WALK_TIMES,
   buildSampleCourses,
   buildSampleOwnEvents,
   buildSampleTasks,
@@ -43,6 +45,8 @@ const DATA_KEYS = [
   "wakeLogs",
   "habitLastDone",
   "hiddenCalendars",
+  "eveningEnergy",
+  "rainyDays",
 ] as const satisfies readonly (keyof MockData)[];
 
 /** 日本時間で動かすので、タイムゾーンは設定で変えられない */
@@ -69,7 +73,24 @@ export function sampleData(now: number): MockData {
     wakeLogs: [],
     habitLastDone: {},
     hiddenCalendars: [],
+    eveningEnergy: {},
+    rainyDays: [],
   };
+}
+
+const EVENING_LEVELS: EveningEnergy[] = ["high", "normal", "low"];
+
+/**
+ * 眠りの設計（2026-09-29）に合わせて、初期値のままの散歩と入浴の時間帯を、起床・就寝からの時間帯に移す。
+ * 自分で時間帯を変えたものはそのまま
+ */
+function migrateHabit(h: Habit): Habit {
+  if (h.anchor) return h;
+  if (h.id === "habit-bath" && h.windowStart === 20 * 60 && h.windowEnd === 23 * 60 + 30) {
+    return { ...h, windowStart: BATH.windowStart, windowEnd: BATH.windowEnd, anchor: BATH.anchor };
+  }
+  if (h.id === "habit-walk" && h.windowStart === 10 * 60 && h.windowEnd === 18 * 60) return { ...h, ...WALK_TIMES };
+  return h;
 }
 
 const isArray = (v: unknown): v is unknown[] => Array.isArray(v);
@@ -92,7 +113,7 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
       cancelledDates: arr(c.cancelledDates, []),
       attendedDates: arr(c.attendedDates, []),
     })),
-    habits: arr(d.habits, s.habits),
+    habits: arr<Habit>(d.habits, s.habits).map(migrateHabit),
     avoidWindows: arr(d.avoidWindows, s.avoidWindows),
     treats: arr(d.treats, s.treats),
     routineSteps: arr(d.routineSteps, s.routineSteps),
@@ -105,6 +126,15 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
         ? (d.habitLastDone as Record<string, number>)
         : {},
     hiddenCalendars: arr(d.hiddenCalendars, []),
+    eveningEnergy:
+      d.eveningEnergy && typeof d.eveningEnergy === "object" && !Array.isArray(d.eveningEnergy)
+        ? Object.fromEntries(
+            Object.entries(d.eveningEnergy as Record<string, unknown>).filter(
+              (e): e is [string, EveningEnergy] => EVENING_LEVELS.includes(e[1] as EveningEnergy),
+            ),
+          )
+        : {},
+    rainyDays: arr<unknown>(d.rainyDays, []).filter((x): x is string => typeof x === "string"),
   };
 }
 
@@ -166,6 +196,13 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     recoveryOptions: SAMPLE_RECOVERY_OPTIONS,
     habitLastDone,
     previousBlocks: data.blocks,
+    eveningEnergy: Object.fromEntries(
+      Object.entries(data.eveningEnergy).flatMap(([k, v]) => {
+        const day = dayStartOfKey(k);
+        return day === undefined ? [] : [[day, v]];
+      }),
+    ),
+    rainyDays: data.rainyDays.flatMap((k) => dayStartOfKey(k) ?? []),
   });
   return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now };
 }

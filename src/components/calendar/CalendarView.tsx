@@ -23,6 +23,7 @@ import type { MockState } from "@/lib/mock/store";
 import { DAY_MS, MIN, WEEKDAY_JA, formatTime, fromFc, toFc } from "@/lib/mock/jst";
 import { allEventRefs, eventIndex, formatEventShort, groupKeyOf, tasksByEvent, type EventRef, type EventSource } from "@/lib/mock/related";
 import { LinkIcon } from "@/components/app/icons";
+import { SMOKE_CUTOFF_MINUTES } from "@/lib/notify/build";
 
 export type { EventSource };
 
@@ -190,6 +191,19 @@ export default function CalendarView(props: CalendarViewProps) {
           end: toFc(band.end),
           display: "background",
           classNames: ["sleep-band"],
+          extendedProps: { type: "sleep" } satisfies Extended,
+        });
+      }
+      // 就寝の2時間前から：タバコを控える時間
+      for (const d of days) {
+        const from = d.bed - SMOKE_CUTOFF_MINUTES * MIN;
+        out.push({
+          id: `nosmoke:${d.dayStart}`,
+          title: `${formatTime(from)}〜 タバコはここまで`,
+          start: toFc(from),
+          end: toFc(d.bed),
+          display: "background",
+          classNames: ["nosmoke-band"],
           extendedProps: { type: "sleep" } satisfies Extended,
         });
       }

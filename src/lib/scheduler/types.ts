@@ -131,9 +131,13 @@ export interface Habit {
   id: string;
   name: string;
   durationMinutes: number;
-  /** 時間帯の幅（0時からの分）。24時を超えてもよい */
+  /**
+   * 時間帯の幅（分）。anchor がなければ0時からの分（24時を超えてもよい）。
+   * anchor が "wake" なら起床からの分、"bed" なら就寝からの分（前はマイナス）
+   */
   windowStart: number;
   windowEnd: number;
+  anchor?: "wake" | "bed";
   frequency: HabitFrequency;
   /** 締切が迫ったときに飛ばしてよいか（食事・入浴は false） */
   skippable: boolean;
@@ -150,6 +154,8 @@ export interface Habit {
   energyCost?: number;
   /** 食事。外出の日に外にいる時間と重なるときは、外食・お弁当として置く */
   meal?: boolean;
+  /** 雨の日の代わり（散歩 → 家の中でできること）。雨の日に指定した日だけ、この名前と長さで置く */
+  rainAlternative?: { title: string; durationMinutes: number };
 }
 
 /** focus: 長い空き時間に置く / gap: 予定の合間の短い空き時間に詰める */
@@ -213,7 +219,12 @@ export interface DayPlan {
   wakeSource: WakeSource;
   /** 遊び以外の予定がない日 */
   holiday: boolean;
+  /** 外出した日の、最後の外出から家に帰る時刻（帰りの移動を含む） */
+  homeAt?: number;
 }
+
+/** 帰宅したときに答える、残りの体力 */
+export type EveningEnergy = "high" | "normal" | "low";
 
 export interface TravelQuestion {
   eventId: string;
@@ -233,6 +244,8 @@ export interface RecoveryOption {
   durationMinutes: number;
   /** 回復するポイント（マイナスの値） */
   energy: number;
+  /** この時刻（0時からの分）より後には提案しない（夕方以降の昼寝は夜の眠気を減らすため） */
+  latestStartMinuteOfDay?: number;
 }
 
 export interface DayEnergy {
@@ -241,8 +254,10 @@ export interface DayEnergy {
   budget: number;
   /** 家にいない時間が長い「外出の日」 */
   outingDay: boolean;
-  /** 上限を超える日の、発散の提案（空き時間に入るもの） */
+  /** 上限を超える日（または帰宅時に体力が少ないと答えた日）の、発散の提案（空き時間に入るもの） */
   suggestion?: RecoveryOption & { start: number; end: number };
+  /** 帰宅時に答えた残りの体力 */
+  evening?: EveningEnergy;
 }
 
 export interface SkippedHabit {
@@ -266,6 +281,10 @@ export interface PlanInput {
   habitLastDone?: Record<string, number>;
   /** 前回の配置。始まった枠と固定した枠はそのまま残す */
   previousBlocks: Block[];
+  /** 帰宅時に答えた残りの体力（日の 0:00 → 答え）。帰宅から就寝までのタスクの入れ方が変わる */
+  eveningEnergy?: Record<number, EveningEnergy>;
+  /** 雨の日にした日（日の 0:00）。rainAlternative のある習慣を代わりのものにする */
+  rainyDays?: number[];
 }
 
 export interface PlanResult {

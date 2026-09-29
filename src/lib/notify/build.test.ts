@@ -48,6 +48,24 @@ describe("buildNotices", () => {
     expect(got[1].body).toContain("予定1件（最初は 10:40 授業）");
   });
 
+  it("就寝の2時間前にタバコの区切り、30分前に寝る準備を送る", () => {
+    const got = buildNotices(input()).filter((n) => /^(smoke|bedprep):/.test(n.key));
+    expect(got.map((n) => [n.key.split(":")[0], n.at])).toEqual([
+      ["smoke", jst(2026, 10, 1, 23)],
+      ["bedprep", jst(2026, 10, 2, 0, 30)],
+      ["smoke", jst(2026, 10, 2, 23)],
+      ["bedprep", jst(2026, 10, 3, 0, 30)],
+    ]);
+  });
+
+  it("外出した日は帰宅の時刻に体力を聞き、答えたあとは聞かない", () => {
+    const days = [{ ...day(1, 8, 25), homeAt: jst(2026, 10, 1, 18) }, day(2, 8, 25), day(3, 8, 25)];
+    const ask = (dayEnergy?: { dayStart: number; used: number; budget: number; outingDay: boolean; evening?: "low" }[]) =>
+      buildNotices(input({ result: { dayPlans: days, blocks: [], shortfalls: [], dayEnergy } })).filter((n) => n.key.startsWith("home:"));
+    expect(ask().map((n) => n.at)).toEqual([jst(2026, 10, 1, 18)]);
+    expect(ask([{ dayStart: jst(2026, 10, 1), used: 5, budget: 10, outingDay: true, evening: "low" }])).toEqual([]);
+  });
+
   it("就寝から次の起床までと、過ぎた時刻と、48時間より先は送らない", () => {
     const events = [
       { id: "late", title: "夜の配信", start: jst(2026, 10, 2, 2), end: jst(2026, 10, 2, 3) },

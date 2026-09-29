@@ -13,7 +13,7 @@ export interface Notice {
 
 export interface NoticeInput {
   now: number;
-  result: Pick<PlanResult, "dayPlans" | "blocks" | "shortfalls">;
+  result: Pick<PlanResult, "dayPlans" | "blocks" | "shortfalls"> & Partial<Pick<PlanResult, "dayEnergy">>;
   /** plan() に渡した予定（自分の予定・授業・取り込んだ予定） */
   events: CalendarEvent[];
   places: Place[];
@@ -27,12 +27,18 @@ export interface NoticeInput {
 const MIN = 60_000;
 export const NOTICE_LEAD_MINUTES = 15;
 export const NOTICE_HORIZON_MS = 48 * 60 * MIN;
+/** タバコの区切り（就寝の何分前） */
+export const SMOKE_CUTOFF_MINUTES = 120;
+/** 寝る準備の合図（就寝の何分前） */
+export const BED_PREP_MINUTES = 30;
 
 /**
  * 配置の結果から、これから送る通知を作る。
  * - 予定の15分前（外出する予定は、家を出る時刻の15分前）
  * - 習慣とタスクの枠の始まり（朝ルーティンは毎朝のまとめに含める）
  * - 毎朝、起床の時刻にその日のまとめ
+ * - 外出した日は、帰宅の時刻に残りの体力を聞く（答えていなければ）
+ * - 就寝の2時間前に「タバコはここまで」、30分前に「寝る準備」
  * 就寝から次の起床までに入るものは送らない（毎朝のまとめは起床の時刻ちょうどなので送る）
  */
 export function buildNotices(input: NoticeInput): Notice[] {
@@ -86,6 +92,33 @@ export function buildNotices(input: NoticeInput): Notice[] {
       result.shortfalls.length ? `締切に間に合わないタスクが${result.shortfalls.length}件あります` : "",
     ].filter(Boolean);
     add({ key: `morning:${d.dayStart}`, at: d.wake, title: "おはようございます", body: parts.join("・"), url: "/" });
+  }
+
+  for (const d of days) {
+    const answered = result.dayEnergy?.find((e) => e.dayStart === d.dayStart)?.evening;
+    if (d.homeAt !== undefined && !answered && d.homeAt < d.bed) {
+      add({
+        key: `home:${d.dayStart}`,
+        at: d.homeAt,
+        title: "おかえりなさい",
+        body: "残りの体力を教えてください。今夜の予定をそれに合わせます。",
+        url: "/?checkin=1",
+      });
+    }
+    add({
+      key: `smoke:${d.dayStart}`,
+      at: d.bed - SMOKE_CUTOFF_MINUTES * MIN,
+      title: "今日のタバコはここまで",
+      body: `就寝は ${formatTime(d.bed)}。寝つきのために、ここからは吸わずに過ごしましょう。`,
+      url: "/",
+    });
+    add({
+      key: `bedprep:${d.dayStart}`,
+      at: d.bed - BED_PREP_MINUTES * MIN,
+      title: "寝る準備の時間です",
+      body: `歯みがきをして、スマホを充電場所へ。就寝は ${formatTime(d.bed)}。`,
+      url: "/",
+    });
   }
 
   return out.sort((a, b) => a.at - b.at || a.key.localeCompare(b.key));

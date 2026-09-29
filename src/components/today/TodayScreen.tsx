@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { DayPlan, WakeSource } from "@/lib/scheduler";
+import type { DayPlan, EveningEnergy, WakeSource } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
@@ -206,10 +206,12 @@ interface TimelineItem {
   taskId?: string;
   /** 任意参加で参加しない回など、空き時間として扱うもの */
   dim?: boolean;
+  /** 枠の下に出す小さなボタン（雨の日の散歩の入れ替えなど） */
+  action?: { label: string; onClick: () => void };
 }
 
 function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
-  const { state, openTask } = useApp();
+  const { state, openTask, update } = useApp();
   const events = eventIndex(state);
   const related = tasksByEvent(state.tasks, events);
   const items: TimelineItem[] = [];
@@ -231,9 +233,18 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
       relatedCount: related.get(ev.id)?.length,
     });
   }
+  const todayKey = dateKeyOf(now);
+  const rainy = state.rainyDays.includes(todayKey);
+  const toggleRain = () =>
+    update((d) => ({
+      ...d,
+      rainyDays: rainy ? d.rainyDays.filter((k) => k !== todayKey) : [...d.rainyDays.filter((k) => k >= dateKeyOf(now - 14 * DAY_MS)), todayKey],
+    }));
   for (const b of state.result.blocks) {
     if (b.end <= now || b.start >= dayEnd) continue;
     const task = b.kind === "task" ? state.tasks.find((t) => t.id === b.refId) : undefined;
+    const habit = b.kind === "habit" ? state.habits.find((h) => h.id === b.refId) : undefined;
+    const rainSwap = habit?.rainAlternative && dateKeyOf(b.start) === todayKey && b.start > now;
     const rel = task?.relatedEventId ? events.get(task.relatedEventId) : undefined;
     items.push({
       key: `block:${b.kind}:${b.refId}:${b.start}`,
@@ -250,6 +261,7 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
             ? "習慣"
             : undefined,
       taskId: task?.id,
+      action: rainSwap ? { label: rainy ? `晴れたので「${habit!.name}」に戻す` : "雨なので家の中でやる", onClick: toggleRain } : undefined,
     });
   }
   items.sort((a, b) => a.start - b.start || a.end - b.end);
@@ -300,6 +312,11 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
                     {formatTime(it.start)}〜{formatTime(it.end)}
                     {it.sub ? `・${it.sub}` : ""}
                   </p>
+                  {it.action && (
+                    <button type="button" onClick={it.action.onClick} className="mt-1 text-[13px] font-medium text-accent">
+                      {it.action.label}
+                    </button>
+                  )}
                 </div>
               </>
             );
@@ -350,6 +367,59 @@ function Gaps({ now, day }: { now: number; day: DayPlan }) {
   );
 }
 
+const EVENING_OPTIONS: { value: EveningEnergy; label: string; note: string }[] = [
+  { value: "high", label: "多い", note: "ふだんどおり。集中する作業も入れます" },
+  { value: "normal", label: "ふつう", note: "軽い作業だけ、合わせて60分まで" },
+  { value: "low", label: "少ない", note: "タスクはほかの日へ。食事・入浴・寝るだけ" },
+];
+
+/** 外出した日の夜：帰宅したら残りの体力を聞き、今夜だけ組み直す */
+function EveningCard({ day, now }: { day: DayPlan; now: number }) {
+  const { state, update } = useApp();
+  const [editing, setEditing] = useState(false);
+  const key = dateKeyOf(day.dayStart);
+  const answer = state.eveningEnergy[key];
+  if (day.homeAt === undefined || now < day.homeAt - 60 * MIN || now >= day.bed) return null;
+  const choose = (v: EveningEnergy) => {
+    update((d) => ({ ...d, eveningEnergy: { ...d.eveningEnergy, [key]: v } }));
+    setEditing(false);
+  };
+  const picked = EVENING_OPTIONS.find((o) => o.value === answer);
+  return (
+    <Group title="おかえりなさい">
+      <div className="flex flex-col gap-3 px-4 py-3">
+        {picked && !editing ? (
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[15px]">
+              今夜の体力：<span className="font-semibold">{picked.label}</span>
+              <span className="block text-[13px] text-muted">{picked.note}</span>
+            </p>
+            <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-[14px] text-accent">
+              変える
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="text-[15px]">残りの体力は？ 今夜の予定をそれに合わせます。</p>
+            <div className="grid grid-cols-3 gap-2">
+              {EVENING_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => choose(o.value)}
+                  className={`rounded-xl py-2.5 text-[16px] font-semibold ${o.value === answer ? "bg-accent text-white" : "bg-surface2"}`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </Group>
+  );
+}
+
 /** 今日の行動ポイント。上限を超える日は、発散の時間を提案する */
 function EnergyCard({ today }: { today: number }) {
   const { state } = useApp();
@@ -357,6 +427,7 @@ function EnergyCard({ today }: { today: number }) {
   if (!e) return null;
   const ratio = Math.min(1, e.used / e.budget);
   const over = e.used > e.budget;
+  const tired = e.evening === "low";
   return (
     <Group title="今日の行動ポイント">
       <div className="flex flex-col gap-2 px-4 py-3">
@@ -367,7 +438,12 @@ function EnergyCard({ today }: { today: number }) {
         <div className="h-2 overflow-hidden rounded-full bg-surface2" role="meter" aria-valuenow={e.used} aria-valuemin={0} aria-valuemax={e.budget} aria-label="今日の行動ポイント">
           <div className={`h-full rounded-full ${over ? "bg-accent" : "bg-ok"}`} style={{ width: `${ratio * 100}%` }} />
         </div>
-        {over ? (
+        {tired ? (
+          <p className="text-[14px]">
+            今夜は回復にあてましょう。
+            {e.suggestion ? `${formatTime(e.suggestion.start)}〜${formatTime(e.suggestion.end)} に「${e.suggestion.name}」はどうですか。` : ""}
+          </p>
+        ) : over ? (
           <p className="text-[14px]">
             今日はしんどそうです。
             {e.suggestion
@@ -402,6 +478,7 @@ export default function TodayScreen() {
       <ScreenHeader title="今日" sub={formatDate(today)} width="max-w-5xl" />
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
+          {day && <EveningCard day={day} now={now} />}
           {day && <SleepCard day={day} next={days[idx + 1]} today={today} />}
           <EnergyCard today={today} />
           <MorningCard day={day} now={now} />

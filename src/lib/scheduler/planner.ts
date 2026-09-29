@@ -13,7 +13,7 @@ import type {
   Task,
   TravelQuestion,
 } from "./types";
-import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday } from "./time";
+import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday, minuteOfDay } from "./time";
 import { intersect, lengthMinutes, merge, subtract } from "./intervals";
 import { computeDayPlans } from "./rhythm";
 import { resolveTravel } from "./travel";
@@ -28,6 +28,8 @@ const FALLBACK_TAG: Omit<Tag, "id" | "name"> = {
 
 /** すきま時間の候補として返す空き時間の最短の長さ（分） */
 const MIN_GAP_MINUTES = 20;
+/** 帰宅時に体力が「ふつう」と答えた夜に入れてよい、事務系のタスクの合計 */
+const NORMAL_EVENING_TASK_MINUTES = 60;
 
 /** 事務系のタスクで「長い空き時間を使ってしまう」とみなす長さ（分） */
 const LONG_SLOT_MINUTES = 120;
@@ -144,6 +146,8 @@ export function plan(input: PlanInput): PlanResult {
   const busy: Interval[] = [];
   /** 家にいない時間（移動を含む） */
   const away: Interval[] = [];
+  /** 外出の予定から家に帰る時刻（終わった予定も含む。帰宅したときに体力を聞くため） */
+  const returns: number[] = [];
   /** 予定に関連するタスクの締切（外出なら家を出る時刻） */
   const eventDeadline = new Map<string, number>();
   for (const ev of input.events) {
@@ -169,10 +173,16 @@ export function plan(input: PlanInput): PlanResult {
             : s.awayEventEnergy + s.awayEventEnergyPerHour * (hours + (2 * t.minutes) / 60)),
       );
     }
+    if (!t.atHome && ev.start >= firstDay && ev.start < horizonEnd) returns.push(ev.end + pad);
     if (end <= now || ev.start >= horizonEnd) continue;
     if (t.unknown && ev.location && ev.start > now) travelQuestions.push({ eventId: ev.id, location: ev.location });
     busy.push({ start: ev.start - pad, end });
     if (!t.atHome) away.push({ start: ev.start - pad, end: ev.end + pad });
+  }
+
+  for (const d of days) {
+    const back = returns.filter((r) => r > d.dayStart && r <= d.bed);
+    if (back.length) d.homeAt = Math.max(...back);
   }
 
   const routineBlocks: Block[] = [];
@@ -291,6 +301,13 @@ export function plan(input: PlanInput): PlanResult {
     }
   };
 
+  /** 習慣の時間帯。起床・就寝からの分で決めるものもある（朝の散歩、就寝前の入浴） */
+  const habitWindow = (habit: Habit, d: DayPlan): Interval => {
+    const base = habit.anchor === "wake" ? d.wake : habit.anchor === "bed" ? d.bed : d.dayStart;
+    return { start: base + habit.windowStart * MIN, end: base + habit.windowEnd * MIN };
+  };
+  const rainyDays = new Set(input.rainyDays ?? []);
+
   // ---- 習慣 ----
   // 飛ばせないものから置く。待ち時間に入れる子の習慣は最後
   const rank = (h: Habit) => (h.duringHabitId ? 2 : h.skippable ? 1 : 0);
@@ -315,10 +332,7 @@ export function plan(input: PlanInput): PlanResult {
       continue;
     }
 
-    const windowOf = (d: DayPlan): Interval => ({
-      start: d.dayStart + habit.windowStart * MIN,
-      end: d.dayStart + habit.windowEnd * MIN,
-    });
+    const windowOf = (d: DayPlan): Interval => habitWindow(habit, d);
 
     /** その日の時間帯に置けたら true */
     const tryPlaceOn = (d: DayPlan): boolean => {
@@ -341,9 +355,16 @@ export function plan(input: PlanInput): PlanResult {
         const rest = subtract(free, [{ start: st, end: st + dur }]);
         return fitsIn(rest, fStart, fEnd) && !away.some((a) => a.start < fEnd && a.end > st);
       };
-      const start = findStart(intersect(free, window), dur, ok, prevOf(window));
+      // 雨の日は、散歩などを家の中でできる代わりにする
+      const alt = habit.rainAlternative && rainyDays.has(d.dayStart) ? habit.rainAlternative : undefined;
+      const len = alt ? alt.durationMinutes * MIN : dur;
+      const start = findStart(intersect(free, window), len, ok, prevOf(window));
       if (start === undefined) return false;
-      placeHabitBlock(habit, { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur }, habit.skippable && !finish);
+      placeHabitBlock(
+        habit,
+        { kind: "habit", refId: habit.id, title: alt?.title ?? habit.name, start, end: start + len },
+        habit.skippable && !finish,
+      );
       if (finish) {
         const fStart = start + finish.afterStartMinutes * MIN;
         placeHabitBlock(
@@ -402,6 +423,14 @@ export function plan(input: PlanInput): PlanResult {
   const dayFreeMinutes = (d: DayPlan) =>
     intersect(free, { start: d.wake, end: d.bed }).reduce((sum, i) => sum + lengthMinutes(i), 0);
 
+  // 帰宅時に答えた体力：少ない夜はタスクを入れず、ふつうの夜は事務系だけを少し
+  const evenings = days.flatMap((d) => {
+    const level = input.eveningEnergy?.[d.dayStart];
+    return level && level !== "high" && d.homeAt !== undefined ? [{ dayStart: d.dayStart, start: d.homeAt, end: d.bed, level }] : [];
+  });
+  const eveningUsed = new Map<number, number>();
+  const eveningOf = (d: DayPlan, t: number) => evenings.find((e) => e.dayStart === d.dayStart && t >= e.start && t < e.end);
+
   const shortfalls: Shortfall[] = [];
   const deadlineOf = (task: Task): number | undefined => {
     const related = task.relatedEventId ? eventDeadline.get(task.relatedEventId) : undefined;
@@ -428,7 +457,10 @@ export function plan(input: PlanInput): PlanResult {
     const deadline = Math.min(ownDeadline ?? horizonEnd, horizonEnd);
     const justBefore = task.timing === "justBefore" && !beyondHorizon;
     const prevStarts = new Set(movable.filter((b) => b.kind === "task" && b.refId === task.id).map((b) => b.start));
-    const hardAvoid = avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, true);
+    const hardAvoid = [
+      ...avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, true),
+      ...evenings.filter((e) => e.level === "low" || tag.mode === "focus"),
+    ];
     const softAvoid = avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, false);
     const restMinutes = tag.restAfterMinutes ?? s.breakMinutes;
     // まずは1日の余白を守って置く。締切に間に合わないときだけ余白を削る
@@ -464,7 +496,9 @@ export function plan(input: PlanInput): PlanResult {
         for (const st of new Set(starts)) {
           if (st < iv.start || st >= slotEnd) continue;
           const avail = (slotEnd - st) / MIN;
-          const len = avail >= need ? need : floorMinutesToStep(avail);
+          let len = avail >= need ? need : floorMinutesToStep(avail);
+          const evening = eveningOf(d0, st);
+          if (evening) len = Math.min(len, floorMinutesToStep(NORMAL_EVENING_TASK_MINUTES - (eveningUsed.get(evening.dayStart) ?? 0)));
           if (len < minLen || len <= 0) continue;
           const end = st + len * MIN;
           if (keepSlack && (freeByDay.get(d0.dayStart) ?? 0) - len - restMinutes < s.minSlackMinutesPerDay) continue;
@@ -520,6 +554,9 @@ export function plan(input: PlanInput): PlanResult {
       blocks.push(block);
       free = subtract(free, [withBreak(block)]);
       addLoad(block);
+      const d1 = dayOf(block.start);
+      const evening = d1 && eveningOf(d1, block.start);
+      if (evening) eveningUsed.set(evening.dayStart, (eveningUsed.get(evening.dayStart) ?? 0) + best.len);
       addEnergy(block.start, blockEnergy(block));
       remaining -= best.len;
       keepSlack = true;
@@ -531,7 +568,7 @@ export function plan(input: PlanInput): PlanResult {
     const dur = habit.durationMinutes * MIN;
     const cost = habit.energyCost ?? 0;
     for (const d of days) {
-      const window = { start: d.dayStart + habit.windowStart * MIN, end: d.dayStart + habit.windowEnd * MIN };
+      const window = habitWindow(habit, d);
       if (window.end <= now || outingDays.has(d.dayStart) || energyOn(d) + cost > s.dailyEnergyBudget) continue;
       const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);
       const start = findStart(intersect(free, window), dur, () => true, prev?.start);
@@ -543,17 +580,26 @@ export function plan(input: PlanInput): PlanResult {
   blocks.sort((a, b) => a.start - b.start);
   const freeGaps = free.filter((i) => lengthMinutes(i) >= MIN_GAP_MINUTES);
 
-  // 上限を超える日は、空き時間に入る発散を1つ提案する
+  // 上限を超える日と、帰宅時に体力が少ないと答えた夜は、空き時間に入る発散を1つ提案する
   const dayEnergy: DayEnergy[] = days.map((d) => {
     const used = Math.round(energyOn(d) * 10) / 10;
     const entry: DayEnergy = { dayStart: d.dayStart, used, budget: s.dailyEnergyBudget, outingDay: outingDays.has(d.dayStart) };
-    if (used <= s.dailyEnergyBudget) return entry;
+    const evening = input.eveningEnergy?.[d.dayStart];
+    if (evening) entry.evening = evening;
+    const tired = evening === "low" && d.homeAt !== undefined;
+    if (used <= s.dailyEnergyBudget && !tired) return entry;
+    const from = tired ? Math.max(now, d.homeAt!) : Math.max(now, d.wake);
     for (const opt of input.recoveryOptions ?? []) {
+      const startIn = (g: Interval) => ceilToStep(Math.max(g.start, from));
       const gap = freeGaps.find(
-        (g) => g.start < d.bed && g.end > Math.max(now, d.wake) && g.end - ceilToStep(Math.max(g.start, now)) >= opt.durationMinutes * MIN,
+        (g) =>
+          g.start < d.bed &&
+          g.end > from &&
+          g.end - startIn(g) >= opt.durationMinutes * MIN &&
+          (opt.latestStartMinuteOfDay === undefined || minuteOfDay(startIn(g), s.tzOffsetMinutes) <= opt.latestStartMinuteOfDay),
       );
       if (gap) {
-        const start = ceilToStep(Math.max(gap.start, now));
+        const start = startIn(gap);
         entry.suggestion = { ...opt, start, end: start + opt.durationMinutes * MIN };
         break;
       }

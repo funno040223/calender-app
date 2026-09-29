@@ -13,6 +13,10 @@ interface Draft {
   duration: string;
   start: string;
   end: string;
+  /** 時間帯の決め方：時刻で／起床から（分後）／就寝まで（分前） */
+  anchor: "clock" | "wake" | "bed";
+  offStart: string;
+  offEnd: string;
   freq: "daily" | "weekly" | "whenEnergy" | "interval";
   times: string;
   minDays: string;
@@ -36,8 +40,12 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const [d, setD] = useState<Draft>(() => ({
     name: habit?.name ?? "",
     duration: String(habit?.durationMinutes ?? 30),
-    start: minutesToHHMM(habit?.windowStart ?? 9 * 60),
-    end: minutesToHHMM(habit?.windowEnd ?? 21 * 60),
+    start: minutesToHHMM(habit?.anchor ? 9 * 60 : (habit?.windowStart ?? 9 * 60)),
+    end: minutesToHHMM(habit?.anchor ? 21 * 60 : (habit?.windowEnd ?? 21 * 60)),
+    anchor: habit?.anchor ?? "clock",
+    // 就寝までは「何分前」で入力するので、符号を反転して、始まり＝より前（大きい分）にする
+    offStart: String(habit?.anchor === "bed" ? -habit.windowStart : (habit?.windowStart ?? 0)),
+    offEnd: String(habit?.anchor === "bed" ? -habit.windowEnd : (habit?.windowEnd ?? 120)),
     freq: habit?.frequency.type ?? "daily",
     times: String(habit?.frequency.type === "weekly" ? habit.frequency.times : 3),
     minDays: String(habit?.frequency.type === "interval" ? habit.frequency.minDays : 4),
@@ -65,10 +73,18 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
     const duration = num(d.duration);
     if (!name) return setError("名前を入力してください");
     if (!valid(duration)) return setError("所要時間は1分以上で入力してください");
-    const s = hhmmToMinutes(d.start);
-    const e = hhmmToMinutes(d.end);
-    if (!during && (s === undefined || e === undefined)) return setError("時間帯を入力してください");
-    const span = during ? { start: 0, end: 24 * 60 } : spanFrom(s!, e!);
+    const relative = !during && d.anchor !== "clock";
+    const s = relative ? num(d.offStart) : hhmmToMinutes(d.start);
+    const e = relative ? num(d.offEnd) : hhmmToMinutes(d.end);
+    if (!during && (s === undefined || e === undefined || !Number.isFinite(s) || !Number.isFinite(e))) return setError("時間帯を入力してください");
+    const span = during
+      ? { start: 0, end: 24 * 60 }
+      : d.anchor === "wake"
+        ? { start: Math.round(s!), end: Math.round(e!) }
+        : d.anchor === "bed"
+          ? { start: -Math.round(s!), end: -Math.round(e!) }
+          : spanFrom(s!, e!);
+    if (relative && (Math.abs(span.start) > 24 * 60 || Math.abs(span.end) > 24 * 60)) return setError("時間帯は24時間以内で入力してください");
     if (!during && span.end - span.start < duration) return setError("時間帯が所要時間より短くなっています");
 
     const next: Habit = {
@@ -80,6 +96,9 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
       frequency: { type: "daily" },
       skippable: d.skippable,
     };
+    if (relative) next.anchor = d.anchor as "wake" | "bed";
+    // 雨の日の代わりは、今はこの画面では変えない（散歩の初期値のまま残す）
+    if (habit?.rainAlternative) next.rainAlternative = habit.rainAlternative;
     if (!during && d.freq === "weekly") {
       const times = num(d.times);
       if (!valid(times) || times > 7) return setError("週の回数は1〜7で入力してください");
@@ -169,12 +188,42 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
 
       {!during && (
         <>
-          <Field label="時間帯" help="この時間の中のどこかに置きます。終わりが始まりより前なら翌日の時刻です">
-            <div className="flex items-center gap-2">
-              <input className={inputCls} type="time" step={300} aria-label="時間帯の始まり" value={d.start} onChange={(e) => set("start", e.target.value)} />
-              <span className="text-muted">〜</span>
-              <input className={inputCls} type="time" step={300} aria-label="時間帯の終わり" value={d.end} onChange={(e) => set("end", e.target.value)} />
-            </div>
+          <Field
+            label="時間帯"
+            help={
+              d.anchor === "clock"
+                ? "この時間の中のどこかに置きます。終わりが始まりより前なら翌日の時刻です"
+                : d.anchor === "wake"
+                  ? "その日の起床時刻から数えます（朝の散歩など）"
+                  : "その日の就寝時刻から逆に数えます（入浴など）"
+            }
+          >
+            <Segmented
+              label="時間帯の決め方"
+              full
+              value={d.anchor}
+              onChange={(v) => set("anchor", v)}
+              options={[
+                { value: "clock", label: "時刻で" },
+                { value: "wake", label: "起床から" },
+                { value: "bed", label: "就寝まで" },
+              ]}
+            />
+            {d.anchor === "clock" ? (
+              <div className="mt-2 flex items-center gap-2">
+                <input className={inputCls} type="time" step={300} aria-label="時間帯の始まり" value={d.start} onChange={(e) => set("start", e.target.value)} />
+                <span className="text-muted">〜</span>
+                <input className={inputCls} type="time" step={300} aria-label="時間帯の終わり" value={d.end} onChange={(e) => set("end", e.target.value)} />
+              </div>
+            ) : (
+              <div className="mt-2 flex items-center gap-2 text-[15px]">
+                <span className="shrink-0 text-muted">{d.anchor === "wake" ? "起床の" : "就寝の"}</span>
+                <input className={inputCls} inputMode="numeric" aria-label="時間帯の始まり（分）" value={d.offStart} onChange={(e) => set("offStart", e.target.value)} />
+                <span className="shrink-0 text-muted">〜</span>
+                <input className={inputCls} inputMode="numeric" aria-label="時間帯の終わり（分）" value={d.offEnd} onChange={(e) => set("offEnd", e.target.value)} />
+                <span className="shrink-0 text-muted">{d.anchor === "wake" ? "分後" : "分前"}</span>
+              </div>
+            )}
           </Field>
           <Field label="頻度">
             <Segmented
@@ -285,7 +334,13 @@ function summary(h: Habit, habits: Habit[]): string {
         : h.frequency.type === "interval"
           ? `${h.frequency.minDays}〜${h.frequency.maxDays}日ごと`
           : "余裕がある日";
-  const parts = [freq, `${formatMinuteOfDay(h.windowStart)}〜${formatMinuteOfDay(h.windowEnd)}`, formatMinutes(h.durationMinutes)];
+  const when =
+    h.anchor === "wake"
+      ? `起床の${h.windowStart}〜${h.windowEnd}分後`
+      : h.anchor === "bed"
+        ? `就寝の${-h.windowStart}〜${-h.windowEnd}分前`
+        : `${formatMinuteOfDay(h.windowStart)}〜${formatMinuteOfDay(h.windowEnd)}`;
+  const parts = [freq, when, formatMinutes(h.durationMinutes)];
   if (h.finish) parts.push(`${h.finish.afterStartMinutes}分後に${h.finish.title}`);
   if (!h.skippable) parts.push("飛ばさない");
   return parts.join("・");

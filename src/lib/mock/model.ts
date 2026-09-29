@@ -1,4 +1,4 @@
-import type { AvoidWindow, Block, CalendarEvent, Habit, Place, Settings, Task } from "@/lib/scheduler";
+import type { AvoidWindow, Block, CalendarEvent, EveningEnergy, Habit, Place, Settings, Task } from "@/lib/scheduler";
 import type { CalendarId, OwnCalendarId } from "./calendars";
 import { DAY_MS, MIN, TZ, fromInputDateTime, toInputDate, weekdayOf } from "./jst";
 
@@ -122,6 +122,10 @@ export interface MockData {
   habitLastDone: Record<string, number>;
   /** 表示だけの設定（DB では settings に入れる） */
   hiddenCalendars: CalendarId[];
+  /** 帰宅したときに答えた残りの体力（日付 → 答え）。今夜の組み方に使い、記録としても残す */
+  eveningEnergy: Record<DateKey, EveningEnergy>;
+  /** 雨の日にした日。散歩を家の中の代わりにする */
+  rainyDays: DateKey[];
 }
 
 // ---------- 日付 ----------

@@ -15,6 +15,26 @@ export const SAMPLE_TAGS: Tag[] = [
 ];
 
 /** 生活の中身の議論で決めた習慣。最初は少なめにして、続いたら足す */
+/** 入浴：就寝の150〜75分前（30分で入り、就寝の約90分前に終える） */
+export const BATH = {
+  id: "habit-bath",
+  name: "入浴",
+  durationMinutes: 30,
+  windowStart: -150,
+  windowEnd: -75,
+  anchor: "bed",
+  frequency: { type: "daily" },
+  skippable: false,
+} as const satisfies Habit;
+
+/** 散歩：起床から150分のうち（朝ルーティンのすぐあと）。日の光を浴びて体内時計を合わせる。雨の日は家の中の代わり */
+export const WALK_TIMES = {
+  windowStart: 0,
+  windowEnd: 150,
+  anchor: "wake",
+  rainAlternative: { title: "窓際で光を浴びる＋家での運動", durationMinutes: 15 },
+} as const satisfies Partial<Habit>;
+
 export const SAMPLE_HABITS: Habit[] = [
   // 昼食は30分で十分。食後30分の休憩は集中系だけ避ける（合わせて1時間）。多少遅れてもよいので幅は広め
   {
@@ -39,14 +59,14 @@ export const SAMPLE_HABITS: Habit[] = [
     avoidFocusAfterMinutes: 60,
     meal: true,
   },
-  { id: "habit-bath", name: "入浴", durationMinutes: 30, windowStart: 20 * 60, windowEnd: 23 * 60 + 30, frequency: { type: "daily" }, skippable: false },
+  // 入浴は就寝の約90分前に終える（体温が下がるときに眠くなる）
+  { ...BATH },
   // 今は散歩が運動の代わり。続いたら家での運動15分を足す
   {
     id: "habit-walk",
     name: "散歩",
     durationMinutes: 20,
-    windowStart: 10 * 60,
-    windowEnd: 18 * 60,
+    ...WALK_TIMES,
     frequency: { type: "daily" },
     skippable: true,
     energyCost: -1,
@@ -99,7 +119,8 @@ export const SAMPLE_HABITS: Habit[] = [
 /** 行動ポイントが上限を超える日に提案する発散 */
 export const SAMPLE_RECOVERY_OPTIONS: RecoveryOption[] = [
   { name: "ゲーム・動画", durationMinutes: 30, energy: -1.5 },
-  { name: "昼寝・ごろごろする", durationMinutes: 30, energy: -1 },
+  // 夕方以降の昼寝は夜の眠気を減らすので、16時までにする
+  { name: "昼寝・ごろごろする", durationMinutes: 30, energy: -1, latestStartMinuteOfDay: 16 * 60 },
 ];
 
 export const SAMPLE_AVOID_WINDOWS: AvoidWindow[] = [
