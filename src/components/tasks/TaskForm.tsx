@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { Task, TaskTiming } from "@/lib/scheduler";
-import { TAGS, type MockState } from "@/lib/mock/store";
+import type { MockState } from "@/lib/mock/store";
 import { DAY_MS, dayStartOf, formatDate, formatMinutes, formatTime, fromInputDateTime, newId, toInputDate, toInputDateTime } from "@/lib/mock/jst";
 import { allEventRefs, blocksOfTask, formatEventWhen } from "@/lib/mock/related";
 import Sheet from "@/components/ui/Sheet";
@@ -219,7 +219,7 @@ export default function TaskForm({
             {d.mode === "range"
               ? "真ん中くらいの時間で計画します"
               : d.mode === "unknown"
-                ? `種類の目安（${TAGS.find((t) => t.id === d.tagId)?.defaultMinutes ?? 60}分）で計画します`
+                ? `種類の目安（${state.tags.find((t) => t.id === d.tagId)?.defaultMinutes ?? 60}分）で計画します`
                 : "この時間ぶんを締切までに置きます"}
           </p>
         </div>
@@ -236,11 +236,11 @@ export default function TaskForm({
             full
             value={d.tagId}
             onChange={(v) => set("tagId", v)}
-            options={[{ value: "", label: "なし" }, ...TAGS.map((t) => ({ value: t.id, label: t.name }))]}
+            options={[{ value: "", label: "なし" }, ...state.tags.map((t) => ({ value: t.id, label: t.name }))]}
           />
           {d.tagId && (
             <p className="text-[12px] text-muted">
-              {TAGS.find((t) => t.id === d.tagId)?.mode === "focus" ? "長い空き時間にまとめて置きます" : "予定の合間の短い時間に詰めます"}
+              {state.tags.find((t) => t.id === d.tagId)?.mode === "focus" ? "長い空き時間にまとめて置きます" : "予定の合間の短い時間に詰めます"}
             </p>
           )}
         </div>

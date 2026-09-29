@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { estimateMinutes, parseQuickAdd, type Task } from "@/lib/scheduler";
-import { TAGS } from "@/lib/mock/store";
+import { useApp } from "@/components/app/StoreProvider";
 import { TZ, formatDeadline, formatMinutes, newId } from "@/lib/mock/jst";
 
 const DEADLINE_CHIPS = ["今日", "明日", "今週"] as const;
@@ -25,6 +25,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 }
 
 export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) {
+  const TAGS = useApp().state.tags;
   const [text, setText] = useState("");
   const [chip, setChip] = useState<DeadlineChip | undefined>();
   const [tagId, setTagId] = useState<string | undefined>();

@@ -8,7 +8,7 @@ import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
 import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, taskBlockKey, taskCheckKey, type ContactAnswer, type TaskCheck, type HabitMark, type MorningFatigue, type TaskBlockLog, type WakeLog } from "@/lib/mock/model";
-import { TAGS, completeTask, contactDaysFor } from "@/lib/mock/state";
+import { completeTask, contactDaysFor } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import Notices, { hasNotices } from "./Notices";
@@ -647,7 +647,7 @@ function TaskCheckCard({ today, now }: { today: number; now: number }) {
     return !state.result.blocks.some((b) => b.kind === "task" && b.refId === t.id && b.start > now && b.start < today + DAY_MS);
   });
   if (ask.length === 0) return null;
-  const leftOf = (t: Task) => t.remainingMinutes ?? estimateMinutes(t, TAGS.find((g) => g.id === t.tagId));
+  const leftOf = (t: Task) => t.remainingMinutes ?? estimateMinutes(t, state.tags.find((g) => g.id === t.tagId));
   const answer = (t: Task, a: TaskCheck["answer"], delta = 0) =>
     update((d) => {
       const before = leftOf(t);

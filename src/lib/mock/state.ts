@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, buildOutlook, contactDays, estimateMinutes, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
+import { DEFAULT_SETTINGS, buildOutlook, contactDays, estimateMinutes, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
 import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS, taskBlockKey } from "./model";
 import { DAY_MS, MIN } from "./jst";
 import {
@@ -33,6 +33,7 @@ export interface MockState extends MockData {
 }
 
 /** タスクの種類（まだ編集画面はないので固定） */
+/** 作業の種類の初期値（保存したデータの tags がなければこれ） */
 export const TAGS = SAMPLE_TAGS;
 
 const DATA_KEYS = [
@@ -61,6 +62,8 @@ const DATA_KEYS = [
   "rewardSpends",
   "doneTasks",
   "importedTravel",
+  "tags",
+  "calendarColors",
   "taskChecks",
   "rewardRates",
   "migrations",
@@ -100,6 +103,8 @@ export function sampleData(now: number): MockData {
     rewardSpends: [],
     doneTasks: [],
     importedTravel: {},
+    tags: SAMPLE_TAGS,
+    calendarColors: {},
     taskChecks: {},
     rewardRates: DEFAULT_REWARD_RATES,
     migrations: [...MIGRATIONS],
@@ -261,6 +266,14 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     doneTasks: arr<unknown>(d.doneTasks, []).filter(
       (x): x is DoneTask => isRecord(x) && typeof x.id === "string" && typeof x.title === "string" && typeof x.doneAt === "number",
     ),
+    // 作業の種類は ID ごとに初期値へ重ねる（新しい項目が増えても欠けないように）
+    tags: SAMPLE_TAGS.map((t) => {
+      const saved = arr<unknown>(d.tags, []).find((x): x is Partial<Tag> => isRecord(x) && x.id === t.id);
+      return saved ? { ...t, ...saved, id: t.id, mode: t.mode } : t;
+    }),
+    calendarColors: isRecord(d.calendarColors)
+      ? Object.fromEntries(Object.entries(d.calendarColors).filter((e): e is [string, string] => typeof e[1] === "string" && /^#[0-9a-f]{6}$/i.test(e[1])))
+      : {},
     importedTravel: isRecord(d.importedTravel)
       ? Object.fromEntries(Object.entries(d.importedTravel).filter((e): e is [string, number] => typeof e[1] === "number" && e[1] >= 0))
       : {},
@@ -335,7 +348,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     const id = key.slice(0, key.lastIndexOf(":"));
     tasks = tasks.map((t) => {
       if (t.id !== id) return t;
-      const left = estimateMinutes(t, TAGS.find((g) => g.id === t.tagId));
+      const left = estimateMinutes(t, data.tags.find((g) => g.id === t.tagId));
       return { ...t, remainingMinutes: Math.max(0, left - Math.round((l.end - l.start) / MIN)) };
     });
     taskBlockLog[key] = { ...l, counted: true };
@@ -347,7 +360,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     events: planEvents(data, classEvents, googleEvents),
     places: data.places,
     habits: data.habits,
-    tags: TAGS,
+    tags: data.tags,
     tasks: data.tasks,
     avoidWindows: data.avoidWindows,
     recoveryOptions: SAMPLE_RECOVERY_OPTIONS,

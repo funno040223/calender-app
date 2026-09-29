@@ -12,11 +12,15 @@ import RoutineSteps from "./RoutineSteps";
 import BasicSettings from "./BasicSettings";
 import Notifications from "./Notifications";
 import Feed from "./Feed";
+import Tags from "./Tags";
+import CalendarColors from "./CalendarColors";
 
 const BODY: Record<SectionId, () => React.ReactNode> = {
   calendars: CalendarSources,
   notifications: Notifications,
   feed: Feed,
+  tags: Tags,
+  colors: CalendarColors,
   timetable: Timetable,
   places: Places,
   habits: Habits,

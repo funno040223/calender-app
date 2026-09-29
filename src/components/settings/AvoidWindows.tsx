@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { AvoidWindow } from "@/lib/scheduler";
+import type { AvoidWindow, Tag } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { AddRow, Chip, EmptyNote, Group, Row, Segmented, inputCls } from "@/components/ui/controls";
-import { TAGS } from "@/lib/mock/store";
 import { WEEKDAY_JA, newId } from "@/lib/mock/jst";
 import { formatMinuteOfDay, hhmmToMinutes, minutesToHHMM, spanFrom } from "@/lib/mock/model";
 import EditSheet, { Field, upsert } from "./EditSheet";
@@ -18,7 +17,8 @@ const DAY_TYPES: { value: DayType; label: string }[] = [
 ];
 
 function AvoidForm({ win, onClose }: { win?: AvoidWindow; onClose: () => void }) {
-  const { update } = useApp();
+  const { update, state } = useApp();
+  const TAGS = state.tags;
   const [label, setLabel] = useState(win?.label ?? "");
   const [weekdays, setWeekdays] = useState<number[]>(win?.weekdays ?? []);
   const [start, setStart] = useState(minutesToHHMM(win?.start ?? 22 * 60));
@@ -109,7 +109,7 @@ function AvoidForm({ win, onClose }: { win?: AvoidWindow; onClose: () => void })
   );
 }
 
-function summary(w: AvoidWindow): string {
+function summary(w: AvoidWindow, TAGS: Tag[]): string {
   const days = w.weekdays ? [...w.weekdays].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WEEKDAY_JA[d]).join("") : "毎日";
   const type = w.dayType === "holiday" ? "・休日だけ" : w.dayType === "onDay" ? "・オンの日だけ" : "";
   const tags = w.tagIds?.length ? `・${w.tagIds.map((id) => TAGS.find((t) => t.id === id)?.name ?? "?").join("、")}` : "";
@@ -124,7 +124,7 @@ export default function AvoidWindows() {
       <Group>
         {state.avoidWindows.length === 0 && <EmptyNote>まだありません。</EmptyNote>}
         {state.avoidWindows.map((w) => (
-          <Row key={w.id} label={w.label} sub={summary(w)} detail={w.hard ? "入れない" : "なるべく避ける"} onClick={() => setEditing({ win: w })} />
+          <Row key={w.id} label={w.label} sub={summary(w, state.tags)} detail={w.hard ? "入れない" : "なるべく避ける"} onClick={() => setEditing({ win: w })} />
         ))}
         <AddRow onClick={() => setEditing({})}>時間帯を追加</AddRow>
       </Group>

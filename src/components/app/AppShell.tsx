@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Task } from "@/lib/scheduler";
 import { useMockStore } from "@/lib/mock/store";
 import { completeTask } from "@/lib/mock/state";
+import { CALENDARS } from "@/lib/mock/calendars";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
 import { warningCount } from "@/components/today/Notices";
@@ -42,6 +43,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const { state, update } = store;
   const warnings = warningCount(state);
+
+  // 設定で選んだカレンダーの色を、画面全体の色の変数に上書きする（選んでいなければ初期の色）
+  useEffect(() => {
+    const root = document.documentElement.style;
+    for (const c of CALENDARS) {
+      const v = state.calendarColors[c.id];
+      if (v) root.setProperty(`--cal-${c.id}`, v);
+      else root.removeProperty(`--cal-${c.id}`);
+    }
+  }, [state.calendarColors]);
   const showQuickAdd = !pathname.startsWith("/settings");
   const task = editingTask?.id ? state.tasks.find((t) => t.id === editingTask.id) : undefined;
 

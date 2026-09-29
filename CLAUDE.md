@@ -44,6 +44,7 @@
 - 根拠の資料：`docs/research/fatigue-recovery-research.md`（回復・睡眠・喫煙・疲れのモデル）
 - `public/sw.js` 電波がなくても開けるように、主な画面と部品を控える（**中身を変えたら VERSION を上げる**。画面を増やしたら SHELL に足す）。登録は `src/components/app/ServiceWorker.tsx`（本番だけ）。本番の形での確認は `.claude/launch.json` の "prod"（ポート3001、先に `npm run build`）。アイコンは `node scripts/make-icons.mjs`
 - `src/proxy.ts` ログインの確認と自動延長。未ログインはページ→/login、API→401
+- 作業の種類（`tags`、初期値は `SAMPLE_TAGS` に ID ごとに重ねる）とカレンダーの色（`calendarColors`、AppShell で `--cal-<id>` を上書き）は設定で変えられる
 - `src/app/(app)/` 画面：`/` 今日、`/calendar`、`/tasks`、`/stats`（記録：ご褒美のお金とその推移・直近14日の達成カレンダー・タバコの時間帯と日ごとの本数・見通しの日ごとの詳細。計算は `src/lib/mock/stats.ts`）、`/settings/*`。`src/app/login/`、`src/app/api/ical/sync/`
 - `supabase/migrations/` SQL（`setup.sql` は 0001+0002 をまとめたもの。**ユーザーが実行済み**）
 

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { buildOutlook, estimateMinutes, type OutlookStatus, type Task } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
-import { TAGS } from "@/lib/mock/store";
 import { completeTask } from "@/lib/mock/state";
 import { MIN, TZ, formatDeadline, formatMinutes } from "@/lib/mock/jst";
 import { blocksOfTask, eventIndex, formatEventWhen } from "@/lib/mock/related";
@@ -65,7 +64,7 @@ export default function TasksScreen() {
   const without = sorted.filter((t) => effectiveDeadline(t) === Infinity);
 
   const row = (t: Task) => {
-    const tag = TAGS.find((g) => g.id === t.tagId);
+    const tag = state.tags.find((g) => g.id === t.tagId);
     const need = estimateMinutes(t, tag);
     const placed = blocksOfTask(state.result.blocks, t.id).reduce((s, b) => s + (b.end - b.start) / MIN, 0);
     const short = state.result.shortfalls.find((s) => s.taskId === t.id);

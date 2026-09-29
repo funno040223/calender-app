@@ -1,4 +1,4 @@
-import type { AvoidWindow, Block, CalendarEvent, EveningEnergy, Habit, Place, Settings, Task } from "@/lib/scheduler";
+import type { AvoidWindow, Block, CalendarEvent, EveningEnergy, Habit, Place, Settings, Tag, Task } from "@/lib/scheduler";
 import type { CalendarId, OwnCalendarId } from "./calendars";
 import { DAY_MS, MIN, TZ, fromInputDateTime, toInputDate, weekdayOf } from "./jst";
 
@@ -205,6 +205,10 @@ export interface MockData {
   doneTasks: DoneTask[];
   /** その日の最後の枠のあとに聞いた「終わった？」の答え（"タスクの ID:日付" → 答え）。見積もりを合わせる材料 */
   taskChecks: Record<string, TaskCheck>;
+  /** 作業の種類（集中・事務）。1回の長さや休憩を設定で変えられる */
+  tags: Tag[];
+  /** カレンダーの色を変えたもの（カレンダーの ID → #rrggbb）。なければ初期の色 */
+  calendarColors: Partial<Record<CalendarId, string>>;
   /** 取り込んだ予定に自分で付けた片道の移動時間（予定の ID → 分。0 は家にいる）。場所のない予定を外出として扱う */
   importedTravel: Record<string, number>;
   /** ご褒美のお金を使った記録 */
