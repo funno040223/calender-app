@@ -1,6 +1,6 @@
-import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
+import { DEFAULT_SETTINGS, buildOutlook, contactDays, estimateMinutes, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
 import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS, taskBlockKey } from "./model";
-import { DAY_MS } from "./jst";
+import { DAY_MS, MIN } from "./jst";
 import {
   SAMPLE_RECOVERY_OPTIONS,
   SAMPLE_AVOID_WINDOWS,
@@ -301,7 +301,19 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     const key = taskBlockKey(b.refId, b.start);
     if (!taskBlockLog[key]) taskBlockLog[key] = { title: b.title, start: b.start, end: b.end };
   }
-  data = { ...data, habitLastDone, taskBlockLog };
+  // 終わった枠の長さを、そのタスクの残り時間から引く（予定どおりやったものとする。違えば「終わった？」で直す）
+  let tasks = data.tasks;
+  for (const [key, l] of Object.entries(taskBlockLog)) {
+    if (l.counted || l.end > now) continue;
+    const id = key.slice(0, key.lastIndexOf(":"));
+    tasks = tasks.map((t) => {
+      if (t.id !== id) return t;
+      const left = estimateMinutes(t, TAGS.find((g) => g.id === t.tagId));
+      return { ...t, remainingMinutes: Math.max(0, left - Math.round((l.end - l.start) / MIN)) };
+    });
+    taskBlockLog[key] = { ...l, counted: true };
+  }
+  data = { ...data, habitLastDone, taskBlockLog, tasks };
   const result = plan({
     now,
     settings: data.settings,
@@ -332,4 +344,12 @@ export function contactDaysFor(state: MockState, now: number): { weekStart: numb
   const weeks = buildOutlook({ now, result: state.result, minSlackMinutesPerDay: state.settings.minSlackMinutesPerDay, tzOffsetMinutes: tz });
   return contactDays(weeks, state.result.dayPlans, now, tz)
     .filter((c) => !state.contactLogs[dateKeyOf(c.weekStart)]);
+}
+
+/** タスクを完了にする：一覧と配置から外し、完了の記録に移す */
+export function completeTask(d: MockData, id: string, now: number): MockData {
+  const t = d.tasks.find((x) => x.id === id);
+  if (!t) return d;
+  const done: DoneTask = { id: t.id, title: t.title, deadline: t.deadline, tagId: t.tagId, estimateMinutes: t.durationMinutes, doneAt: now };
+  return { ...d, tasks: d.tasks.filter((x) => x.id !== id), doneTasks: [...d.doneTasks, done] };
 }

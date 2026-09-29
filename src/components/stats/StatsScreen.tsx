@@ -78,7 +78,7 @@ const ROWS: { key: GridRow; label: string; get: (s: PeriodStats) => { done: numb
   { key: "wake", label: "起床", get: (s) => s.wake },
   { key: "routine", label: "朝ルーティン", get: (s) => s.routine },
   { key: "habit", label: "習慣", get: (s) => ({ done: s.habit.done, total: s.habit.expected }) },
-  { key: "task", label: "タスクの枠", get: (s) => s.task },
+  { key: "task", label: "タスク", get: (s) => s.task },
 ];
 const fmtN = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
@@ -296,6 +296,111 @@ function OutlookDetail() {
   );
 }
 
+/** 棒グラフ（1本の軸）。いちばん高い棒にだけ値を書き、押すと下に詳しく出す */
+function Columns({
+  values,
+  labels,
+  details,
+  label,
+}: {
+  values: number[];
+  /** 軸の下の文字（空文字は書かない） */
+  labels: string[];
+  details: string[];
+  label: string;
+}) {
+  const [picked, setPicked] = useState<number>();
+  const W = 336;
+  const H = 120;
+  const top = 14;
+  const base = H - 18;
+  const max = Math.max(1, ...values);
+  const slot = W / values.length;
+  const bw = Math.min(16, slot - 2);
+  const maxI = values.indexOf(Math.max(...values));
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={label}>
+        <line x1={0} x2={W} y1={base} y2={base} className="stroke-line" strokeWidth={1} />
+        {values.map((v, i) => {
+          const h = (v / max) * (base - top);
+          const x = i * slot + (slot - bw) / 2;
+          const r = Math.min(4, h);
+          return (
+            <g key={i} onClick={() => setPicked(picked === i ? undefined : i)} className="cursor-pointer">
+              <rect x={i * slot} y={0} width={slot} height={H} fill="transparent" />
+              {picked === i && <rect x={i * slot + 0.5} y={top - 4} width={slot - 1} height={base - top + 8} rx={3} className="fill-surface2" />}
+              {h > 0 && (
+                <path
+                  d={`M${x},${base} V${base - h + r} Q${x},${base - h} ${x + r},${base - h} H${x + bw - r} Q${x + bw},${base - h} ${x + bw},${base - h + r} V${base} Z`}
+                  className="fill-ok"
+                />
+              )}
+              {labels[i] && (
+                <text x={i * slot + slot / 2} y={H - 4} textAnchor="middle" className="fill-muted text-[10px] tabular-nums">
+                  {labels[i]}
+                </text>
+              )}
+            </g>
+          );
+        })}
+        {values[maxI] > 0 && (
+          <text x={maxI * slot + slot / 2} y={base - (values[maxI] / max) * (base - top) - 4} textAnchor="middle" className="fill-fg text-[10px] font-semibold tabular-nums">
+            {values[maxI]}
+          </text>
+        )}
+      </svg>
+      <p className="min-h-5 pt-1 text-[13px] tabular-nums">{picked !== undefined ? details[picked] : ""}</p>
+    </div>
+  );
+}
+
+/** タバコ：直近14日の、時間帯ごとの本数と、日ごとの本数 */
+function Smoking() {
+  const { state } = useApp();
+  const end = dayStartOf(state.plannedAt) + DAY_MS;
+  const from = end - 14 * DAY_MS;
+  const logs = state.smokeLogs.filter((t) => t >= from && t < end);
+  const prev = state.smokeLogs.filter((t) => t >= from - 14 * DAY_MS && t < from).length;
+  const hourOf = (t: number) => new Date(t + TZ * MIN).getUTCHours();
+  const byHour = Array.from({ length: 24 }, (_, h) => logs.filter((t) => hourOf(t) === h).length);
+  const days = Array.from({ length: 14 }, (_, i) => from + i * DAY_MS);
+  const byDay = days.map((d) => logs.filter((t) => t >= d && t < d + DAY_MS).length);
+  const avg = (n: number) => (Math.round((n / 14) * 10) / 10).toFixed(1);
+  return (
+    <Group title="タバコ（直近2週間）">
+      <div className="flex flex-col gap-3 px-4 py-3">
+        <p className="flex items-baseline gap-3 tabular-nums">
+          <span className="text-[22px] font-semibold">{logs.length}本</span>
+          <span className="text-[13px] text-muted">1日 {avg(logs.length)}本</span>
+          {prev > 0 && <span className="ml-auto text-[12px] text-muted">前の2週間 1日 {avg(prev)}本</span>}
+        </p>
+        <div>
+          <p className="text-[12px] text-muted">時間帯</p>
+          <Columns
+            label="時間帯ごとの本数"
+            values={byHour}
+            labels={byHour.map((_, h) => (h % 3 === 0 ? String(h) : ""))}
+            details={byHour.map((n, h) => `${h}時台 ${n}本`)}
+          />
+        </div>
+        <div>
+          <p className="text-[12px] text-muted">日ごと</p>
+          <Columns
+            label="日ごとの本数"
+            values={byDay}
+            labels={days.map((d, i) => (i % 2 === 1 || i === 13 ? String(new Date(d + TZ * MIN).getUTCDate()) : ""))}
+            details={days.map((d, i) => {
+              const times = logs.filter((t) => t >= d && t < d + DAY_MS).map(formatTime);
+              return `${formatDate(d)} ${byDay[i]}本${times.length ? `（${times.join(" ")}）` : ""}`;
+            })}
+          />
+        </div>
+      </div>
+    </Group>
+  );
+}
+
 /** ご褒美の金額（1回あたり） */
 function Rates() {
   const { state, update } = useApp();
@@ -305,7 +410,7 @@ function Rates() {
     { k: "wake", label: "起床" },
     { k: "routine", label: "朝ルーティン" },
     { k: "habit", label: "習慣" },
-    { k: "task", label: "タスクの枠" },
+    { k: "task", label: "タスク" },
   ];
   return (
     <Group title="金額（1回）">
@@ -330,6 +435,7 @@ export default function StatsScreen() {
           <Adherence />
         </div>
         <div className="flex flex-col gap-6">
+          <Smoking />
           <OutlookDetail />
           <Rates />
         </div>

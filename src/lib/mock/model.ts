@@ -111,6 +111,8 @@ export interface TaskBlockLog {
   start: number;
   end: number;
   doneAt?: number;
+  /** 枠が終わって、その長さをタスクの残り時間から引いた（2回引かない） */
+  counted?: boolean;
 }
 export interface DoneTask {
   id: string;
@@ -123,10 +125,11 @@ export interface DoneTask {
 }
 export interface TaskCheck {
   at: number;
-  answer: "done" | "more" | "none";
-  /** 「あと○分」の答え */
-  remainingMinutes?: number;
-  /** 答える前の残り（分） */
+  /** done 終わった／adjust 予定の残りに対して巻いた・予定どおり・かかっている／none 今日はやってない */
+  answer: "done" | "adjust" | "none";
+  /** 予定の残りに足した分（巻いたらマイナス、予定どおりは0） */
+  deltaMinutes?: number;
+  /** 答える前の予定の残り（分） */
   beforeMinutes?: number;
 }
 export const taskCheckKey = (taskId: string, day: DateKey) => `${taskId}:${day}`;

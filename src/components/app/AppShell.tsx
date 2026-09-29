@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Task } from "@/lib/scheduler";
 import { useMockStore } from "@/lib/mock/store";
+import { completeTask } from "@/lib/mock/state";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
 import { warningCount } from "@/components/today/Notices";
@@ -127,6 +128,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
           state={state}
           onSave={saveTask}
           onDelete={deleteTask}
+          onComplete={(id) => {
+            update((d) => completeTask(d, id, Date.now()));
+            setEditingTask(null);
+          }}
           onClose={() => setEditingTask(null)}
         />
       )}

@@ -61,12 +61,14 @@ export default function TaskForm({
   state,
   onSave,
   onDelete,
+  onComplete,
   onClose,
 }: {
   task?: Task;
   state: MockState;
   onSave: (task: Task) => void;
   onDelete: (id: string) => void;
+  onComplete?: (id: string) => void;
   onClose: () => void;
 }) {
   const [d, setD] = useState<Draft>(() => toDraft(task, state.plannedAt));
@@ -267,6 +269,11 @@ export default function TaskForm({
 
         {error && <p className="text-[14px] text-accent">{error}</p>}
         <PrimaryButton>{task ? "保存" : "追加"}</PrimaryButton>
+        {task && onComplete && (
+          <button type="button" onClick={() => onComplete(task.id)} className="w-full rounded-xl bg-surface2 py-3 text-[16px] font-medium text-ok">
+            完了にする
+          </button>
+        )}
         {task && (
           <DangerButton confirm={`「${task.title}」を削除しますか？`} onClick={() => onDelete(task.id)}>
             タスクを削除

@@ -7,8 +7,8 @@ import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, taskBlockKey, taskCheckKey, type ContactAnswer, type DoneTask, type TaskCheck, type HabitMark, type MorningFatigue, type TaskBlockLog, type WakeLog } from "@/lib/mock/model";
-import { TAGS, contactDaysFor } from "@/lib/mock/state";
+import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, taskBlockKey, taskCheckKey, type ContactAnswer, type TaskCheck, type HabitMark, type MorningFatigue, type TaskBlockLog, type WakeLog } from "@/lib/mock/model";
+import { TAGS, completeTask, contactDaysFor } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import Notices, { hasNotices } from "./Notices";
@@ -624,71 +624,82 @@ function ReviewCard({ today }: { today: number }) {
   );
 }
 
-const MORE_OPTIONS = [15, 30, 60, 90, 120];
+/** 予定の残りに対して、巻いた（マイナス）・かかっている（プラス）の幅（分） */
+const AHEAD = [-60, -30];
+const BEHIND = [30, 60, 120];
+const signed = (m: number) => `${m > 0 ? "+" : "−"}${formatMinutes(Math.abs(m))}`;
 
-/** その日の最後の枠が終わったタスクに「終わった？」。終わった／あと○分／今日はやってない */
+/** その日の最後の枠が終わったタスクに「終わった？」。予定の残りに対して、巻いた・予定どおり・かかっている で答える */
 function TaskCheckCard({ today, now }: { today: number; now: number }) {
   const { state, update } = useApp();
   const key = dateKeyOf(today);
-  const [more, setMore] = useState<string>();
   // 今日の枠（始まったもの）の最後が終わっていて、このあと今日の枠がなく、まだ答えていないタスク
-  const lastEnd = new Map<string, number>();
-  for (const l of Object.entries(state.taskBlockLog)) {
-    const [k, b] = l;
+  const todays = new Map<string, TaskBlockLog[]>();
+  for (const [k, b] of Object.entries(state.taskBlockLog)) {
     if (b.start < today || b.start >= today + DAY_MS) continue;
     const id = k.slice(0, k.lastIndexOf(":"));
-    lastEnd.set(id, Math.max(lastEnd.get(id) ?? 0, b.end));
+    todays.set(id, [...(todays.get(id) ?? []), b]);
   }
   const ask = state.tasks.filter((t) => {
-    const end = lastEnd.get(t.id);
-    if (end === undefined || end > now || state.taskChecks[taskCheckKey(t.id, key)]) return false;
+    const logs = todays.get(t.id);
+    if (!logs || logs.some((l) => l.end > now) || state.taskChecks[taskCheckKey(t.id, key)]) return false;
     return !state.result.blocks.some((b) => b.kind === "task" && b.refId === t.id && b.start > now && b.start < today + DAY_MS);
   });
   if (ask.length === 0) return null;
-  const answer = (t: Task, a: TaskCheck["answer"], remaining?: number) => {
-    setMore(undefined);
+  const leftOf = (t: Task) => t.remainingMinutes ?? estimateMinutes(t, TAGS.find((g) => g.id === t.tagId));
+  const answer = (t: Task, a: TaskCheck["answer"], delta = 0) =>
     update((d) => {
-      const before = t.remainingMinutes ?? estimateMinutes(t, TAGS.find((g) => g.id === t.tagId));
-      const check: TaskCheck = { at: Date.now(), answer: a, beforeMinutes: before, ...(remaining !== undefined ? { remainingMinutes: remaining } : {}) };
+      const before = leftOf(t);
+      const check: TaskCheck = { at: Date.now(), answer: a, beforeMinutes: before, ...(a === "adjust" ? { deltaMinutes: delta } : {}) };
       const taskChecks = { ...d.taskChecks, [taskCheckKey(t.id, key)]: check };
-      if (a === "done") {
-        const done: DoneTask = { id: t.id, title: t.title, deadline: t.deadline, tagId: t.tagId, estimateMinutes: t.durationMinutes, doneAt: Date.now() };
-        return { ...d, taskChecks, tasks: d.tasks.filter((x) => x.id !== t.id), doneTasks: [...d.doneTasks, done] };
-      }
-      if (a === "more" && remaining !== undefined) return { ...d, taskChecks, tasks: d.tasks.map((x) => (x.id === t.id ? { ...x, remainingMinutes: remaining } : x)) };
-      return { ...d, taskChecks };
+      if (a === "done") return completeTask({ ...d, taskChecks }, t.id, Date.now());
+      // やっていなければ、今日の枠のぶん引いた残りを戻す
+      const back = a === "none" ? (todays.get(t.id) ?? []).filter((l) => l.counted).reduce((s, l) => s + Math.round((l.end - l.start) / MIN), 0) : 0;
+      const next = Math.max(15, before + delta + back);
+      return { ...d, taskChecks, tasks: d.tasks.map((x) => (x.id === t.id ? { ...x, remainingMinutes: next } : x)) };
     });
-  };
-  const btn = "shrink-0 rounded-lg px-3 py-1.5 text-[14px]";
+  const btn = "shrink-0 rounded-lg px-3 py-1.5 text-[14px] tabular-nums";
   return (
     <Group title="終わった？">
-      <ul className="flex flex-col py-1">
-        {ask.map((t) => (
-          <li key={t.id} className="flex flex-col gap-2 px-4 py-2.5">
-            <p className="truncate text-[15px] font-medium">{t.title}</p>
-            {more === t.id ? (
-              <div className="flex flex-wrap gap-2">
-                {MORE_OPTIONS.map((m) => (
-                  <button key={m} type="button" onClick={() => answer(t, "more", m)} className={`${btn} bg-surface2 tabular-nums`}>
-                    {formatMinutes(m)}
-                  </button>
-                ))}
-              </div>
-            ) : (
+      <ul className="flex flex-col divide-y divide-line py-1">
+        {ask.map((t) => {
+          const left = leftOf(t);
+          return (
+            <li key={t.id} className="flex flex-col gap-2 px-4 py-3">
+              <p className="flex items-baseline gap-2">
+                <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{t.title}</span>
+                <span className="shrink-0 text-[13px] tabular-nums text-muted">予定の残り {formatMinutes(left)}</span>
+              </p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => answer(t, "done")} className={`${btn} bg-accent font-medium text-white`}>
                   終わった
                 </button>
-                <button type="button" onClick={() => setMore(t.id)} className={`${btn} bg-surface2`}>
-                  あと…
+                <button type="button" onClick={() => answer(t, "adjust", 0)} className={`${btn} bg-surface2`}>
+                  予定どおり
                 </button>
                 <button type="button" onClick={() => answer(t, "none")} className={`${btn} bg-surface2`}>
                   今日はやってない
                 </button>
               </div>
-            )}
-          </li>
-        ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-16 text-[12px] text-muted">巻いた</span>
+                {AHEAD.filter((m) => left + m >= 15).map((m) => (
+                  <button key={m} type="button" onClick={() => answer(t, "adjust", m)} className={`${btn} bg-surface2`}>
+                    {signed(m)}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-16 text-[12px] text-muted">かかっている</span>
+                {BEHIND.map((m) => (
+                  <button key={m} type="button" onClick={() => answer(t, "adjust", m)} className={`${btn} bg-surface2`}>
+                    {signed(m)}
+                  </button>
+                ))}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </Group>
   );

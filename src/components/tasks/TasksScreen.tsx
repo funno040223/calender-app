@@ -6,6 +6,7 @@ import { buildOutlook, estimateMinutes, type OutlookStatus, type Task } from "@/
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { TAGS } from "@/lib/mock/store";
+import { completeTask } from "@/lib/mock/state";
 import { MIN, TZ, formatDeadline, formatMinutes } from "@/lib/mock/jst";
 import { blocksOfTask, eventIndex, formatEventWhen } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
@@ -50,7 +51,7 @@ function Outlook() {
 }
 
 export default function TasksScreen() {
-  const { state, openTask } = useApp();
+  const { state, openTask, update } = useApp();
   const events = eventIndex(state);
 
   const effectiveDeadline = (t: Task) => {
@@ -71,9 +72,16 @@ export default function TasksScreen() {
     const rel = t.relatedEventId ? events.get(t.relatedEventId) : undefined;
     const ratio = need > 0 ? Math.min(1, placed / need) : 1;
     return (
-      <button key={t.id} type="button" onClick={() => openTask(t.id)} className="flex w-full items-start gap-3 px-4 py-2.5 text-left active:bg-surface2">
-        <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: "var(--cal-task)" }} />
-        <div className="min-w-0 flex-1">
+      <div key={t.id} className="flex w-full items-start gap-1 pl-2 pr-4 active:bg-surface2">
+        <button
+          type="button"
+          aria-label={`「${t.title}」を完了にする`}
+          onClick={() => update((d) => completeTask(d, t.id, Date.now()))}
+          className="flex h-11 w-9 shrink-0 items-start justify-center pt-3"
+        >
+          <span className="h-5 w-5 rounded-full border-2" style={{ borderColor: "var(--cal-task)" }} />
+        </button>
+        <button type="button" onClick={() => openTask(t.id)} className="min-w-0 flex-1 py-2.5 text-left">
           <p className="flex items-center gap-1 text-[16px]">
             {PRIORITY_MARK[t.priority] && <span className="shrink-0 font-bold text-accent">{PRIORITY_MARK[t.priority]}</span>}
             <span className="truncate">{t.title}</span>
@@ -97,8 +105,8 @@ export default function TasksScreen() {
               {formatMinutes(placed)} / {formatMinutes(need)}
             </span>
           </div>
-        </div>
-      </button>
+        </button>
+      </div>
     );
   };
 
