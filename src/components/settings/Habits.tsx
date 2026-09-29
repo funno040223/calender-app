@@ -7,6 +7,7 @@ import { AddRow, EmptyNote, Group, Row, Segmented, Switch, inputCls, inputBase }
 import { formatMinutes, newId } from "@/lib/mock/jst";
 import { formatMinuteOfDay, hhmmToMinutes, minutesToHHMM, spanFrom } from "@/lib/mock/model";
 import EditSheet, { Field, upsert } from "./EditSheet";
+import { habitProgress } from "@/lib/mock/stats";
 
 interface Draft {
   name: string;
@@ -411,6 +412,12 @@ function summary(h: Habit, habits: Habit[]): string {
   return parts.join("・");
 }
 
+/** 記録する習慣の続き具合（「連続3日・9/14」）。2週間の回数 / 予定の回数 */
+function progressLabel(p: ReturnType<typeof habitProgress>): string {
+  const n = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
+  return [p.streak > 0 ? `連続${p.streak}${p.unit}` : "", p.expected > 0 ? `${n(p.done)}/${p.expected}` : ""].filter(Boolean).join("・");
+}
+
 export default function Habits() {
   const { state } = useApp();
   const [editing, setEditing] = useState<{ habit?: Habit } | null>(null);
@@ -424,6 +431,7 @@ export default function Habits() {
             leading={<span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: "var(--cal-habit)" }} />}
             label={h.name}
             sub={summary(h, state.habits)}
+            detail={h.track ? progressLabel(habitProgress(state, h, state.plannedAt)) : undefined}
             onClick={() => setEditing({ habit: h })}
           />
         ))}

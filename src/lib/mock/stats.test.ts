@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
 import { DEFAULT_REWARD_RATES } from "./model";
-import { dailyGrid, dailyReward, periodStats, rewardBalance, rewardEarned } from "./stats";
+import { dailyGrid, dailyReward, habitProgress, periodStats, rewardBalance, rewardEarned } from "./stats";
 
 const ex = { id: "ex", name: "運動", durationMinutes: 5, windowStart: 0, windowEnd: 1440, frequency: { type: "weekly" as const, times: 3 }, skippable: true, track: true };
 const walk = { id: "walk", name: "散歩", durationMinutes: 20, windowStart: 0, windowEnd: 150, frequency: { type: "daily" as const }, skippable: true, track: true };
@@ -55,5 +55,13 @@ describe("日ごとのマスと金額", () => {
       { day: days[1], earned: 30, spent: 100 },
       { day: days[2], earned: 0, spent: 0 },
     ]);
+  });
+});
+
+describe("習慣の続き具合", () => {
+  it("毎日の習慣は、今日まだでも昨日まで続いている日数を数える", () => {
+    const logs = { "2026-09-30": { walk: "done" as const }, "2026-10-01": { walk: "five" as const } };
+    const p = habitProgress({ habitLogs: logs }, walk, jst(2026, 10, 2, 8));
+    expect(p).toEqual({ streak: 2, unit: "日", done: 1.5, expected: 14 });
   });
 });

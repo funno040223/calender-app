@@ -145,3 +145,30 @@ export function dailyReward(data: Data, days: number[]): { day: number; earned: 
     spent: data.rewardSpends.filter((s) => s.at >= d && s.at < d + DAY_MS).reduce((a, s) => a + s.amount, 0),
   }));
 }
+
+/**
+ * 習慣の続き具合：連続した日数（毎日の習慣は今日か昨日まで続いている日数、週○回の習慣は続いている週の数）と、
+ * 直近2週間の回数と予定の回数（型を守れた割合）
+ */
+export function habitProgress(
+  data: Pick<MockData, "habitLogs">,
+  habit: Habit,
+  now: number,
+): { streak: number; unit: "日" | "週"; done: number; expected: number } {
+  const today = dayStartOfKey(dateKeyOf(now)) ?? now;
+  const marked = (day: number) => markValue(data.habitLogs[dateKeyOf(day)]?.[habit.id], habit) > 0;
+  let done = 0;
+  for (let i = 0; i < 14; i++) done += markValue(data.habitLogs[dateKeyOf(today - i * DAY_MS)]?.[habit.id], habit);
+  if (habit.frequency.type === "weekly") {
+    const times = habit.frequency.times;
+    // 今週はまだ途中なので、先週から数える（今週もう達していれば今週も入れる）
+    const countWeek = (end: number) => Array.from({ length: 7 }, (_, i) => end - i * DAY_MS).filter(marked).length;
+    let streak = countWeek(today) >= times ? 1 : 0;
+    for (let w = 1; w < 52 && countWeek(today - w * 7 * DAY_MS) >= times; w++) streak++;
+    return { streak, unit: "週", done, expected: times * 2 };
+  }
+  // 今日まだなら昨日から数える
+  let streak = 0;
+  for (let i = marked(today) ? 0 : 1; i < 400 && marked(today - i * DAY_MS); i++) streak++;
+  return { streak, unit: "日", done, expected: habit.frequency.type === "daily" ? 14 : 0 };
+}
