@@ -108,6 +108,16 @@ export interface WakeLog {
   sleepMinutes?: number;
 }
 
+export interface NotionConfig {
+  dateProp: string;
+  stageProp?: string;
+  /** 段階 → 取り込まない（落選・辞退など）。書いていない段階はタスクにする */
+  ignoreStages: string[];
+  fetchedAt?: number;
+}
+/** Notion から取り込んだタスクの ID の頭 */
+export const NOTION_TASK_PREFIX = "notion-";
+
 export interface WeatherPlace {
   name: string;
   lat: number;
@@ -204,6 +214,8 @@ export interface MockData {
   rainyDays: DateKey[];
   /** 予報では雨だが、晴れたので戻した日 */
   notRainyDays: DateKey[];
+  /** Notion の表の読み方（どの列を締切・段階として読むか、段階ごとにタスクにするか）。合言葉は notion_sources に置く */
+  notion?: NotionConfig;
   /** 天気予報を取る場所（設定の「天気」で選ぶ） */
   weatherPlace?: WeatherPlace;
   /** 最後に取った天気予報（日付 → その日の雨の確率の最大 %） */

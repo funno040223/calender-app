@@ -8,6 +8,8 @@ import { useMockStore } from "@/lib/mock/store";
 import { completeTask } from "@/lib/mock/state";
 import { CALENDARS } from "@/lib/mock/calendars";
 import { fetchRainChance } from "@/lib/weather/openMeteo";
+import { fetchNotionRows } from "@/lib/sync/notion";
+import { applyNotionRows } from "@/lib/mock/notion";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
 import { warningCount } from "@/components/today/Notices";
@@ -66,6 +68,24 @@ export default function AppShell({ children }: { children: ReactNode }) {
     const t = window.setInterval(check, 10 * 60 * 1000);
     return () => window.clearInterval(t);
   }, [store.sync, place, fetchedAt, update]);
+
+  // Notion の選考の表：列を選んであれば、開いたときと30分ごとに締切を取り込む（読めなければ前のタスクのまま）
+  const notion = state.notion;
+  const notionBusy = useRef(false);
+  useEffect(() => {
+    if (store.sync === "loading" || !notion?.dateProp) return;
+    const check = () => {
+      if (notionBusy.current || Date.now() - (notion.fetchedAt ?? 0) < 30 * 60 * 1000) return;
+      notionBusy.current = true;
+      fetchNotionRows(notion.dateProp, notion.stageProp)
+        .then((r) => update((d) => applyNotionRows(d, r.rows, Date.now(), r.fetchedAt)))
+        .catch((e) => console.warn("Notion を読めませんでした", e instanceof Error ? e.message : e))
+        .finally(() => (notionBusy.current = false));
+    };
+    check();
+    const t = window.setInterval(check, 10 * 60 * 1000);
+    return () => window.clearInterval(t);
+  }, [store.sync, notion, update]);
 
   // 設定で選んだカレンダーの色を、画面全体の色の変数に上書きする（選んでいなければ初期の色）
   useEffect(() => {

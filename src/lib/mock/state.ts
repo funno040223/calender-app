@@ -97,6 +97,7 @@ const DATA_KEYS = [
   "rainyDays",
   "notRainyDays",
   "weatherPlace",
+  "notion",
   "rainForecast",
   "energyChecks",
   "smokeLogs",
@@ -298,6 +299,15 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
         : {},
     rainyDays: arr<unknown>(d.rainyDays, []).filter((x): x is string => typeof x === "string"),
     notRainyDays: arr<unknown>(d.notRainyDays, []).filter((x): x is string => typeof x === "string"),
+    notion:
+      isRecord(d.notion) && typeof d.notion.dateProp === "string"
+        ? {
+            dateProp: d.notion.dateProp,
+            stageProp: typeof d.notion.stageProp === "string" ? d.notion.stageProp : undefined,
+            ignoreStages: arr<unknown>(d.notion.ignoreStages, []).filter((x): x is string => typeof x === "string"),
+            fetchedAt: typeof d.notion.fetchedAt === "number" ? d.notion.fetchedAt : undefined,
+          }
+        : undefined,
     weatherPlace:
       isRecord(d.weatherPlace) && typeof d.weatherPlace.name === "string" && typeof d.weatherPlace.lat === "number" && typeof d.weatherPlace.lon === "number"
         ? { name: d.weatherPlace.name, lat: d.weatherPlace.lat, lon: d.weatherPlace.lon }

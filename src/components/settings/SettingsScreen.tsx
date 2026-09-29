@@ -34,11 +34,12 @@ export default function SettingsScreen() {
     tags: `${state.tags.length}つ`,
     colors: "",
     weather: state.weatherPlace?.name ?? "",
+    notion: state.notion ? "取り込み中" : "",
     basic: `睡眠${formatMinutes(s.sleepMinutes)}・${formatMinuteOfDay(s.defaultWakeMinuteOfDay)}起床`,
   };
 
   const groups: { title: string; ids: SectionId[] }[] = [
-    { title: "予定", ids: ["calendars", "feed", "timetable", "places", "colors"] },
+    { title: "予定", ids: ["calendars", "notion", "feed", "timetable", "places", "colors"] },
     { title: "生活のリズム", ids: ["habits", "tags", "avoid", "weather", "basic"] },
     { title: "朝", ids: ["routine", "treats"] },
     { title: "通知", ids: ["notifications"] },
