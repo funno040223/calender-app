@@ -35,9 +35,8 @@ export const NOTICE_HORIZON_MS = 48 * 60 * MIN;
 export const SMOKE_CUTOFF_MINUTES = 180;
 /** 寝る準備の合図（就寝の何分前） */
 export const BED_PREP_MINUTES = 30;
-/** 入浴中に Watch を充電して、寝るときの記録に間に合わせる */
-const BATH_HABIT_ID = "habit-bath";
-const BATH_NOTE = "。入浴中に Apple Watch を充電";
+/** Apple Watch の充電を始める合図（就寝の何分前）。寝るときに満タンにして、睡眠を記録する。外出から帰るのがこれより遅い日は、帰宅の時刻に */
+export const WATCH_CHARGE_MINUTES = 120;
 
 /**
  * 配置の結果から、これから送る通知を作る。
@@ -47,7 +46,7 @@ const BATH_NOTE = "。入浴中に Apple Watch を充電";
  * - 人に会う日は、身支度を始める時刻に知らせる
  * - 外出した日は、帰宅の時刻に残りの体力を聞く（答えていなければ）
  * - 就寝の3時間前に「タバコはここまで」、30分前に「寝る準備」（Apple Watch をつける）
- * - 入浴の始まりに、湯温の目安と Apple Watch の充電
+ * - 就寝の2時間前（帰宅がそれより遅ければ帰宅の時刻）に、Apple Watch の充電
  * 就寝から次の起床までに入るものは送らない（毎朝のまとめは起床の時刻ちょうどなので送る）
  */
 export function buildNotices(input: NoticeInput): Notice[] {
@@ -85,7 +84,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
       key: `block:${b.kind}:${b.refId}:${b.start}`,
       at: b.start,
       title: b.title,
-      body: b.kind === "habit" && cued.has(b.refId) ? "まず5分" : `${formatTime(b.start)}〜${formatTime(b.end)}${b.refId === BATH_HABIT_ID ? BATH_NOTE : ""}`,
+      body: b.kind === "habit" && cued.has(b.refId) ? "まず5分" : `${formatTime(b.start)}〜${formatTime(b.end)}`,
       // タスクの枠は、通知から開いたら「やった」にする
       url: b.kind === "task" ? `/?done=${encodeURIComponent(`${b.refId}:${b.start}`)}` : "/",
     });
@@ -132,6 +131,14 @@ export function buildNotices(input: NoticeInput): Notice[] {
       key: `smoke:${d.dayStart}`,
       at: d.bed - SMOKE_CUTOFF_MINUTES * MIN,
       title: "今日のタバコはここまで",
+      body: `就寝 ${formatTime(d.bed)}`,
+      url: "/",
+    });
+    const charge = d.bed - WATCH_CHARGE_MINUTES * MIN;
+    add({
+      key: `watch:${d.dayStart}`,
+      at: d.homeAt !== undefined && d.homeAt > charge && d.homeAt < d.bed ? d.homeAt : charge,
+      title: "Apple Watch を充電",
       body: `就寝 ${formatTime(d.bed)}`,
       url: "/",
     });

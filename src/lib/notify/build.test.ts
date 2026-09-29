@@ -68,6 +68,12 @@ describe("buildNotices", () => {
     expect(prep.map((n) => [n.at, n.body])).toEqual([[jst(2026, 10, 1, 8, 50), "出発 9:30"]]);
   });
 
+  it("Apple Watch の充電は就寝の2時間前、帰宅がそれより遅い日は帰宅の時刻に", () => {
+    const late = { ...day(2, 8, 25), homeAt: jst(2026, 10, 2, 23, 30) };
+    const got = buildNotices(input({ result: { ...input().result, dayPlans: [day(1, 8, 25), late, day(3, 8, 25)] } })).filter((n) => n.key.startsWith("watch:"));
+    expect(got.map((n) => n.at)).toEqual([jst(2026, 10, 1, 23), jst(2026, 10, 2, 23, 30)]);
+  });
+
   it("就寝の3時間前にタバコの区切り、30分前に寝る準備を送る", () => {
     const got = buildNotices(input()).filter((n) => /^(smoke|bedprep):/.test(n.key));
     expect(got.map((n) => [n.key.split(":")[0], n.at])).toEqual([
