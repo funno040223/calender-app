@@ -10,7 +10,8 @@
 - **トークンを節約する**：ファイルは grep で絞って必要な部分だけ読む。画面の確認は文字（find / get_page_text / JS）で行い、スクリーンショットは最小限。チェックはまとめて1回。質問はまとめて聞く
 - 実装は Claude、動作確認と判断はユーザー。**コミットは頼まれたとき**（「適宜コミット」と言われたら区切りごとに）。push・公開など外に出す操作は事前に確認する
 - 秘密の値（Supabase の鍵、iCal の非公開 URL、パスワード）は**チャットに貼らせない**。値は表示せずに確かめる
-- アカウント作成・パスワード入力・Supabase の SQL の実行はユーザーが行う（SQL はファイルを用意して `pbcopy < ファイル` → SQL Editor で Run と案内する）
+- アカウント作成・パスワード入力・Supabase の SQL の実行はユーザーが行う（SQL はファイルを用意して `open -e ファイル` → ⌘A ⌘C → SQL Editor で Run と案内する）
+- **この Mac では `pbcopy` が効かない**（クリップボードが空になる）。値をコピーしてもらうときは、ファイルをテキストエディットで開くか、画面に出してよい値（公開鍵など）だけ表示する。ターミナルから手で選択すると次の行（`Mac…$` のプロンプト）まで混ざりやすい
 
 ## 技術構成
 - Next.js 16（App Router, TypeScript）+ React 19 + Tailwind v4 + FullCalendar 6。**middleware は proxy.ts という名前**（Next 16）
@@ -43,13 +44,15 @@
 - アプリのデータはユーザーごとに1行の JSON（`app_state`）。localStorage（`task-rhythm:mock:v2`）は控え。開いたときにサーバーを読み、変更は約0.8秒後に保存、戻ってきたときに読み直す（後から保存したほうが残る）
 - iCal の非公開 URL は `ical_sources`（本人だけ読める。DB でも URL の形を確認）。取り込みはサーバーが DB から URL を読んで行い、画面には URL を返さない。開いたときと、15分以上たって戻ってきたときに取り込む
 - どちらの表も RLS で本人だけ。未ログインでは読めず書けないことを確認済み
+- 通知（`supabase/migrations/0003_push.sql`、実行済み）：`push_subscriptions`（端末）、`push_schedule`（これから送る通知の一覧。アプリが組み直すたびに `src/lib/notify/build.ts` で作って保存。48時間分）、`push_sent`（送った記録。secret key だけが触る）。予定の15分前（外出は家を出る15分前）・習慣とタスクの枠の始まり・起床時刻に毎朝のまとめ。就寝〜起床は送らない
+- 送信：Supabase の pg_cron（ジョブ名 `push-dispatch`、1分ごと）が pg_net で `/api/push/dispatch` を呼ぶ。合言葉は Vault の `push_cron_secret`。登録の SQL は `supabase/local/0004_cron.sql`（**git に載せない**。合言葉入り）。dispatch は proxy のログイン確認を通さず、`CRON_SECRET` で確かめる
 
-## 状況（2026-09-28 時点）
+## 状況（2026-09-29 時点）
 - GitHub の非公開リポジトリ `funno040223/calender-app`（origin）。`main` と `feat/screens` は同じ内容。push はユーザーが自分の端末で行う（トークン認証。Mac のキーチェーンに保存済み）。コミットの作者はこのリポジトリだけ `funno040223`（GitHub の noreply アドレス）に設定済み。**作者が GitHub と結びついていないと Vercel の無料プランは公開を止める**
-- 公開先：https://calender-app-umber.vercel.app（Vercel。`main` を公開。環境変数は2つとも設定済み）。Supabase の Site URL / Redirect URLs も設定済み。iPhone の Safari でもログインとデータの表示を確認済み
-- 完了：要件定義・設計、配置エンジン、画面（今日・カレンダー3日/週/月・タスク・設定）、ログイン必須、Supabase への保存、Google カレンダーの取り込み（ユーザーの実カレンダーを1件登録済み）、公開（ステップ7）、iPhone 対応（ステップ8。ホーム画面に追加・機内モードでの表示と、戻ったときの保存を確認済み）
+- 公開先：https://calender-app-umber.vercel.app（Vercel の funno チームの `calender-app`。`main` を公開。7kf1 のほうのプロジェクトは削除した）。環境変数は6つ（Supabase の URL・publishable key、`NEXT_PUBLIC_VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`CRON_SECRET`、`SUPABASE_SECRET_KEY`）。**`NEXT_PUBLIC_` の付くものは Config の種類で作る**（Secret だと編集できなくなる）。値を変えたら Redeploy が必要。Supabase の Site URL / Redirect URLs も設定済み。iPhone の Safari でもログインとデータの表示を確認済み
+- 完了：要件定義・設計、配置エンジン、画面（今日・カレンダー3日/週/月・タスク・設定）、ログイン必須、Supabase への保存、Google カレンダーの取り込み（ユーザーの実カレンダーを1件登録済み）、公開（ステップ7）、iPhone 対応（ステップ8。ホーム画面に追加・機内モードでの表示と、戻ったときの保存を確認済み）、通知（ステップ9の前半。iPhone に届くことを確認済み）
 - 残り（完成まで）：
-  9. 通知と定期実行：Web Push（予定の前・枠の終わり）、pg_cron（毎朝の組み直し、取り込み）
+  9. 後半：サーバーでの組み直し（毎時。app_state と iCal から plan() を動かし、push_schedule だけを書き換える。app_state は書かない）
   10. アプリの予定の iCal 配信（推測できないトークン付き URL、読み取り専用）
   11. 1〜2週間使って調整
 - 第2段階以降：しんどさの記録で行動ポイントを合わせる、通知から実績を答える、朝ルーティンの記録の活用、iOS ショートカット・Siri、iPhone の「睡眠」（アラーム）の就寝・起床時刻をこの計算に合わせる（ショートカットで毎日設定する案）、発散の候補の編集、自炊の日の切り替え、天気で洗濯の日を選ぶ、AI での所要時間の推定と文の読み取り、ほかの配置戦略
