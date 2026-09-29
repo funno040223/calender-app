@@ -36,6 +36,8 @@ export interface Place {
   travelMinutes: number;
 }
 
+export type TaskStrategy = "standard" | "early" | "spread";
+
 export interface Settings {
   /** UTC からのずれ（分）。日本時間なら 540 */
   tzOffsetMinutes: number;
@@ -77,6 +79,11 @@ export interface Settings {
   homeEventEnergyPerHour: number;
   /** 家にいない時間（移動を含む）がこの分数以上の日は「外出の日」。自炊や洗濯を入れない */
   outingDayAwayMinutes: number;
+  /**
+   * タスクの置き方。standard：先の日ほど少し減点（今まで）／early：前倒し（できるだけ早い日に詰める）／
+   * spread：分散（同じタスクを同じ日にまとめず、締切までの日に散らす）
+   */
+  taskStrategy?: TaskStrategy;
 }
 
 /** 「この時間はやりたくない」時間帯 */

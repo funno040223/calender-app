@@ -44,6 +44,10 @@ const LONG_SLOT_MINUTES = 120;
 const PENALTY = {
   /** 先の日に回すほど、締切までの余裕が減る */
   perDayLater: 0.3,
+  /** 前倒し：先の日に回すほど強く減点する（1日あたり） */
+  perDayLaterEarly: 2,
+  /** 分散：同じタスクをその日にすでに置いた時間（1時間あたり） */
+  sameTaskSameDay: 1.5,
   /** 「直前に寄せる」タスクで、締切から離れるほど忘れやすい（1日あたり） */
   perDayBeforeDeadline: 1,
   /** 前回の配置から動かす */
@@ -576,9 +580,21 @@ export function plan(input: PlanInput): PlanResult {
           const end = st + len * MIN;
           if (keepSlack && (freeByDay.get(d0.dayStart) ?? 0) - len - restMinutes < s.minSlackMinutesPerDay) continue;
 
+          const strategy = s.taskStrategy ?? "standard";
           let penalty = justBefore
             ? ((deadline - end) / DAY_MS) * PENALTY.perDayBeforeDeadline
-            : dayIndex(d0) * PENALTY.perDayLater;
+            : strategy === "early"
+              ? dayIndex(d0) * PENALTY.perDayLaterEarly
+              : strategy === "spread"
+                ? 0
+                : dayIndex(d0) * PENALTY.perDayLater;
+          // 分散：同じタスクをその日にすでに置いた分だけ減点して、ほかの日へ散らす
+          if (strategy === "spread") {
+            const sameDay = blocks
+              .filter((b) => b.kind === "task" && b.refId === task.id && b.start >= d0.dayStart && b.start < d0.dayStart + DAY_MS)
+              .reduce((sum, b) => sum + (b.end - b.start) / MIN, 0);
+            penalty += (sameDay / 60) * PENALTY.sameTaskSameDay;
+          }
           if (prevStarts.size > 0 && !prevStarts.has(st)) penalty += PENALTY.movedFromBefore;
           if (len < need) penalty += tag.mode === "focus" ? PENALTY.focusSplit : PENALTY.split;
           if (tag.mode === "focus") {

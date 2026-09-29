@@ -2,11 +2,11 @@
 
 import type { Settings } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
-import { FieldRow, Group, NumberInput, Switch, TimeInput } from "@/components/ui/controls";
+import { FieldRow, Group, NumberInput, Segmented, Switch, TimeInput } from "@/components/ui/controls";
 import { formatMinutes } from "@/lib/mock/jst";
 
 type NumKey = {
-  [K in keyof Settings]: Settings[K] extends number ? K : never;
+  [K in keyof Settings]-?: Settings[K] extends number ? K : never;
 }[keyof Settings];
 
 interface MinutesField {
@@ -74,6 +74,21 @@ export default function BasicSettings() {
         <FieldRow label="1週間の起床をそろえる">
           <Switch label="1週間の起床をそろえる" checked={s.fixedWakeMode} onChange={(v) => set("fixedWakeMode", v)} />
         </FieldRow>
+      </Group>
+      <Group title="タスクの置き方">
+        <div className="px-4 py-3">
+          <Segmented
+            label="タスクの置き方"
+            full
+            value={s.taskStrategy ?? "standard"}
+            onChange={(v) => set("taskStrategy", v)}
+            options={[
+              { value: "standard", label: "ふつう" },
+              { value: "early", label: "前倒し" },
+              { value: "spread", label: "分散" },
+            ]}
+          />
+        </div>
       </Group>
       <Group title="行動ポイント">
         {ENERGY_FIELDS.map((f) => (

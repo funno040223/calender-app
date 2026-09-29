@@ -59,3 +59,16 @@ describe("家で食べる", () => {
     expect(on(r)[0].start).toBeGreaterThanOrEqual(jst(2026, 10, 1, 20));
   });
 });
+
+describe("タスクの置き方", () => {
+  const task: Task = { id: "t", title: "レポート", durationMinutes: 240, priority: 2, deadline: jst(2026, 10, 5, 22) };
+  const tag = { id: "admin", name: "事務", mode: "gap" as const, defaultMinutes: 60, minChunkMinutes: 60, maxChunkMinutes: 60 };
+  const daysOf = (strategy: "standard" | "early" | "spread") =>
+    plan(baseInput(now, { settings: { ...settings, taskStrategy: strategy }, tags: [tag], tasks: [{ ...task, tagId: "admin" }] }))
+      .blocks.filter((b) => b.refId === "t")
+      .map((b) => new Date(b.start + 9 * 3600_000).getUTCDate());
+  it("前倒しは最初の日に詰め、分散は別々の日に散らす", () => {
+    expect(new Set(daysOf("early")).size).toBe(1);
+    expect(new Set(daysOf("spread")).size).toBeGreaterThanOrEqual(3);
+  });
+});
