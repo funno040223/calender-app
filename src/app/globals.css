@@ -439,6 +439,8 @@ body {
 
 /* 3日・週：横に長く並べた日を指で動かし、1日ずつぴったり止める。時刻の列と日付の見出しは固定 */
 .app-cal .cal-strip {
+  /* スクロールだけをブラウザに任せ、2本の指の操作（ピンチ）はアプリが受け取る */
+  touch-action: pan-x pan-y;
   height: 100%;
   overflow: auto;
   overscroll-behavior-x: contain;

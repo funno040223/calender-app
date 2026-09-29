@@ -331,13 +331,21 @@ export default function CalendarView(props: CalendarViewProps) {
   useEffect(() => {
     const el = wrapRef.current;
     if (!strip || !el) return;
-    let pinch: { d0: number; h0: number; y: number; top0: number } | null = null;
+    let pinch: { d0: number; h0: number; y: number; top0: number; left0: number } | null = null;
     let raf = 0;
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    /** 時刻の欄が始まる位置（日付の見出しと終日の欄は伸び縮みしないので、ここから下だけを拡大する） */
+    const gridTop = () => {
+      const body = el.querySelector<HTMLElement>(".fc-timegrid-body");
+      return body ? body.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : 0;
+    };
+    /** ピンチを始めた点の時刻が、指の下から動かないように縦の位置を合わせる */
     const apply = (h: number, focusY: number, top0: number, h0: number) => {
+      const g = gridTop();
+      const at = top0 + focusY - g;
       slotRef.current = h;
       el.style.setProperty("--slot-h", `${h}px`);
-      el.scrollTop = (top0 + focusY) * (h / h0) - focusY;
+      el.scrollTop = g + at * (h / h0) - focusY;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => api()?.updateSize());
     };
@@ -352,16 +360,32 @@ export default function CalendarView(props: CalendarViewProps) {
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 2) return;
       const rect = el.getBoundingClientRect();
-      pinch = { d0: dist(e.touches), h0: slotRef.current, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top, top0: el.scrollTop };
+      pinch = {
+        d0: dist(e.touches),
+        h0: slotRef.current,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top,
+        top0: el.scrollTop,
+        left0: el.scrollLeft,
+      };
+      // ピンチの間はスクロールと、1日ずつ止める仕組みを止める（拡大・縮小とぶつからないように）
+      el.style.scrollSnapType = "none";
+      el.style.overflow = "hidden";
     };
     const onMove = (e: TouchEvent) => {
       if (!pinch || e.touches.length !== 2) return;
       e.preventDefault();
+      el.scrollLeft = pinch.left0;
       apply(clampSlot(pinch.h0 * (dist(e.touches) / pinch.d0)), pinch.y, pinch.top0, pinch.h0);
     };
     const onEnd = (e: TouchEvent) => {
       if (!pinch || e.touches.length >= 2) return;
+      const left = pinch.left0;
       pinch = null;
+      el.style.overflow = "";
+      // 横の位置を1日の境目にそろえてから、止める仕組みを戻す
+      const c = el.clientWidth > 0 && col > 0 ? col : 1;
+      el.scrollLeft = Math.round(left / c) * c;
+      requestAnimationFrame(() => (el.style.scrollSnapType = ""));
       save();
     };
     // iPhone の画面全体の拡大を止める
@@ -393,8 +417,7 @@ export default function CalendarView(props: CalendarViewProps) {
       cancelAnimationFrame(raf);
       window.clearTimeout(wheelTimer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strip, col > 0]);
+  }, [strip, col]);
 
   const scrollEndTimer = useRef<number | undefined>(undefined);
   const handleScroll = () => {
