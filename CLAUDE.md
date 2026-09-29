@@ -31,10 +31,16 @@
   - `planner.ts` 配置：予定（移動・帰宅後の休憩）→ 朝ルーティン → 習慣（飛ばせない → 飛ばせる → 待ち時間の子）→ タスク（締切・関連する予定の早い順）→ 自炊など「余裕がある日だけ」の習慣。**タスクは減点方式**（減点の表は `PENALTY`）。入りきらなければ 余白を削る → 飛ばせる習慣を外す → 警告
   - 行動ポイント（1日の上限10）、洗濯などの間隔（4〜7日、休日優先）、外出の日（家にいない時間が6時間以上、または終日の予定で「家にいない」）には自炊と洗濯を入れず、重なる食事は「外食・お弁当」
   - `parse.ts` クイック追加の文の読み取り（決まった言い方だけ。AI は第3段階）
+  - `outlook.ts` 今週・来週の見通し（タスクの時間・空き時間、順調／きつい／間に合わない）。タスク画面の上に出す
+  - 習慣：時間帯は時刻か起床から（anchor "wake"）か就寝まで（"bed"）、優先度3段階（skippable＋keepLast）、雨の日の代わり（rainAlternative）、頻度「順調な休日」（onTrackHoliday＝締切に足りないタスクがないときの休日だけ）
+  - 帰宅時の体力（eveningEnergy：low はタスクなし、normal は事務系60分まで）、身支度は人に会う日だけ（DayPlan.prep。外出か会議リンクか予定の needsPrep）、DayPlan.homeAt＝最後の外出から帰る時刻
 - `src/lib/ical/` iCal の読み取り（ical.js。繰り返し・除外・変更回・終日・タイムゾーン）と書き出し、URL の許可リスト（Google・iCloud の https のみ）
-- `src/lib/mock/` 画面のデータ（`model.ts` 型、`store.ts` 保存と同期と `plan()` の呼び出し、`sample.ts` 初期データ）
+- `src/lib/mock/` 画面のデータ（`model.ts` 型、`state.ts` 読み込み・移行・組み直し（画面とサーバーで共通）、`store.ts` 画面用の保存と同期、`sample.ts` 初期データ）。データの移行は `state.ts` の MIGRATIONS で1回だけ
 - `src/lib/sync/` Supabase との同期（`remote.ts` app_state、`ical.ts` 取り込み元）
-- `src/lib/supabase/` クライアント（ブラウザ用・サーバー用）
+- `src/lib/supabase/` クライアント（ブラウザ用・サーバー用・`admin.ts` secret key 用）。`src/lib/server/plan.ts` サーバーでの組み直し（取り込みも）
+- `src/lib/notify/build.ts` 通知の一覧（予定の15分前・身支度の開始・枠の始まり・毎朝のまとめ・帰宅時の体力・就寝3時間前のタバコ・30分前の寝る準備。就寝〜起床は送らない）
+- `src/components/calendar/CalendarView.tsx`：3日・週は横に長く並べた日を指で動かす（1日ずつ止まる、端で並べ直す）。月は週を縦に途切れずに並べる（1週ずつ止まる、見渡し用：終日の予定と締切〆だけ文字、時刻の予定は点、日付を押すと3日表示へ）。ピンチ（Ctrl＋スクロール）で30分の高さ 20〜90px、予定も同時に伸び縮み。1回目のタップは選ぶだけ、同じものをもう1回で詳しく開く（iPhone は1タップで2回届くので500ms以内の2回目は無視）
+- 根拠の資料：`docs/research/fatigue-recovery-research.md`（回復・睡眠・喫煙・疲れのモデル）
 - `public/sw.js` 電波がなくても開けるように、主な画面と部品を控える（**中身を変えたら VERSION を上げる**。画面を増やしたら SHELL に足す）。登録は `src/components/app/ServiceWorker.tsx`（本番だけ）。本番の形での確認は `.claude/launch.json` の "prod"（ポート3001、先に `npm run build`）。アイコンは `node scripts/make-icons.mjs`
 - `src/proxy.ts` ログインの確認と自動延長。未ログインはページ→/login、API→401
 - `src/app/(app)/` 画面：`/` 今日、`/calendar`、`/tasks`、`/settings/*`。`src/app/login/`、`src/app/api/ical/sync/`
@@ -50,12 +56,13 @@
 - 毎時5分に pg_cron（`push-replan`）が `/api/push/replan` を呼び、app_state と iCal から組み直して push_schedule だけを書き換える（app_state は書かない）。組み直しの処理は `src/lib/mock/state.ts`（画面とサーバーで共通。store.ts は画面用）。iCal を1つでも取り込めなかった回は、アプリが作った一覧を残す
 
 ## 状況（2026-09-29 時点）
-- GitHub の非公開リポジトリ `funno040223/calender-app`（origin）。`main` と `feat/screens` は同じ内容。push はユーザーが自分の端末で行う（トークン認証。Mac のキーチェーンに保存済み）。コミットの作者はこのリポジトリだけ `funno040223`（GitHub の noreply アドレス）に設定済み。**作者が GitHub と結びついていないと Vercel の無料プランは公開を止める**
-- 公開先：https://calender-app-umber.vercel.app（Vercel の funno チームの `calender-app`。`main` を公開。7kf1 のほうのプロジェクトは削除した）。環境変数は6つ（Supabase の URL・publishable key、`NEXT_PUBLIC_VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`CRON_SECRET`、`SUPABASE_SECRET_KEY`）。**`NEXT_PUBLIC_` の付くものは Config の種類で作る**（Secret だと編集できなくなる）。値を変えたら Redeploy が必要。Supabase の Site URL / Redirect URLs も設定済み。iPhone の Safari でもログインとデータの表示を確認済み
-- 完了：要件定義・設計、配置エンジン、画面（今日・カレンダー3日/週/月・タスク・設定）、ログイン必須、Supabase への保存、Google カレンダーの取り込み（ユーザーの実カレンダーを1件登録済み）、公開（ステップ7）、iPhone 対応（ステップ8。ホーム画面に追加・機内モードでの表示と、戻ったときの保存を確認済み）、通知と定期実行（ステップ9。iPhone に届くことを確認済み）、iCal 配信（ステップ10）
-- 2026-09-29 のすり合わせ（要件定義書の「なぜ作るか」「原因と打ち手」「ロードマップ」「矛盾と未決事項」）：稼働日の夜の回復と眠りを最優先にした。実装済み：起床・就寝からの習慣の時間帯（朝の散歩・就寝90分前の入浴）、雨の日の散歩の入れ替え、昼寝は20分・15時までしか提案しない、ゲーム・動画は回復の候補にしない（根拠は docs/research/fatigue-recovery-research.md）、就寝3時間前（タバコ）と30分前（寝る準備）の通知、帰宅時の体力3択と今夜の組み直し、朝の眠りの3択、予測と答えの記録（energyChecks）、習慣の優先度3段階（keepLast）、順調な休日の自己成長の枠（onTrackHoliday）、身支度は人に会う日だけ（needsPrep、会議リンクで自動）。データの移行は state.ts の migrations で1回だけ行う
-- 行動ポイントは未決：値は今のまま試用し、記録で部品ごとに合わせる。基礎は入れない。回復の根拠は docs/research/fatigue-recovery-research.md。疲れのモデルは2段階：今は記録だけ（朝の疲れ・帰宅時の体力・睡眠）、2〜4週間後に係数を推定して持ち越しと睡眠負債を入れる
-- 残り（完成まで）：
-  11. 1〜2週間使って調整
-- 第2段階以降：しんどさの記録で行動ポイントを合わせる、通知から実績を答える、朝ルーティンの記録の活用、iOS ショートカット・Siri、iPhone の「睡眠」（アラーム）の就寝・起床時刻をこの計算に合わせる（ショートカットで毎日設定する案）、発散の候補の編集、自炊の日の切り替え、天気で洗濯の日を選ぶ、AI での所要時間の推定と文の読み取り、ほかの配置戦略
-- 気づいている未対応：配置が「外出の予定が夜中を越える」ような極端な場合の起床計算、行動ポイントの値は見積もり（上限を8に下げる案を提示済み・未決）、同時に2台で編集すると後から保存したほうが残る
+- GitHub の非公開リポジトリ `funno040223/calender-app`（origin）。`main` と `feat/screens` は同じ内容で、作業は `feat/screens` でして `git branch -f main feat/screens` で揃える。push はユーザーが自分の端末で行う（`git push origin main feat/screens`。トークン認証。Mac のキーチェーンに保存済み）。コミットの作者はこのリポジトリだけ `funno040223`（GitHub の noreply アドレス）に設定済み。**作者が GitHub と結びついていないと Vercel の無料プランは公開を止める**
+- 公開先：https://calender-app-umber.vercel.app（Vercel の funno チームの `calender-app`。`main` を公開）。環境変数は6つ（Supabase の URL・publishable key、`NEXT_PUBLIC_VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`CRON_SECRET`、`SUPABASE_SECRET_KEY`）。**`NEXT_PUBLIC_` の付くものは Config の種類で作る**（Secret だと編集できなくなる）。値を変えたら Redeploy が必要。値の貼り付けでターミナルの文字（`Mac…$`）が混ざった事故があった
+- iPhone：ホーム画面に追加して使用中。通知は届くことを確認済み。Google カレンダーは今は使っていない（取り込みは1件登録済み。予定は Notion から移し、今後はアプリに入れる）
+- 要件定義書（Claude Docs）：https://claude.ai/code/artifact/4e06e940-4b39-4e3b-a5d7-496e8f0b7f1b 。構成は 概要 → なぜ作るか（As Is／To Be の図）→ 原因と打ち手（ロジックツリー）→ ロードマップ → 仕様 → 技術 → すり合わせで決まったこと → 矛盾と未決事項
+- 完了：ステップ1〜10（配置エンジン、画面、ログイン、Supabase、取り込み、公開、iPhone 対応、通知と定期実行、iCal 配信）。作る順1（眠りに入る流れ、帰宅時の体力と夜の組み直し）、作る順2（見通し、身支度の合図、出発までの残り時間）。画面の改善（説明文を削った、カレンダーのスワイプ・縦スクロールの月・ピンチ、予定の編集は時刻と日付を分けた）
+- 次（作る順3）：きっかけの場面（起床後・食後・帰宅後）に結び付けた習慣と「まず5分」の通知、2週間の挑戦と結果の表示、タバコの記録（いつ吸ったかをワンタップ、責めない）、運動を少しずつ増やす。そのあと作る順4：人付き合い（余裕のある週に「連絡してみる？」）
+- 行動ポイントは未決：今の値のまま試用し、記録（朝の疲れ5段階 `wakeLogs[].fatigue`、帰宅時の体力 `eveningEnergy`、そのときの予測 `energyChecks`）で2〜4週間後に部品ごとに係数を推定する（疲れの持ち越しと睡眠負債を入れる）。基礎の疲れは入れない
+- 睡眠の記録：Apple Watch（充電忘れ対策で入浴中に充電・寝る準備でつける通知あり）。数日分たまったら、ヘルスケアの睡眠時間をショートカットで送る仕組みを作る
+- 将来の案：天気予報（Open-Meteo・市区町村の登録）で雨の日の散歩と洗濯の日を自動に、iPhone の「睡眠」アラームを計算に合わせる、Siri、AI での所要時間の推定と文の読み取り、すきま時間の表示の作り直し（今は目立たず役に立っていない）
+- 気づいている未対応：外出の予定が夜中を越えるような極端な場合の起床計算、同時に2台で編集すると後から保存したほうが残る
