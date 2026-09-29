@@ -369,7 +369,11 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
                     {it.sub ? `・${it.sub}` : ""}
                   </p>
                   {it.action && (
-                    <button type="button" onClick={it.action.onClick} className="mt-1 text-[13px] font-medium text-accent">
+                    <button
+                      type="button"
+                      onClick={it.action.onClick}
+                      className="mt-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] font-medium text-fg shadow-sm active:bg-surface2"
+                    >
                       {it.action.label}
                     </button>
                   )}
@@ -766,7 +770,6 @@ export default function TodayScreen() {
   return (
     <div className="h-full overflow-y-auto bg-grouped">
       <ScreenHeader title="今日" sub={formatDate(today)} width="max-w-5xl" />
-      {canUndo && <div className="mx-auto max-w-5xl px-4 pb-3"><button onClick={undo} className="text-[14px] text-accent">直前の操作を元に戻す</button></div>}
       {!!state.result.movedBlocks?.length && <div role="status" className="mx-auto max-w-5xl px-4 pb-3 text-[13px] text-muted">予定に合わせて今日の自動枠を{state.result.movedBlocks.length}件変更しました。{state.result.movedBlocks.slice(0, 3).map((b) => `${formatTime(b.start)} ${b.title}`).join("、")}</div>}
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
@@ -815,6 +818,14 @@ export default function TodayScreen() {
           {day && <Gaps now={now} day={day} />}
         </div>
       </div>
+      {/* 取り消しは目立たせず、いちばん下に */}
+      {canUndo && (
+        <div className="mx-auto flex max-w-5xl justify-center px-4 pb-8">
+          <button type="button" onClick={undo} className="rounded-lg border border-line px-3 py-1.5 text-[12px] text-muted active:bg-surface2">
+            直前の操作を元に戻す
+          </button>
+        </div>
+      )}
     </div>
   );
 }
