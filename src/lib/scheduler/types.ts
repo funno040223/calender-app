@@ -219,6 +219,8 @@ export interface Task {
   id: string;
   title: string;
   deadline?: number;
+  /** 外部の締切は自動延長しない。未指定も外部の締切として扱う */
+  deadlineKind?: "fixed" | "target";
   durationMinutes?: number;
   durationRange?: { min: number; max: number };
   /** 今からやるべき残り時間（分）。実績から計算した値があればこれを使う */
@@ -311,6 +313,7 @@ export interface SkippedHabit {
 }
 
 export interface PlanInput {
+  rhythmResets?: RhythmReset[];
   now: number;
   settings: Settings;
   /** 自分で入れた予定、取り込んだ Google の予定、授業 */
@@ -334,6 +337,8 @@ export interface PlanInput {
 }
 
 export interface PlanResult {
+  rhythmResets?: RhythmReset[];
+  movedBlocks?: Block[];
   dayPlans: DayPlan[];
   blocks: Block[];
   skippedHabits: SkippedHabit[];
@@ -343,4 +348,10 @@ export interface PlanResult {
   freeGaps: Interval[];
   /** 日ごとの行動ポイント */
   dayEnergy: DayEnergy[];
+}
+
+/** 実際の睡眠、これから取る睡眠、疲れた日の作業休止。時刻は日をまたげる */
+export interface RhythmReset extends Interval {
+  id: string;
+  mode: "sleep" | "woke" | "tired";
 }

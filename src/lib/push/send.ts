@@ -30,7 +30,7 @@ export async function sendPush(target: PushTarget, payload: PushPayload): Promis
     await webpush.sendNotification(
       { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },
       JSON.stringify(payload),
-      { TTL: 30 * 60, urgency: "high" },
+      { TTL: 30 * 60, urgency: "high", timeout: 15_000 },
     );
     return "ok";
   } catch (e) {

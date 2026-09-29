@@ -1,0 +1,89 @@
+// @vitest-environment jsdom
+import React from "react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { act, cleanup, render, renderHook, screen } from "@testing-library/react";
+import { loadRemote, saveRemote, type RemoteRow } from "@/lib/sync/remote";
+import { syncImports } from "@/lib/sync/ical";
+import { sampleData } from "./state";
+import { useMockStore } from "./store";
+import AppShell from "@/components/app/AppShell";
+
+vi.mock("@/lib/sync/remote", () => ({ loadRemote: vi.fn(), saveRemote: vi.fn() }));
+vi.mock("@/lib/sync/ical", () => ({ syncImports: vi.fn() }));
+vi.mock("@/lib/sync/push", () => ({ saveSchedule: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
+
+const now = Date.parse("2026-10-01T03:00:00Z");
+const importedKey = "task-rhythm:mock:v2:imported";
+const cached = [{ id: "ical-old", title: "Existing appointment", start: now + 3600000, end: now + 7200000 }];
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(now);
+  vi.clearAllMocks();
+  localStorage.clear();
+  vi.mocked(loadRemote).mockResolvedValue({ data: sampleData(now), updatedAt: now });
+  vi.mocked(saveRemote).mockResolvedValue(now);
+  vi.mocked(syncImports).mockResolvedValue({ sources: [], events: [], fetchedAt: now });
+});
+afterEach(() => { cleanup(); vi.useRealTimers(); });
+
+it("直前の手動変更を戻して再計算する", async () => {
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  const title = result.current.state.tasks[0].title;
+  act(() => result.current.update((d) => ({ ...d, tasks: d.tasks.map((t, i) => i === 0 ? { ...t, title: "変更後" } : t) })));
+  expect(result.current.canUndo).toBe(true);
+  expect(result.current.state.tasks[0].title).toBe("変更後");
+  act(() => result.current.undo());
+  expect(result.current.state.tasks[0].title).toBe(title);
+  expect(result.current.canUndo).toBe(false);
+});
+
+it("初回のサーバー応答まで編集画面を表示せず、応答後に表示する", async () => {
+  let resolve!: (row: RemoteRow) => void;
+  vi.mocked(loadRemote).mockReturnValue(new Promise<RemoteRow>((r) => { resolve = r; }));
+  render(<AppShell><button>記録する</button></AppShell>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(screen.queryByRole("button", { name: "記録する" })).toBeNull();
+  expect(screen.getByRole("status").textContent).toContain("読み込み中");
+  await act(async () => { resolve({ data: sampleData(now), updatedAt: now }); });
+  expect(screen.getByRole("button", { name: "記録する" })).toBeTruthy();
+});
+
+it("初回同期に失敗しても、端末の控えで編集を開始できる", async () => {
+  vi.mocked(loadRemote).mockRejectedValue(new Error("offline"));
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(result.current.initialLoaded).toBe(true);
+  expect(result.current.sync).toBe("offline");
+  warn.mockRestore();
+});
+
+it("一部の取り込み失敗では予定とキャッシュを保持し、成功後に更新する", async () => {
+  localStorage.setItem(importedKey, JSON.stringify(cached));
+  vi.mocked(syncImports).mockResolvedValue({
+    sources: [{ id: "old", name: "Calendar", count: 0, error: "timeout" }, { id: "new", name: "Other", count: 0 }],
+    events: [], fetchedAt: now,
+  });
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(result.current.imports.state).toBe("error");
+  expect(result.current.state.googleEvents).toEqual(cached);
+  expect(JSON.parse(localStorage.getItem(importedKey)!)).toEqual(cached);
+  const fresh = [{ ...cached[0], title: "Updated appointment" }];
+  vi.mocked(syncImports).mockResolvedValue({ sources: [{ id: "old", name: "Calendar", count: 1 }], events: fresh, fetchedAt: now });
+  await act(async () => { await result.current.refreshImports(); });
+  expect(result.current.imports.state).toBe("done");
+  expect(result.current.state.googleEvents).toEqual(fresh);
+  expect(JSON.parse(localStorage.getItem(importedKey)!)).toEqual(fresh);
+});
+
+it("取り込み元を全件削除した場合はサンプルを追加せず空にする", async () => {
+  localStorage.setItem(importedKey, JSON.stringify(cached));
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(result.current.state.googleEvents).toEqual([]);
+  expect(JSON.parse(localStorage.getItem(importedKey)!)).toEqual([]);
+});

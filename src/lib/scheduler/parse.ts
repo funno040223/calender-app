@@ -46,8 +46,12 @@ export function parseQuickAdd(text: string, now: number, tzOffsetMinutes: number
   else if (take(new RegExp(`(?:明日|あした)${UNTIL}`))) deadline = endOfDay(1);
   else if (take(new RegExp(`(?:今日|きょう)(?:中)?${UNTIL}`))) deadline = endOfDay(0);
   else if ((m = take(new RegExp(`(来週の?)?([${WEEKDAYS}])曜日?${UNTIL}`)))) {
-    const diff = (WEEKDAYS.indexOf(m[2]) - weekday + 7) % 7;
-    deadline = endOfDay(diff + (m[1] ? 7 : 0));
+    const target = WEEKDAYS.indexOf(m[2]);
+    // アプリの週表示と同じ月曜始まり。次の曜日にさらに7日を足すと、金曜→来週月曜が再来週になる。
+    const diff = m[1]
+      ? 7 - ((weekday + 6) % 7) + ((target + 6) % 7)
+      : (target - weekday + 7) % 7;
+    deadline = endOfDay(diff);
   } else if (take(new RegExp(`来週(?:中)?${UNTIL}`))) deadline = endOfDay(((7 - weekday) % 7) + 7);
   else if (take(new RegExp(`今週(?:中)?${UNTIL}`))) deadline = endOfDay((7 - weekday) % 7);
 

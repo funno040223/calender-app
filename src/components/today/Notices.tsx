@@ -96,7 +96,7 @@ export default function Notices({
         const fixes: { fix: ShortfallFix; label: string; on: boolean }[] = [
           { fix: "first", label: "ほかを後に回す", on: !!task?.first },
           { fix: "stretch", label: "時間帯の外にも入れる", on: !!task?.stretch },
-          ...(task?.deadline !== undefined ? [{ fix: "later" as const, label: "締切を1日延ばす", on: false }] : []),
+          ...(task?.deadline !== undefined && task.deadlineKind === "target" && !task.relatedEventId ? [{ fix: "later" as const, label: "目標日を1日延ばす", on: false }] : []),
         ];
         return (
           <li key={s.taskId} className="flex flex-col gap-2 px-4 py-3">

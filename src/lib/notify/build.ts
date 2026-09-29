@@ -13,7 +13,7 @@ export interface Notice {
 
 export interface NoticeInput {
   now: number;
-  result: Pick<PlanResult, "dayPlans" | "blocks" | "shortfalls"> & Partial<Pick<PlanResult, "dayEnergy" | "travelQuestions">>;
+  result: Pick<PlanResult, "dayPlans" | "blocks" | "shortfalls"> & Partial<Pick<PlanResult, "dayEnergy" | "travelQuestions" | "rhythmResets">>;
   /** plan() に渡した予定（自分の予定・授業・取り込んだ予定） */
   events: CalendarEvent[];
   places: Place[];
@@ -57,6 +57,9 @@ export function buildNotices(input: NoticeInput): Notice[] {
   const until = now + (input.horizonMs ?? NOTICE_HORIZON_MS);
   const days = [...result.dayPlans].sort((a, b) => a.dayStart - b.dayStart);
   const quiet = days.slice(0, -1).map((d, i) => ({ start: d.bed, end: days[i + 1].wake }));
+  // 日付が変わったあとも、前夜から続いている睡眠を含める。
+  if (days[0]) quiet.unshift({ start: days[0].wake - settings.sleepMinutes * MIN, end: days[0].wake });
+  quiet.push(...(result.rhythmResets ?? []).filter((r) => r.mode !== "tired"));
   const isQuiet = (t: number) => quiet.some((q) => t >= q.start && t < q.end);
 
   const out: Notice[] = [];
@@ -90,16 +93,10 @@ export function buildNotices(input: NoticeInput): Notice[] {
   ];
   if (asks[0]) add({ key: `travel:${asks[0].id}`, at: now + MIN, title: "移動時間は？", body: `${asks[0].label}${asks.length > 1 ? ` ほか${asks.length - 1}件` : ""}`, url: "/" });
 
-  // タスクは、その日の最後の枠が終わったら「終わった？」と聞く（押すと今日の画面で答える）
-  const lastOfDay = new Map<string, (typeof result.blocks)[number]>();
+  // 枠ごとに実績を確認する。未回答分は今日の画面でまとめて確認できる。
   for (const b of result.blocks) {
-    if (b.kind !== "task") continue;
-    const day = days.find((d) => b.start >= d.dayStart && b.start < d.dayStart + 24 * 60 * MIN)?.dayStart ?? 0;
-    const k = `${b.refId}:${day}`;
-    const cur = lastOfDay.get(k);
-    if (!cur || b.end > cur.end) lastOfDay.set(k, b);
+    if (b.kind === "task") add({ key: `check:${b.refId}:${b.start}`, at: b.end, title: b.title, body: "どのくらい進んだ？", url: "/" });
   }
-  for (const [k, b] of lastOfDay) add({ key: `check:${k}`, at: b.end, title: b.title, body: "終わった？", url: "/" });
 
   const cued = new Set((input.habits ?? []).filter((h) => h.cue && h.track).map((h) => h.id));
   for (const b of result.blocks) {
@@ -109,8 +106,8 @@ export function buildNotices(input: NoticeInput): Notice[] {
       at: b.start,
       title: b.title,
       body: b.kind === "habit" && cued.has(b.refId) ? "まず5分" : `${formatTime(b.start)}〜${formatTime(b.end)}`,
-      // タスクの枠は、通知から開いたら「やった」にする
-      url: b.kind === "task" ? `/?done=${encodeURIComponent(`${b.refId}:${b.start}`)}` : "/",
+      // 通知を開くことと実行の確認は別にする
+      url: b.kind === "task" ? `/?task=${encodeURIComponent(`${b.refId}:${b.start}`)}` : "/",
     });
   }
 

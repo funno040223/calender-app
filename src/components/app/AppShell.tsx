@@ -69,6 +69,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
     setEditingTask(null);
   };
 
+  // サーバーの状態が確定するまで、入力・記録用の画面を表示しない。
+  // 読み込みに失敗した場合は、端末の控えで編集を続けられる。
+  if (!store.initialLoaded) {
+    return <div role="status" className="flex h-dvh items-center justify-center text-[15px] text-muted">データを読み込み中…</div>;
+  }
+
   return (
     <AppContext value={ctx}>
       <div className="flex h-dvh overflow-hidden bg-bg text-fg">

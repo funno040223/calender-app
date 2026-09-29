@@ -1,5 +1,6 @@
-import { DEFAULT_SETTINGS, buildOutlook, contactDays, estimateMinutes, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS, taskBlockKey } from "./model";
+import { captureTaskBlocks } from "./progress";
+import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
 import { DAY_MS, MIN } from "./jst";
 import {
   SAMPLE_RECOVERY_OPTIONS,
@@ -39,14 +40,16 @@ export const LEARN_MIN_SAMPLES = 3;
 
 /**
  * 作業の種類ごとの、実際にかかった時間の中央値（分）と件数。
- * 終わったタスクについて、始まって終わった枠の長さを足したものを「かかった時間」とする
+ * 終わったタスクについて、作業したと確かめた枠の長さを足したものを「かかった時間」とする
  */
 export function learnedMinutes(data: Pick<MockData, "doneTasks" | "taskBlockLog">): Record<string, { minutes: number; samples: number }> {
   const spent = new Map<string, number>();
   for (const [key, b] of Object.entries(data.taskBlockLog)) {
-    if (!b.counted) continue;
+    // 「予定どおりできた」「完了」で確かめた枠と、以前の版で残り時間から引いた枠だけを、作業した時間として数える
+    const worked = b.workedMinutes ?? (b.outcome === "done" || b.counted ? (b.end - b.start) / MIN : 0);
+    if (!worked) continue;
     const id = key.slice(0, key.lastIndexOf(":"));
-    spent.set(id, (spent.get(id) ?? 0) + (b.end - b.start) / MIN);
+    spent.set(id, (spent.get(id) ?? 0) + worked);
   }
   const byTag = new Map<string, number[]>();
   for (const t of data.doneTasks) {
@@ -75,6 +78,7 @@ export const TAGS = SAMPLE_TAGS;
 
 const DATA_KEYS = [
   "version",
+  "rhythmResets",
   "settings",
   "places",
   "periods",
@@ -117,6 +121,7 @@ const normalizeSettings = (s: Partial<Settings> | undefined): Settings => ({
 export function sampleData(now: number): MockData {
   return {
     version: 2,
+    rhythmResets: [],
     settings: normalizeSettings(undefined),
     places: SAMPLE_PLACES,
     periods: SAMPLE_PERIODS,
@@ -324,6 +329,8 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     taskChecks: isRecord(d.taskChecks)
       ? Object.fromEntries(Object.entries(d.taskChecks).filter((e): e is [string, TaskCheck] => isRecord(e[1]) && typeof e[1].at === "number"))
       : {},
+    rhythmResets: arr<unknown>(d.rhythmResets, []).filter((x): x is NonNullable<MockData["rhythmResets"]>[number] =>
+      isRecord(x) && typeof x.id === "string" && ["sleep", "woke", "tired"].includes(String(x.mode)) && typeof x.start === "number" && Number.isFinite(x.start) && typeof x.end === "number" && Number.isFinite(x.end) && x.end > x.start && x.end - x.start <= 48 * 60 * MIN),
     rewardRates: { ...DEFAULT_REWARD_RATES, ...(isRecord(d.rewardRates) ? (d.rewardRates as Partial<RewardRates>) : {}) },
     contactLogs: isRecord(d.contactLogs)
       ? Object.fromEntries(Object.entries(d.contactLogs).filter((e): e is [string, ContactAnswer] => CONTACT_ANSWERS.includes(e[1] as ContactAnswer)))
@@ -378,27 +385,8 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
       habitLastDone[h.id] = Math.max(habitLastDone[h.id] ?? 0, b.start);
     }
   }
-  // 始まったタスクの枠を記録に残す（組み直すと過ぎた枠は消えるため。予定どおりできたかを数える）
-  const taskBlockLog = Object.fromEntries(Object.entries(data.taskBlockLog).filter(([, l]) => l.start >= now - 60 * DAY_MS));
-  for (const b of data.blocks) {
-    if (b.kind !== "task" || b.start > now) continue;
-    const key = taskBlockKey(b.refId, b.start);
-    if (!taskBlockLog[key]) taskBlockLog[key] = { title: b.title, start: b.start, end: b.end };
-  }
+  data = captureTaskBlocks({ ...data, habitLastDone }, now);
   const planTags = planTagsOf(data);
-  // 終わった枠の長さを、そのタスクの残り時間から引く（予定どおりやったものとする。違えば「終わった？」で直す）
-  let tasks = data.tasks;
-  for (const [key, l] of Object.entries(taskBlockLog)) {
-    if (l.counted || l.end > now) continue;
-    const id = key.slice(0, key.lastIndexOf(":"));
-    tasks = tasks.map((t) => {
-      if (t.id !== id) return t;
-      const left = estimateMinutes(t, planTags.find((g) => g.id === t.tagId));
-      return { ...t, remainingMinutes: Math.max(0, left - Math.round((l.end - l.start) / MIN)) };
-    });
-    taskBlockLog[key] = { ...l, counted: true };
-  }
-  data = { ...data, habitLastDone, taskBlockLog, tasks };
   // 「今日は飛ばす」にした習慣：その日には置かず、もう始まっている枠も外す
   const skipDays: Record<string, number[]> = {};
   for (const [key, ids] of Object.entries(data.habitSkips)) {
@@ -410,6 +398,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     b.kind === "habit" && (skipDays[b.refId] ?? []).some((day) => b.start >= day && b.start < day + DAY_MS);
   const result = plan({
     now,
+    rhythmResets: data.rhythmResets,
     settings: data.settings,
     events: planEvents(data, classEvents, googleEvents),
     places: data.places,
