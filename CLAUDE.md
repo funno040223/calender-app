@@ -58,8 +58,8 @@
 - Notion（`0005_notion_sources.sql`、**ユーザーの実行待ち**）：選考の表の締切をタスクに取り込む（一方向）。合言葉と表の ID は `notion_sources`（合言葉の列は画面から読めない。`/api/notion/schema`・`/api/notion/sync` が本人を確かめて secret key で読む）。列の選び方は app_state の `notion`、行→タスクは `src/lib/mock/notion.ts`（ID は `notion-<行>`）、取り込みは AppShell で開いたときと30分ごと
 - 毎時5分に pg_cron（`push-replan`）が `/api/push/replan` を呼び、app_state と iCal から組み直して push_schedule だけを書き換える（app_state は書かない）。組み直しの処理は `src/lib/mock/state.ts`（画面とサーバーで共通。store.ts は画面用）。iCal を1つでも取り込めなかった回は、アプリが作った一覧を残す
 
-## 状況（2026-09-29 時点）
-- GitHub の非公開リポジトリ `funno040223/calender-app`（origin）。`main` と `feat/screens` は同じ内容で、作業は `feat/screens` でして `git branch -f main feat/screens` で揃える。push はユーザーが自分の端末で行う（`git push origin main feat/screens`。トークン認証。Mac のキーチェーンに保存済み）。コミットの作者はこのリポジトリだけ `funno040223`（GitHub の noreply アドレス）に設定済み。**作者が GitHub と結びついていないと Vercel の無料プランは公開を止める**
+## 状況（2026-09-30 時点）
+- GitHub の非公開リポジトリ `funno040223/calender-app`（origin）。`main` と `feat/screens` は同じ内容で、作業は `feat/screens` でして `git branch -f main feat/screens` で揃える。push は Claude が行ってよい（実機で確かめるために頼まれている。`git push origin main feat/screens`。トークン認証。Mac のキーチェーンに保存済み）。レビュー用のブランチ `fix/review-2026-09-30`（別のモデルのレビュー）は取り込み済み。コミットの作者はこのリポジトリだけ `funno040223`（GitHub の noreply アドレス）に設定済み。**作者が GitHub と結びついていないと Vercel の無料プランは公開を止める**
 - 公開先：https://calender-app-umber.vercel.app（Vercel の funno チームの `calender-app`。`main` を公開）。環境変数は6つ（Supabase の URL・publishable key、`NEXT_PUBLIC_VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`CRON_SECRET`、`SUPABASE_SECRET_KEY`）。**`NEXT_PUBLIC_` の付くものは Config の種類で作る**（Secret だと編集できなくなる）。値を変えたら Redeploy が必要。値の貼り付けでターミナルの文字（`Mac…$`）が混ざった事故があった
 - iPhone：ホーム画面に追加して使用中。通知は届くことを確認済み。Google カレンダーは今は使っていない（取り込みは1件登録済み。予定は Notion から移し、今後はアプリに入れる）
 - 要件定義書（Claude Docs）：https://claude.ai/code/artifact/4e06e940-4b39-4e3b-a5d7-496e8f0b7f1b 。構成は 概要 → なぜ作るか（As Is／To Be の図）→ 原因と打ち手（ロジックツリー）→ ロードマップ → 仕様 → 技術 → すり合わせで決まったこと → 矛盾と未決事項
@@ -68,5 +68,7 @@
 - 行動ポイントは未決：今の値のまま試用し、記録（朝の疲れ5段階 `wakeLogs[].fatigue`、帰宅時の体力 `eveningEnergy`、そのときの予測 `energyChecks`）で2〜4週間後に部品ごとに係数を推定する（疲れの持ち越しと睡眠負債を入れる）。基礎の疲れは入れない
 - 睡眠の記録：Apple Watch（就寝の2時間前〈帰宅が遅ければ帰宅時〉に「充電」、30分前の寝る準備で「つける」の通知あり）。睡眠時間は朝のカードで入れる（`wakeLogs[].sleepMinutes`、記録ページに直近2週間）
 - 天気（実装済み）：設定の「天気」で場所（`weatherPlace`）を選ぶと、AppShell が3時間ごとに Open-Meteo から雨の確率（`rainForecast`）を取る。60%以上は雨の日（`rainyDayKeys`、手の切り替えは `rainyDays`・`notRainyDays`）。洗濯は `avoidRain` で雨の日を避ける
-- 将来の案：iPhone の「睡眠」アラームを計算に合わせる、AI での所要時間の推定と文の読み取り、すきま時間の表示の作り直し（今は目立たず役に立っていない）
+- 2026-09-30 に足したもの：作業の進み具合・立て直し・今から何分できる？・期限の種類（レビューの取り込み）、締切に足りないときの選択肢、移動時間の分からない取り込み予定を聞く、作業の種類とカレンダーの色の設定、カレンダーの枠からの記録と「今日は飛ばす」、習慣の連続日数、実績からの所要時間、睡眠時間の記録、天気予報、今日の食事（家で・外で。食事は予定の最中に置かない）、Notion の締切の取り込み、タスクの置き方（ふつう・前倒し・分散）。Siri からの追加は作ってから消した（名前をリマインダーや音楽と取り違える）。要件定義書の項目は、見送ったもの（大きすぎるタスクの着手枠・人付き合いの次の案・AI）を除いて実装済み
+- 未決：夜中（日付が変わったあと）にタスクを置いてよいか（今は就寝前ならいい）。使わなくなった表 `shortcut_tokens` を消す SQL は `supabase/local/drop_shortcut_tokens.sql`（git に載せない。実行はユーザー）
+- 将来の案：iPhone の「睡眠」アラームを計算に合わせる、すきま時間の表示の作り直し（今は目立たず役に立っていない）
 - 気づいている未対応：外出の予定が夜中を越えるような極端な場合の起床計算、同時に2台で編集すると後から保存したほうが残る
