@@ -12,13 +12,11 @@ import RoutineSteps from "./RoutineSteps";
 import BasicSettings from "./BasicSettings";
 import Notifications from "./Notifications";
 import Feed from "./Feed";
-import Shortcut from "./Shortcut";
 
 const BODY: Record<SectionId, () => React.ReactNode> = {
   calendars: CalendarSources,
   notifications: Notifications,
   feed: Feed,
-  shortcut: Shortcut,
   timetable: Timetable,
   places: Places,
   habits: Habits,
