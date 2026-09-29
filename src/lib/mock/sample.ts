@@ -155,7 +155,8 @@ export const SAMPLE_HABITS: Habit[] = [
     windowEnd: 16 * 60,
     frequency: { type: "interval", minDays: 4, maxDays: 7 },
     skippable: false,
-    finish: { title: "洗濯物を干す", durationMinutes: 15, afterStartMinutes: 90 },
+    // 干すときに、前の洗濯物の取り込みも一緒にする
+    finish: { title: "洗濯物を干す・取り込む", durationMinutes: 30, afterStartMinutes: 90 },
     energyCost: 1,
   },
   {

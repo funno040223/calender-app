@@ -119,6 +119,7 @@ const MIGRATIONS = [
   "2026-09-29-breakfast",
   "2026-09-29-breakfast-after-walk",
   "2026-09-30-morning-meals",
+  "2026-09-30-laundry-30",
 ] as const;
 
 function migrate(d: MockData, now: number): MockData {
@@ -151,6 +152,13 @@ function migrate(d: MockData, now: number): MockData {
       if (cook && !h.cue) return { ...h, cue: cook };
       return h;
     });
+  // 干すときに取り込みもするので30分に（初期値のままのものだけ）
+  if (!done.has("2026-09-30-laundry-30"))
+    habits = habits.map((h) =>
+      h.id === "habit-laundry" && h.finish?.title === "洗濯物を干す" && h.finish.durationMinutes === 15
+        ? { ...h, finish: { ...h.finish, title: "洗濯物を干す・取り込む", durationMinutes: 30 } }
+        : h,
+    );
   // 散歩のあとに置いていた最初の版を、入浴の直前に移す（自分で変えたきっかけはそのまま）
   if (!done.has("2026-09-29-exercise-before-bath"))
     habits = habits.map((h) => {
