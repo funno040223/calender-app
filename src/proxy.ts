@@ -40,7 +40,8 @@ export async function proxy(request: NextRequest) {
     }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname + search)}`;
+    // ログインのあとに戻れるように、開こうとした画面（?woke など付きも）を残す
+    url.search = pathname === "/" && !search ? "" : `?next=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
   if (user && pathname === "/login") {
