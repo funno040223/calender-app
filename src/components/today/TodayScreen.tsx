@@ -647,7 +647,7 @@ function TaskCheckCard({ today, now }: { today: number; now: number }) {
     return !state.result.blocks.some((b) => b.kind === "task" && b.refId === t.id && b.start > now && b.start < today + DAY_MS);
   });
   if (ask.length === 0) return null;
-  const leftOf = (t: Task) => t.remainingMinutes ?? estimateMinutes(t, state.tags.find((g) => g.id === t.tagId));
+  const leftOf = (t: Task) => t.remainingMinutes ?? estimateMinutes(t, state.planTags.find((g) => g.id === t.tagId));
   const answer = (t: Task, a: TaskCheck["answer"], delta = 0) =>
     update((d) => {
       const before = leftOf(t);

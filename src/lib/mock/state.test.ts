@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
-import { replan, sampleData, travelAsks } from "./state";
+import { learnedMinutes, planTagsOf, replan, sampleData, travelAsks } from "./state";
 
 describe("終わったタスクの枠", () => {
   it("枠の長さを残り時間から一度だけ引く", () => {
@@ -28,5 +28,23 @@ describe("移動時間を聞く取り込んだ予定", () => {
       ev("far", { start: jst(2026, 10, 20, 13), end: jst(2026, 10, 20, 14) }),
     ];
     expect(travelAsks({ googleEvents, importedTravel: { answered: 30 } }, now).map((e) => e.id)).toEqual(["ask"]);
+  });
+});
+
+describe("実績からの所要時間の目安", () => {
+  it("終わったタスクの、終わった枠の長さの中央値。3件以上で目安にする", () => {
+    const log = (id: string, h: number, len: number) => ({
+      [`${id}:${h}`]: { title: id, start: h * 3600_000, end: h * 3600_000 + len * 60_000, counted: true },
+    });
+    const done = (id: string) => ({ id, title: id, tagId: "tag-focus", doneAt: 0 });
+    const data = {
+      tags: sampleData(0).tags,
+      doneTasks: [done("a"), done("b")],
+      taskBlockLog: { ...log("a", 1, 60), ...log("a", 3, 60), ...log("b", 5, 180) },
+    };
+    expect(learnedMinutes(data)["tag-focus"]).toEqual({ minutes: 150, samples: 2 });
+    expect(planTagsOf(data).find((t) => t.id === "tag-focus")?.defaultMinutes).toBe(90);
+    const three = { ...data, doneTasks: [...data.doneTasks, done("c")], taskBlockLog: { ...data.taskBlockLog, ...log("c", 7, 240) } };
+    expect(planTagsOf(three).find((t) => t.id === "tag-focus")?.defaultMinutes).toBe(180);
   });
 });

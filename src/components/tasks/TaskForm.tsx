@@ -219,7 +219,7 @@ export default function TaskForm({
             {d.mode === "range"
               ? "真ん中くらいの時間で計画します"
               : d.mode === "unknown"
-                ? `種類の目安（${state.tags.find((t) => t.id === d.tagId)?.defaultMinutes ?? 60}分）で計画します`
+                ? `種類の目安（${state.planTags.find((t) => t.id === d.tagId)?.defaultMinutes ?? 60}分）で計画します`
                 : "この時間ぶんを締切までに置きます"}
           </p>
         </div>

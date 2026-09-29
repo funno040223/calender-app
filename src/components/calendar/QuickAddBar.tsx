@@ -25,7 +25,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 }
 
 export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) {
-  const TAGS = useApp().state.tags;
+  const { tags: TAGS, planTags } = useApp().state;
   const [text, setText] = useState("");
   const [chip, setChip] = useState<DeadlineChip | undefined>();
   const [tagId, setTagId] = useState<string | undefined>();
@@ -96,7 +96,7 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
       {preview && (
         <p className="mt-1.5 truncate px-1 text-[12px] text-muted">
           「{preview.title}」・{preview.deadline ? formatDeadline(preview.deadline) : "締切なし"}・
-          {formatMinutes(estimateMinutes({ ...preview, id: "" }, TAGS.find((t) => t.id === preview.tagId) ?? { defaultMinutes: 60 }))}
+          {formatMinutes(estimateMinutes({ ...preview, id: "" }, planTags.find((t) => t.id === preview.tagId) ?? { defaultMinutes: 60 }))}
           {preview.durationMinutes === undefined ? "（目安）" : ""}・優先度{PRIORITY_LABEL[preview.priority]}
         </p>
       )}

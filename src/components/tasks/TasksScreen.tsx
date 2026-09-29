@@ -64,7 +64,7 @@ export default function TasksScreen() {
   const without = sorted.filter((t) => effectiveDeadline(t) === Infinity);
 
   const row = (t: Task) => {
-    const tag = state.tags.find((g) => g.id === t.tagId);
+    const tag = state.planTags.find((g) => g.id === t.tagId);
     const need = estimateMinutes(t, tag);
     const placed = blocksOfTask(state.result.blocks, t.id).reduce((s, b) => s + (b.end - b.start) / MIN, 0);
     const short = state.result.shortfalls.find((s) => s.taskId === t.id);

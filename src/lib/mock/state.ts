@@ -30,9 +30,46 @@ export interface MockState extends MockData {
   googleEvents: CalendarEvent[];
   result: PlanResult;
   plannedAt: number;
+  /** 配置に使った作業の種類（所要時間の目安は、実績がたまれば実績の中央値） */
+  planTags: Tag[];
 }
 
-/** タスクの種類（まだ編集画面はないので固定） */
+/** 実績の目安を使うのに必要な、終わったタスクの数 */
+export const LEARN_MIN_SAMPLES = 3;
+
+/**
+ * 作業の種類ごとの、実際にかかった時間の中央値（分）と件数。
+ * 終わったタスクについて、始まって終わった枠の長さを足したものを「かかった時間」とする
+ */
+export function learnedMinutes(data: Pick<MockData, "doneTasks" | "taskBlockLog">): Record<string, { minutes: number; samples: number }> {
+  const spent = new Map<string, number>();
+  for (const [key, b] of Object.entries(data.taskBlockLog)) {
+    if (!b.counted) continue;
+    const id = key.slice(0, key.lastIndexOf(":"));
+    spent.set(id, (spent.get(id) ?? 0) + (b.end - b.start) / MIN);
+  }
+  const byTag = new Map<string, number[]>();
+  for (const t of data.doneTasks) {
+    const m = spent.get(t.id);
+    if (!t.tagId || !m) continue;
+    byTag.set(t.tagId, [...(byTag.get(t.tagId) ?? []), m]);
+  }
+  return Object.fromEntries(
+    [...byTag].map(([tag, xs]) => {
+      const s = [...xs].sort((a, b) => a - b);
+      const mid = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
+      return [tag, { minutes: Math.round(mid / 15) * 15 || 15, samples: s.length }];
+    }),
+  );
+}
+
+/** 配置に使う作業の種類：実績が LEARN_MIN_SAMPLES 件以上あれば、所要時間の目安を実績の中央値にする */
+export function planTagsOf(data: Pick<MockData, "tags" | "doneTasks" | "taskBlockLog">): Tag[] {
+  const learned = learnedMinutes(data);
+  return data.tags.map((t) => (learned[t.id]?.samples >= LEARN_MIN_SAMPLES ? { ...t, defaultMinutes: learned[t.id].minutes } : t));
+}
+
+/** タスクの種類の初期値 */
 /** 作業の種類の初期値（保存したデータの tags がなければこれ） */
 export const TAGS = SAMPLE_TAGS;
 
@@ -348,6 +385,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     const key = taskBlockKey(b.refId, b.start);
     if (!taskBlockLog[key]) taskBlockLog[key] = { title: b.title, start: b.start, end: b.end };
   }
+  const planTags = planTagsOf(data);
   // 終わった枠の長さを、そのタスクの残り時間から引く（予定どおりやったものとする。違えば「終わった？」で直す）
   let tasks = data.tasks;
   for (const [key, l] of Object.entries(taskBlockLog)) {
@@ -355,7 +393,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     const id = key.slice(0, key.lastIndexOf(":"));
     tasks = tasks.map((t) => {
       if (t.id !== id) return t;
-      const left = estimateMinutes(t, data.tags.find((g) => g.id === t.tagId));
+      const left = estimateMinutes(t, planTags.find((g) => g.id === t.tagId));
       return { ...t, remainingMinutes: Math.max(0, left - Math.round((l.end - l.start) / MIN)) };
     });
     taskBlockLog[key] = { ...l, counted: true };
@@ -376,7 +414,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     events: planEvents(data, classEvents, googleEvents),
     places: data.places,
     habits: data.habits,
-    tags: data.tags,
+    tags: planTags,
     tasks: data.tasks,
     avoidWindows: data.avoidWindows,
     recoveryOptions: SAMPLE_RECOVERY_OPTIONS,
@@ -391,7 +429,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     rainyDays: data.rainyDays.flatMap((k) => dayStartOfKey(k) ?? []),
     skipHabitDays: skipDays,
   });
-  return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now };
+  return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now, planTags };
 }
 
 
