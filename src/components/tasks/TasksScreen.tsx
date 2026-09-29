@@ -1,14 +1,51 @@
 "use client";
 
-import { estimateMinutes, type Task } from "@/lib/scheduler";
+import { buildOutlook, estimateMinutes, type OutlookStatus, type Task } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { TAGS } from "@/lib/mock/store";
-import { MIN, formatDeadline, formatMinutes } from "@/lib/mock/jst";
+import { MIN, TZ, formatDeadline, formatMinutes } from "@/lib/mock/jst";
 import { blocksOfTask, eventIndex, formatEventWhen } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 
 const PRIORITY_MARK = { 1: "", 2: "!", 3: "!!" } as const;
+
+const STATUS: Record<OutlookStatus, { label: string; cls: string }> = {
+  ok: { label: "順調", cls: "bg-ok text-white" },
+  tight: { label: "きつい", cls: "bg-[var(--cal-class)] text-white" },
+  late: { label: "間に合わない", cls: "bg-accent text-white" },
+};
+
+/** 今週と来週：タスクに使う時間と空き時間、順調かどうか */
+function Outlook() {
+  const { state, openTask } = useApp();
+  const weeks = buildOutlook({
+    now: state.plannedAt,
+    result: state.result,
+    minSlackMinutesPerDay: state.settings.minSlackMinutesPerDay,
+    tzOffsetMinutes: TZ,
+  });
+  return (
+    <Group title="見通し">
+      {weeks.map((w, i) => (
+        <div key={w.start} className="flex flex-col gap-1 px-4 py-2.5">
+          <div className="flex items-center gap-3">
+            <span className="w-10 shrink-0 text-[15px] font-medium">{i === 0 ? "今週" : "来週"}</span>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${STATUS[w.status].cls}`}>{STATUS[w.status].label}</span>
+            <span className="ml-auto text-[13px] tabular-nums text-muted">
+              タスク {formatMinutes(w.taskMinutes)}・空き {formatMinutes(w.freeMinutes)}
+            </span>
+          </div>
+          {w.late.map((l) => (
+            <button key={l.taskId} type="button" onClick={() => openTask(l.taskId)} className="ml-13 truncate text-left text-[13px] text-accent">
+              {l.title}：{formatMinutes(l.shortfallMinutes)}足りない
+            </button>
+          ))}
+        </div>
+      ))}
+    </Group>
+  );
+}
 
 export default function TasksScreen() {
   const { state, openTask } = useApp();
@@ -79,6 +116,7 @@ export default function TasksScreen() {
         }
       />
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 pb-8 sm:px-6">
+        <Outlook />
         {state.tasks.length === 0 ? (
           <p className="px-4 py-6 text-center text-[15px] text-muted">タスクはありません。</p>
         ) : (

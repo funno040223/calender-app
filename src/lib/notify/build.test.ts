@@ -48,6 +48,13 @@ describe("buildNotices", () => {
     expect(got[1].body).toContain("予定1件（最初は 10:40 授業）");
   });
 
+  it("人に会う日は、身支度を始める時刻に知らせる", () => {
+    const d1 = { ...day(1, 8, 25), prep: true, leave: jst(2026, 10, 1, 9, 30) };
+    const got = buildNotices(input({ result: { dayPlans: [d1, day(2, 8, 25), day(3, 8, 25)], blocks: [], shortfalls: [] } }));
+    const prep = got.filter((n) => n.key.startsWith("prep:"));
+    expect(prep.map((n) => [n.at, n.body])).toEqual([[jst(2026, 10, 1, 8, 50), "出発 9:30"]]);
+  });
+
   it("就寝の3時間前にタバコの区切り、30分前に寝る準備を送る", () => {
     const got = buildNotices(input()).filter((n) => /^(smoke|bedprep):/.test(n.key));
     expect(got.map((n) => [n.key.split(":")[0], n.at])).toEqual([

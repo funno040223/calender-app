@@ -1,0 +1,44 @@
+import { describe, expect, it } from "vitest";
+import { buildOutlook } from "./outlook";
+import { jst } from "./test-helpers";
+import type { DayPlan } from "./types";
+
+// 2026-10-01 は木曜。今週は 9/28（月）〜10/4、来週は 10/5〜10/11
+const now = jst(2026, 10, 1, 12);
+const day = (d: number, m = 10): DayPlan => ({ dayStart: jst(2026, m, d), wake: jst(2026, m, d, 9), bed: jst(2026, m, d + 1, 2), wakeSource: "default", holiday: true });
+const days = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((d) => day(d));
+const base = { now, minSlackMinutesPerDay: 120, tzOffsetMinutes: 540 };
+
+describe("buildOutlook", () => {
+  it("今週と来週に分け、これからのタスクと空き時間を数える", () => {
+    const [w1, w2] = buildOutlook({
+      ...base,
+      result: {
+        dayPlans: days,
+        blocks: [
+          { kind: "task", refId: "a", title: "A", start: jst(2026, 10, 1, 10), end: jst(2026, 10, 1, 13) }, // 12時より前の1時間は数えない
+          { kind: "task", refId: "b", title: "B", start: jst(2026, 10, 6, 10), end: jst(2026, 10, 6, 11) },
+        ],
+        freeGaps: [{ start: jst(2026, 10, 2, 10), end: jst(2026, 10, 2, 20) }, { start: jst(2026, 10, 7, 10), end: jst(2026, 10, 7, 11) }],
+        shortfalls: [],
+      },
+    });
+    expect(w1.start).toBe(jst(2026, 9, 28));
+    expect(w1.taskMinutes).toBe(60);
+    expect(w1.freeMinutes).toBe(600);
+    // 今週の残りは4日 → 余白 2時間 × 4 = 8時間 < 空き 10時間 → 順調
+    expect(w1.status).toBe("ok");
+    // 来週は空き1時間しかない → きつい
+    expect(w2.status).toBe("tight");
+    expect(w2.taskMinutes).toBe(60);
+  });
+
+  it("締切に足りないタスクがある週は「間に合わない」", () => {
+    const [w1] = buildOutlook({
+      ...base,
+      result: { dayPlans: days, blocks: [], freeGaps: [], shortfalls: [{ taskId: "x", title: "レポート", deadline: jst(2026, 10, 3), shortfallMinutes: 90 }] },
+    });
+    expect(w1.status).toBe("late");
+    expect(w1.late).toEqual([{ taskId: "x", title: "レポート", shortfallMinutes: 90 }]);
+  });
+});

@@ -40,6 +40,7 @@ const BATH_NOTE = "。入浴中に Apple Watch を充電";
  * - 予定の15分前（外出する予定は、家を出る時刻の15分前）
  * - 習慣とタスクの枠の始まり（朝ルーティンは毎朝のまとめに含める）
  * - 毎朝、起床の時刻にその日のまとめ
+ * - 人に会う日は、身支度を始める時刻に知らせる
  * - 外出した日は、帰宅の時刻に残りの体力を聞く（答えていなければ）
  * - 就寝の3時間前に「タバコはここまで」、30分前に「寝る準備」（Apple Watch をつける）
  * - 入浴の始まりに、湯温の目安と Apple Watch の充電
@@ -99,6 +100,17 @@ export function buildNotices(input: NoticeInput): Notice[] {
   }
 
   for (const d of days) {
+    // 身支度：朝ルーティンが終わったら始める（家を出る時刻・顔を出す予定の開始まで）
+    const goal = d.leave ?? d.firstEvent?.start;
+    if (d.prep && goal !== undefined) {
+      add({
+        key: `prep:${d.dayStart}`,
+        at: goal - settings.prepMinutes * MIN,
+        title: "身支度を始める",
+        body: d.leave ? `出発 ${formatTime(d.leave)}` : `${formatTime(goal)} から：${d.firstEvent?.title ?? ""}`,
+        url: "/",
+      });
+    }
     const answered = result.dayEnergy?.find((e) => e.dayStart === d.dayStart)?.evening;
     if (d.homeAt !== undefined && !answered && d.homeAt < d.bed) {
       add({

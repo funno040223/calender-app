@@ -29,7 +29,8 @@ function timeOn(day: number, ms: number) {
   return `${ms >= day + DAY_MS ? "翌" : ""}${formatTime(ms)}`;
 }
 
-function SleepCard({ day, today }: { day: DayPlan; today: number }) {
+function SleepCard({ day, today, now }: { day: DayPlan; today: number; now: number }) {
+  const toLeave = day.leave !== undefined ? Math.round((day.leave - now) / MIN) : undefined;
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="rounded-xl bg-surface px-4 py-3">
@@ -43,7 +44,10 @@ function SleepCard({ day, today }: { day: DayPlan; today: number }) {
       {day.firstEvent && (
         <p className="col-span-2 px-1 text-[13px] text-muted">
           最初の予定は{formatTime(day.firstEvent.start)}「{day.firstEvent.title}」
-          {day.leave ? `。${formatTime(day.leave)}に家を出ます` : ""}
+          {day.leave ? `。${formatTime(day.leave)}に出発` : ""}
+          {toLeave !== undefined && toLeave > 0 && toLeave <= 180 && (
+            <span className="ml-1 font-semibold text-accent">あと{formatMinutes(toLeave)}</span>
+          )}
         </p>
       )}
     </div>
@@ -495,7 +499,7 @@ export default function TodayScreen() {
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
           {day && <EveningCard day={day} now={now} />}
-          {day && <SleepCard day={day} today={today} />}
+          {day && <SleepCard day={day} today={today} now={now} />}
           <EnergyCard today={today} />
           <MorningCard day={day} now={now} />
           <TreatCard today={today} />
