@@ -117,7 +117,12 @@ export function Segmented<T extends string | number>({
   full?: boolean;
 }) {
   return (
-    <div className={`flex rounded-lg bg-surface2 p-0.5 ${full ? "w-full" : ""}`} role="radiogroup" aria-label={label}>
+    // 5つ以上は1行に入りきらず文字が切れるので、3列で折り返す
+    <div
+      className={`${options.length > 4 ? "grid grid-cols-3 gap-0.5" : "flex"} rounded-lg bg-surface2 p-0.5 ${full ? "w-full" : ""}`}
+      role="radiogroup"
+      aria-label={label}
+    >
       {options.map((o) => (
         <button
           key={String(o.value)}
