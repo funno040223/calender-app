@@ -5,7 +5,7 @@ import { buildOutlook } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
 import type { RewardRates } from "@/lib/mock/model";
-import { periodStats, rewardBalance, rewardEarned, type PeriodStats } from "@/lib/mock/stats";
+import { dailyGrid, dailyReward, periodStats, rewardBalance, rewardEarned, type CellState, type GridRow, type PeriodStats } from "@/lib/mock/stats";
 import { Group, NumberInput, Row, ScreenHeader, Segmented, inputBase } from "@/components/ui/controls";
 
 const yen = (n: number) => `¥${Math.round(n).toLocaleString("ja-JP")}`;
@@ -68,48 +68,171 @@ function Reward() {
   );
 }
 
-function Meter({ label, done, total, prev }: { label: string; done: number; total: number; prev?: { done: number; total: number } }) {
-  const r = total > 0 ? Math.min(1, done / total) : 0;
-  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+const CELL_CLS: Record<CellState, string> = {
+  full: "bg-ok",
+  part: "bg-ok/40",
+  miss: "bg-line",
+  none: "bg-transparent border border-dashed border-line",
+};
+const ROWS: { key: GridRow; label: string; get: (s: PeriodStats) => { done: number; total: number } }[] = [
+  { key: "wake", label: "起床", get: (s) => s.wake },
+  { key: "routine", label: "朝ルーティン", get: (s) => s.routine },
+  { key: "habit", label: "習慣", get: (s) => ({ done: s.habit.done, total: s.habit.expected }) },
+  { key: "task", label: "タスクの枠", get: (s) => s.task },
+];
+const fmtN = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+/** 直近14日の達成カレンダー（4行 × 14日）。右に2週間の数と、その前の2週間の数 */
+function Adherence() {
+  const { state } = useApp();
+  const [picked, setPicked] = useState<{ row: GridRow; i: number }>();
+  const now = state.plannedAt;
+  const end = dayStartOf(now) + DAY_MS;
+  const days = Array.from({ length: 14 }, (_, i) => end - (14 - i) * DAY_MS);
+  const grid = dailyGrid(state, days, now);
+  const cur = periodStats(state, end - 14 * DAY_MS, end, now);
+  const prev = periodStats(state, end - 28 * DAY_MS, end - 14 * DAY_MS, now);
+  const pickedRow = picked && ROWS.find((r) => r.key === picked.row);
   return (
-    <div className="flex flex-col gap-1.5 px-4 py-2.5">
-      <div className="flex items-baseline gap-2">
-        <span className="flex-1 text-[15px]">{label}</span>
-        <span className="text-[15px] font-semibold tabular-nums">
-          {fmt(done)} / {total}
-        </span>
-        {prev && prev.total > 0 && (
-          <span className="w-16 text-right text-[12px] tabular-nums text-muted" aria-label="その前の2週間">
-            前 {fmt(prev.done)}/{prev.total}
-          </span>
-        )}
+    <Group title="直近2週間">
+      <div className="flex flex-col gap-2 px-4 py-3">
+        <div className="grid grid-cols-[5.25rem_1fr_3rem] items-end gap-x-2 text-[11px] tabular-nums text-muted">
+          <span />
+          <div className="grid grid-cols-14 gap-[2px]">
+            {days.map((d, i) => (
+              <span key={d} className="text-center">
+                {i % 2 === 1 || i === 13 ? new Date(d + TZ * MIN).getUTCDate() : ""}
+              </span>
+            ))}
+          </div>
+          <span className="text-right">前</span>
+        </div>
+        {ROWS.map((r) => {
+          const c = r.get(cur);
+          const p = r.get(prev);
+          return (
+            <div key={r.key} className="grid grid-cols-[5.25rem_1fr_3rem] items-center gap-x-2">
+              <span className="whitespace-nowrap text-[13px]">{r.label}</span>
+              <div className="grid grid-cols-14 gap-[2px]">
+                {grid[r.key].map((cell, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`${formatDate(days[i])} ${r.label} ${cell.detail}`}
+                    onClick={() => setPicked(picked?.row === r.key && picked.i === i ? undefined : { row: r.key, i })}
+                    className={`aspect-square rounded-[4px] ${CELL_CLS[cell.state]} ${picked?.row === r.key && picked.i === i ? "ring-2 ring-fg" : ""}`}
+                  />
+                ))}
+              </div>
+              <span className="text-right text-[12px] tabular-nums">
+                <span className="font-semibold">
+                  {fmtN(c.done)}/{c.total}
+                </span>
+                {p.total > 0 && (
+                  <span className="block text-[11px] text-muted">
+                    {fmtN(p.done)}/{p.total}
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+        <p className="min-h-5 text-[13px] tabular-nums">
+          {picked && pickedRow ? `${formatDate(days[picked.i])} ${pickedRow.label}：${grid[picked.row][picked.i].detail}` : ""}
+        </p>
+        <div className="flex flex-wrap gap-3 text-[12px] text-muted">
+          {(
+            [
+              ["full", "できた"],
+              ["part", "一部"],
+              ["miss", "まだ"],
+              ["none", "予定なし"],
+            ] as const
+          ).map(([k, l]) => (
+            <span key={k} className="flex items-center gap-1">
+              <span className={`inline-block h-3 w-3 rounded-[3px] ${CELL_CLS[k]}`} />
+              {l}
+            </span>
+          ))}
+        </div>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-surface2" role="meter" aria-label={label} aria-valuenow={done} aria-valuemin={0} aria-valuemax={total}>
-        <div className="h-full rounded-full bg-ok" style={{ width: `${r * 100}%` }} />
-      </div>
-    </div>
+    </Group>
   );
 }
 
-/** 直近2週間（とその前の2週間）に、予定どおりできた数 */
-function Adherence() {
+/** 日ごとの、たまった金額（上）と使った金額（下）。1本の軸（円） */
+function RewardChart() {
   const { state } = useApp();
-  const now = state.plannedAt;
-  const end = dayStartOf(now) + DAY_MS;
-  const cur = periodStats(state, end - 14 * DAY_MS, end, now);
-  const prev = periodStats(state, end - 28 * DAY_MS, end - 14 * DAY_MS, now);
-  const items: { label: string; get: (s: PeriodStats) => { done: number; total: number } }[] = [
-    { label: "起床", get: (s) => ({ done: s.wake, total: s.days }) },
-    { label: "朝ルーティン", get: (s) => ({ done: s.routine, total: s.days }) },
-    { label: "習慣", get: (s) => ({ done: s.habit.done, total: s.habit.expected }) },
-    { label: "タスクの枠", get: (s) => s.task },
-  ];
+  const [picked, setPicked] = useState<number>();
+  const end = dayStartOf(state.plannedAt) + DAY_MS;
+  const days = Array.from({ length: 14 }, (_, i) => end - (14 - i) * DAY_MS);
+  const data = dailyReward(state, days);
+  const W = 336;
+  const H = 150;
+  const top = 14;
+  const bottomPad = 18;
+  const up = Math.max(10, ...data.map((d) => d.earned));
+  const down = Math.max(0, ...data.map((d) => d.spent));
+  // 使った日がなければ、下の余白は取らない
+  const plotH = H - top - bottomPad;
+  const zeroY = top + plotH * (down > 0 ? up / (up + down) : 1);
+  const scale = (zeroY - top) / up;
+  const slot = W / days.length;
+  const bw = Math.min(16, slot - 4);
+  const maxI = data.reduce((m, d, i) => (d.earned > data[m].earned ? i : m), 0);
+  const bar = (x: number, h: number, dir: 1 | -1, cls: string, key: string) => {
+    if (h <= 0) return null;
+    const r = Math.min(4, h);
+    // データの端だけ丸く、軸の側は四角
+    const y0 = zeroY;
+    const y1 = zeroY - dir * h;
+    const d =
+      dir === 1
+        ? `M${x},${y0} V${y1 + r} Q${x},${y1} ${x + r},${y1} H${x + bw - r} Q${x + bw},${y1} ${x + bw},${y1 + r} V${y0} Z`
+        : `M${x},${y0} V${y1 - r} Q${x},${y1} ${x + r},${y1} H${x + bw - r} Q${x + bw},${y1} ${x + bw},${y1 - r} V${y0} Z`;
+    return <path key={key} d={d} className={cls} />;
+  };
+  const p = picked !== undefined ? data[picked] : undefined;
   return (
-    <Group title="直近2週間">
-      <div className="py-1">
-        {items.map((it) => (
-          <Meter key={it.label} label={it.label} {...it.get(cur)} prev={it.get(prev)} />
-        ))}
+    <Group title="ご褒美の推移">
+      <div className="px-4 py-3">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="日ごとのたまった金額と使った金額">
+          <line x1={0} x2={W} y1={zeroY} y2={zeroY} className="stroke-line" strokeWidth={1} />
+          {data.map((d, i) => {
+            const x = i * slot + (slot - bw) / 2;
+            return (
+              <g key={d.day} onClick={() => setPicked(picked === i ? undefined : i)} className="cursor-pointer">
+                <rect x={i * slot} y={0} width={slot} height={H} fill="transparent" />
+                {picked === i && <rect x={i * slot + 1} y={top - 4} width={slot - 2} height={plotH + 8} rx={4} className="fill-surface2" />}
+                {bar(x, d.earned * scale, 1, "fill-ok", "e")}
+                {bar(x, d.spent * scale, -1, "fill-muted", "s")}
+                {(i % 2 === 1 || i === days.length - 1) && (
+                  <text x={i * slot + slot / 2} y={H - 4} textAnchor="middle" className="fill-muted text-[10px] tabular-nums">
+                    {new Date(d.day + TZ * MIN).getUTCDate()}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          {data[maxI].earned > 0 && (
+            <text x={maxI * slot + slot / 2} y={zeroY - data[maxI].earned * scale - 4} textAnchor="middle" className="fill-fg text-[10px] font-semibold tabular-nums">
+              {yen(data[maxI].earned)}
+            </text>
+          )}
+        </svg>
+        <p className="min-h-5 pt-1 text-[13px] tabular-nums">
+          {p ? `${formatDate(p.day)}　+${yen(p.earned)}${p.spent ? `　−${yen(p.spent)}` : ""}` : ""}
+        </p>
+        <div className="flex gap-3 text-[12px] text-muted">
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-3 w-3 rounded-[3px] bg-ok" />
+            たまった
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-3 w-3 rounded-[3px] bg-muted" />
+            使った
+          </span>
+        </div>
       </div>
     </Group>
   );
@@ -203,6 +326,7 @@ export default function StatsScreen() {
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
           <Reward />
+          <RewardChart />
           <Adherence />
         </div>
         <div className="flex flex-col gap-6">

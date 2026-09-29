@@ -15,35 +15,37 @@ const wakeOk = (l: MockData["wakeLogs"][number]) =>
   l.wokeAt !== undefined && l.plannedWake !== undefined && l.wokeAt <= l.plannedWake + WAKE_GRACE_MINUTES * MIN;
 
 export interface PeriodStats {
-  /** 数えた日数（記録を始めた日から、今日まで） */
-  days: number;
-  wake: number;
-  routine: number;
+  wake: { done: number; total: number };
+  routine: { done: number; total: number };
   habit: { done: number; expected: number };
   task: { done: number; total: number };
 }
 
+/** 各行の記録を始めた日（0:00）。これより前の日は数えない */
+function startsOf(data: Data) {
+  const min = (xs: (number | undefined)[]) => Math.min(Infinity, ...xs.map((x) => x ?? Infinity));
+  return {
+    wake: min(data.wakeLogs.filter((l) => l.plannedWake !== undefined).map((l) => dayStartOfKey(l.date))),
+    routine: min(data.wakeLogs.map((l) => dayStartOfKey(l.date))),
+    habit: min(Object.keys(data.habitLogs).map((k) => dayStartOfKey(k))),
+    task: min(Object.values(data.taskBlockLog).map((b) => dayStartOfKey(dateKeyOf(b.start)))),
+  };
+}
+
 /** [from, to) の日（0:00）の、予定どおりできた数 */
 export function periodStats(data: Data, from: number, to: number, now: number): PeriodStats {
+  const st = startsOf(data);
+  const last = Math.min(to, (dayStartOfKey(dateKeyOf(now)) ?? now) + DAY_MS);
+  const daysFrom = (start: number) => Math.max(0, Math.round((last - Math.max(from, start)) / DAY_MS));
   const inRange = (key: string) => {
     const d = dayStartOfKey(key);
     return d !== undefined && d >= from && d < to;
   };
-  // 記録を始める前の日は数えない（予定の起床時刻・習慣・タスクの枠のどれかを残し始めた日から）
-  const started = Math.min(
-    ...data.wakeLogs.filter((l) => l.plannedWake !== undefined).map((l) => dayStartOfKey(l.date) ?? Infinity),
-    ...Object.keys(data.habitLogs).map((k) => dayStartOfKey(k) ?? Infinity),
-    ...Object.values(data.taskBlockLog).map((b) => dayStartOfKey(dateKeyOf(b.start)) ?? Infinity),
-    Infinity,
-  );
-  const first = Math.max(from, started);
-  const last = Math.min(to, (dayStartOfKey(dateKeyOf(now)) ?? now) + DAY_MS);
-  const days = Math.max(0, Math.round((last - first) / DAY_MS));
-
-  const logs = data.wakeLogs.filter((l) => inRange(l.date) && (dayStartOfKey(l.date) ?? -Infinity) >= first);
+  const logs = data.wakeLogs.filter((l) => inRange(l.date));
   const tracked = data.habits.filter((h) => h.track);
+  const habitDays = daysFrom(st.habit);
   const expected = tracked.reduce(
-    (sum, h) => sum + (h.frequency.type === "weekly" ? (h.frequency.times * days) / 7 : h.frequency.type === "daily" ? days : 0),
+    (sum, h) => sum + (h.frequency.type === "weekly" ? (h.frequency.times * habitDays) / 7 : h.frequency.type === "daily" ? habitDays : 0),
     0,
   );
   let habitDone = 0;
@@ -53,9 +55,8 @@ export function periodStats(data: Data, from: number, to: number, now: number): 
   }
   const blocks = Object.values(data.taskBlockLog).filter((b) => b.start >= from && b.start < to && b.start <= now);
   return {
-    days,
-    wake: logs.filter(wakeOk).length,
-    routine: logs.filter((l) => l.routineDoneAt !== undefined).length,
+    wake: { done: logs.filter(wakeOk).length, total: daysFrom(st.wake) },
+    routine: { done: logs.filter((l) => l.routineDoneAt !== undefined).length, total: daysFrom(st.routine) },
     habit: { done: habitDone, expected: Math.round(expected) },
     task: { done: blocks.filter((b) => b.doneAt !== undefined).length, total: blocks.length },
   };
@@ -81,3 +82,66 @@ export function rewardEarned(data: Data, from = -Infinity, to = Infinity): numbe
 
 /** 使える残り（円）。減らすのは、使った記録だけ */
 export const rewardBalance = (data: Data) => rewardEarned(data) - data.rewardSpends.reduce((s, x) => s + x.amount, 0);
+
+/** 1日のマスの状態。full＝できた、part＝一部（5分だけ・枠の一部）、miss＝できなかった、none＝予定がない・記録を始める前 */
+export type CellState = "full" | "part" | "miss" | "none";
+export interface DayCell {
+  state: CellState;
+  /** 押したときに出す説明 */
+  detail: string;
+}
+export type GridRow = "wake" | "routine" | "habit" | "task";
+
+/** 日ごと（days は各日の 0:00）の、起床・朝ルーティン・習慣・タスクの枠のマス */
+export function dailyGrid(data: Data, days: number[], now: number): Record<GridRow, DayCell[]> {
+  const out: Record<GridRow, DayCell[]> = { wake: [], routine: [], habit: [], task: [] };
+  const tracked = data.habits.filter((h) => h.track);
+  const st = startsOf(data);
+  for (const d of days) {
+    const key = dateKeyOf(d);
+    const future = d > now;
+    const log = data.wakeLogs.find((l) => l.date === key);
+    out.wake.push(
+      future || d < st.wake || log?.plannedWake === undefined
+        ? { state: "none", detail: "記録なし" }
+        : wakeOk(log)
+          ? { state: "full", detail: "予定どおり" }
+          : { state: "miss", detail: log.wokeAt === undefined ? "押していない" : "30分より遅い" },
+    );
+    out.routine.push(
+      future || d < st.routine || !log
+        ? { state: "none", detail: "記録なし" }
+        : log.routineDoneAt !== undefined
+          ? { state: "full", detail: "終えた" }
+          : { state: "miss", detail: "終えていない" },
+    );
+    const marks = data.habitLogs[key] ?? {};
+    const done = tracked.filter((h) => marks[h.id]);
+    const v = tracked.reduce((s, h) => s + markValue(marks[h.id], h), 0);
+    out.habit.push(
+      future || d < st.habit || tracked.length === 0
+        ? { state: "none", detail: "記録なし" }
+        : {
+            state: v >= 1 ? "full" : v > 0 ? "part" : "miss",
+            detail: done.length ? done.map((h) => `${h.name} ${marks[h.id] === "five" ? "5分" : "やった"}`).join("・") : "なし",
+          },
+    );
+    const blocks = Object.values(data.taskBlockLog).filter((b) => b.start >= d && b.start < d + DAY_MS && b.start <= now);
+    const n = blocks.filter((b) => b.doneAt !== undefined).length;
+    out.task.push(
+      blocks.length === 0
+        ? { state: "none", detail: "枠なし" }
+        : { state: n === blocks.length ? "full" : n > 0 ? "part" : "miss", detail: `${n} / ${blocks.length}` },
+    );
+  }
+  return out;
+}
+
+/** 日ごとの、たまった金額と使った金額（円） */
+export function dailyReward(data: Data, days: number[]): { day: number; earned: number; spent: number }[] {
+  return days.map((d) => ({
+    day: d,
+    earned: rewardEarned(data, d, d + DAY_MS),
+    spent: data.rewardSpends.filter((s) => s.at >= d && s.at < d + DAY_MS).reduce((a, s) => a + s.amount, 0),
+  }));
+}

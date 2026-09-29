@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
 import { DEFAULT_REWARD_RATES } from "./model";
-import { periodStats, rewardBalance, rewardEarned } from "./stats";
+import { dailyGrid, dailyReward, periodStats, rewardBalance, rewardEarned } from "./stats";
 
 const ex = { id: "ex", name: "運動", durationMinutes: 5, windowStart: 0, windowEnd: 1440, frequency: { type: "weekly" as const, times: 3 }, skippable: true, track: true };
 const walk = { id: "walk", name: "散歩", durationMinutes: 20, windowStart: 0, windowEnd: 150, frequency: { type: "daily" as const }, skippable: true, track: true };
@@ -24,9 +24,8 @@ const now = jst(2026, 10, 2, 22);
 describe("予定どおりできた数", () => {
   it("起床は予定の30分以内、習慣の5分だけは5分以下の習慣なら1回", () => {
     const s = periodStats(data, jst(2026, 9, 19), jst(2026, 10, 3), now);
-    expect(s.days).toBe(2);
-    expect(s.wake).toBe(1);
-    expect(s.routine).toBe(1);
+    expect(s.wake).toEqual({ done: 1, total: 2 });
+    expect(s.routine).toEqual({ done: 1, total: 2 });
     // 運動 1（5分の習慣）＋ 散歩 0.5 ＋ 散歩 1。予定は 運動 3×2/7 ＋ 散歩 2
     expect(s.habit).toEqual({ done: 2.5, expected: 3 });
     expect(s.task).toEqual({ done: 1, total: 2 });
@@ -39,5 +38,22 @@ describe("ご褒美のお金", () => {
     expect(rewardEarned(data)).toBe(235);
     expect(rewardBalance(data)).toBe(135);
     expect(rewardEarned(data, jst(2026, 10, 2), jst(2026, 10, 3))).toBe(30);
+  });
+});
+
+describe("日ごとのマスと金額", () => {
+  it("できた・一部・できなかった・予定なしを分ける", () => {
+    const days = [jst(2026, 10, 1), jst(2026, 10, 2), jst(2026, 10, 3)];
+    const g = dailyGrid(data, days, now);
+    expect(g.wake.map((c) => c.state)).toEqual(["full", "miss", "none"]);
+    expect(g.routine.map((c) => c.state)).toEqual(["full", "miss", "none"]);
+    // 1日目は 運動（5分の習慣を5分）＋散歩5分 = 1.5、2日目は散歩 = 1
+    expect(g.habit.map((c) => c.state)).toEqual(["full", "full", "none"]);
+    expect(g.task.map((c) => c.state)).toEqual(["full", "miss", "none"]);
+    expect(dailyReward(data, days)).toEqual([
+      { day: days[0], earned: 205, spent: 0 },
+      { day: days[1], earned: 30, spent: 100 },
+      { day: days[2], earned: 0, spent: 0 },
+    ]);
   });
 });
