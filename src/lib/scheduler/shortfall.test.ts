@@ -25,3 +25,13 @@ describe("締切に足りないときの選択肢", () => {
     expect(plan(baseInput(now, { settings, avoidWindows: [allDay], tasks: [{ ...task, stretch: true }] })).shortfalls).toHaveLength(0);
   });
 });
+
+describe("今日は飛ばす", () => {
+  it("飛ばした日には置かず、ほかの日には置く", () => {
+    const walk = { id: "walk", name: "散歩", durationMinutes: 20, windowStart: 0, windowEnd: 150, anchor: "wake" as const, frequency: { type: "daily" as const }, skippable: true };
+    const r = plan(baseInput(now, { settings, habits: [walk], skipHabitDays: { walk: [jst(2026, 10, 2)] } }));
+    const on = (d: number) => r.blocks.filter((b) => b.refId === "walk" && b.start >= jst(2026, 10, d) && b.start < jst(2026, 10, d + 1));
+    expect(on(2)).toHaveLength(0);
+    expect(on(3)).toHaveLength(1);
+  });
+});

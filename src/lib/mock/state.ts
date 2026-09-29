@@ -63,6 +63,7 @@ const DATA_KEYS = [
   "doneTasks",
   "importedTravel",
   "tags",
+  "habitSkips",
   "calendarColors",
   "taskChecks",
   "rewardRates",
@@ -104,6 +105,7 @@ export function sampleData(now: number): MockData {
     doneTasks: [],
     importedTravel: {},
     tags: SAMPLE_TAGS,
+    habitSkips: {},
     calendarColors: {},
     taskChecks: {},
     rewardRates: DEFAULT_REWARD_RATES,
@@ -271,6 +273,11 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
       const saved = arr<unknown>(d.tags, []).find((x): x is Partial<Tag> => isRecord(x) && x.id === t.id);
       return saved ? { ...t, ...saved, id: t.id, mode: t.mode } : t;
     }),
+    habitSkips: isRecord(d.habitSkips)
+      ? Object.fromEntries(
+          Object.entries(d.habitSkips).flatMap(([k, v]) => (Array.isArray(v) ? [[k, v.filter((x): x is string => typeof x === "string")]] : [])),
+        )
+      : {},
     calendarColors: isRecord(d.calendarColors)
       ? Object.fromEntries(Object.entries(d.calendarColors).filter((e): e is [string, string] => typeof e[1] === "string" && /^#[0-9a-f]{6}$/i.test(e[1])))
       : {},
@@ -354,6 +361,15 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     taskBlockLog[key] = { ...l, counted: true };
   }
   data = { ...data, habitLastDone, taskBlockLog, tasks };
+  // 「今日は飛ばす」にした習慣：その日には置かず、もう始まっている枠も外す
+  const skipDays: Record<string, number[]> = {};
+  for (const [key, ids] of Object.entries(data.habitSkips)) {
+    const day = dayStartOfKey(key);
+    if (day === undefined) continue;
+    for (const id of ids) (skipDays[id] ??= []).push(day);
+  }
+  const isSkipped = (b: MockData["blocks"][number]) =>
+    b.kind === "habit" && (skipDays[b.refId] ?? []).some((day) => b.start >= day && b.start < day + DAY_MS);
   const result = plan({
     now,
     settings: data.settings,
@@ -365,7 +381,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     avoidWindows: data.avoidWindows,
     recoveryOptions: SAMPLE_RECOVERY_OPTIONS,
     habitLastDone,
-    previousBlocks: data.blocks,
+    previousBlocks: data.blocks.filter((b) => !isSkipped(b)),
     eveningEnergy: Object.fromEntries(
       Object.entries(data.eveningEnergy).flatMap(([k, v]) => {
         const day = dayStartOfKey(k);
@@ -373,6 +389,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
       }),
     ),
     rainyDays: data.rainyDays.flatMap((k) => dayStartOfKey(k) ?? []),
+    skipHabitDays: skipDays,
   });
   return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now };
 }

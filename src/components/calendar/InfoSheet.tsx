@@ -53,6 +53,7 @@ export function BlockSheet({
   onTogglePin,
   onEditTask,
   onClose,
+  children,
 }: {
   block: Block;
   /** 関連する予定（「面接 10/4 15:00」） */
@@ -60,6 +61,8 @@ export function BlockSheet({
   onTogglePin: (block: Block) => void;
   onEditTask: (taskId: string) => void;
   onClose: () => void;
+  /** やった・5分・今日は飛ばす などの記録 */
+  children?: ReactNode;
 }) {
   return (
     <Sheet title={block.title} onClose={onClose}>
@@ -83,6 +86,7 @@ export function BlockSheet({
             )}
           </>
         )}
+        {children}
         {block.kind === "task" && (
           <button type="button" onClick={() => onEditTask(block.refId)} className="rounded-xl py-2.5 text-accent hover:bg-surface2">
             タスクを編集

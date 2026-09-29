@@ -329,6 +329,8 @@ export interface PlanInput {
   eveningEnergy?: Record<number, EveningEnergy>;
   /** 雨の日にした日（日の 0:00）。rainAlternative のある習慣を代わりのものにする */
   rainyDays?: number[];
+  /** 「今日は飛ばす」にした習慣（習慣の ID → その日の 0:00）。その日には置かない */
+  skipHabitDays?: Record<string, number[]>;
 }
 
 export interface PlanResult {

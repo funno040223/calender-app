@@ -6,7 +6,7 @@ import { sameBlock, type OwnEvent } from "@/lib/mock/store";
 import type { CalendarId } from "@/lib/mock/calendars";
 import { useApp } from "@/components/app/StoreProvider";
 import { eventIndex, formatEventShort, groupKeyOf, tasksByEvent } from "@/lib/mock/related";
-import { parseClassEventId } from "@/lib/mock/model";
+import { dateKeyOf, parseClassEventId, taskBlockKey, type HabitMark } from "@/lib/mock/model";
 import { formatDate } from "@/lib/mock/jst";
 import CalendarView, { type CalendarHandle, type CalendarMode, type EventSource } from "./CalendarView";
 import CalendarToggles from "./CalendarToggles";
@@ -292,7 +292,9 @@ export default function CalendarApp() {
           onTogglePin={unpinBlock}
           onEditTask={editTask}
           onClose={() => setViewing(null)}
-        />
+        >
+          <BlockRecord block={viewing.block} onSkipped={() => setViewing(null)} />
+        </BlockSheet>
       )}
       {viewingEvent && viewing?.kind === "event" && (
         <ReadonlyEventSheet
@@ -360,6 +362,71 @@ export default function CalendarApp() {
             </button>
           )}
         </ReadonlyEventSheet>
+      )}
+    </div>
+  );
+}
+
+/** 枠の記録：タスクは「やった」、習慣は「やった／5分」と「今日は飛ばす」 */
+function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void }) {
+  const { state, update } = useApp();
+  // 「今」は組み直した時刻（描くたびに Date.now() を呼ばない）
+  const started = block.start <= state.plannedAt;
+  const btn = (on: boolean) => `flex-1 rounded-xl py-2.5 font-medium ${on ? "bg-accent text-white" : "bg-surface2"}`;
+  if (block.kind === "task") {
+    if (!started) return null;
+    const key = taskBlockKey(block.refId, block.start);
+    const done = state.taskBlockLog[key]?.doneAt !== undefined;
+    return (
+      <button
+        type="button"
+        aria-pressed={done}
+        className={btn(done)}
+        onClick={() =>
+          update((d) => {
+            const cur = d.taskBlockLog[key] ?? { title: block.title, start: block.start, end: block.end };
+            return { ...d, taskBlockLog: { ...d.taskBlockLog, [key]: { ...cur, doneAt: cur.doneAt === undefined ? Date.now() : undefined } } };
+          })
+        }
+      >
+        やった
+      </button>
+    );
+  }
+  if (block.kind !== "habit") return null;
+  const habit = state.habits.find((h) => h.id === block.refId);
+  const day = dateKeyOf(block.start);
+  const mark = state.habitLogs[day]?.[block.refId];
+  const setMark = (m: HabitMark) =>
+    update((d) => {
+      const marks = { ...d.habitLogs[day] };
+      if (marks[block.refId] === m) delete marks[block.refId];
+      else marks[block.refId] = m;
+      return { ...d, habitLogs: { ...d.habitLogs, [day]: marks } };
+    });
+  return (
+    <div className="flex flex-col gap-2">
+      {started && (
+        <div className="flex gap-2">
+          <button type="button" aria-pressed={mark === "five"} className={btn(mark === "five")} onClick={() => setMark("five")}>
+            5分
+          </button>
+          <button type="button" aria-pressed={mark === "done"} className={btn(mark === "done")} onClick={() => setMark("done")}>
+            やった
+          </button>
+        </div>
+      )}
+      {habit?.skippable && block.end > state.plannedAt && (
+        <button
+          type="button"
+          className="rounded-xl py-2.5 text-accent hover:bg-surface2"
+          onClick={() => {
+            update((d) => ({ ...d, habitSkips: { ...d.habitSkips, [day]: [...new Set([...(d.habitSkips[day] ?? []), block.refId])] } }));
+            onSkipped();
+          }}
+        >
+          今日は飛ばす
+        </button>
       )}
     </div>
   );

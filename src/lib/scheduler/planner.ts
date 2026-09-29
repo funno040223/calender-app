@@ -340,6 +340,8 @@ export function plan(input: PlanInput): PlanResult {
     return { start: base + habit.windowStart * MIN, end: base + habit.windowEnd * MIN };
   };
   const rainyDays = new Set(input.rainyDays ?? []);
+  /** 「今日は飛ばす」にした日 */
+  const skipped = (habit: Habit, d: DayPlan) => input.skipHabitDays?.[habit.id]?.includes(d.dayStart) ?? false;
 
   // ---- 習慣 ----
   // 飛ばせないものから置く。待ち時間に入れる子の習慣は最後
@@ -373,6 +375,7 @@ export function plan(input: PlanInput): PlanResult {
 
     /** その日の時間帯に置けたら true */
     const tryPlaceOn = (d: DayPlan): boolean => {
+      if (skipped(habit, d)) return false;
       const window = windowOf(d);
       // 外出の日に外にいる時間と重なる食事は、外食・お弁当として置く（家での時間は取らない）
       if (habit.meal && !habit.cue && outingDays.has(d.dayStart)) {
@@ -620,7 +623,7 @@ export function plan(input: PlanInput): PlanResult {
     const cost = habit.energyCost ?? 0;
     for (const d of days) {
       const window = habitWindow(habit, d);
-      if (window.end <= now || outingDays.has(d.dayStart) || energyOn(d) + cost > s.dailyEnergyBudget) continue;
+      if (window.end <= now || skipped(habit, d) || outingDays.has(d.dayStart) || energyOn(d) + cost > s.dailyEnergyBudget) continue;
       const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);
       // 食事の前の自炊などは、食事のちょうど5分前に終える
       const on = cueOn(habit.cue, d);
@@ -638,7 +641,7 @@ export function plan(input: PlanInput): PlanResult {
       const dur = habit.durationMinutes * MIN;
       for (const d of days.filter((x) => x.holiday)) {
         const window = habitWindow(habit, d);
-        if (window.end <= now) continue;
+        if (window.end <= now || skipped(habit, d)) continue;
         const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);
         const start = findStart(intersect(free, window), dur, () => true, prev?.start);
         if (start === undefined) continue;
