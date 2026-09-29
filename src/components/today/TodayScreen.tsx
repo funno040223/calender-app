@@ -7,7 +7,7 @@ import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { TREAT_CATEGORIES, dateKeyOf, treatFor, wakeStreak, type WakeLog } from "@/lib/mock/model";
+import { TREAT_CATEGORIES, dateKeyOf, treatFor, wakeStreak, type SleepAnswer, type WakeLog } from "@/lib/mock/model";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import Notices from "./Notices";
@@ -73,6 +73,12 @@ function CheckCircle({ on }: { on: boolean }) {
     </span>
   );
 }
+
+const SLEEP_OPTIONS: { value: SleepAnswer; label: string }[] = [
+  { value: "good", label: "よく眠れた" },
+  { value: "ok", label: "ふつう" },
+  { value: "poor", label: "いまいち" },
+];
 
 function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
   const { state, patch } = useApp();
@@ -143,6 +149,23 @@ function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
             >
               取り消す
             </button>
+          </div>
+        )}
+        {log.wokeAt !== undefined && (
+          <div className="mt-3">
+            <p className="mb-1.5 text-[13px] text-muted">昨夜はよく眠れましたか？</p>
+            <div className="grid grid-cols-3 gap-2">
+              {SLEEP_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setLog((l) => ({ ...l, sleep: o.value }))}
+                  className={`rounded-xl py-2 text-[14px] font-medium ${log.sleep === o.value ? "bg-accent text-white" : "bg-surface2"}`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -381,7 +404,13 @@ function EveningCard({ day, now }: { day: DayPlan; now: number }) {
   const answer = state.eveningEnergy[key];
   if (day.homeAt === undefined || now < day.homeAt - 60 * MIN || now >= day.bed) return null;
   const choose = (v: EveningEnergy) => {
-    update((d) => ({ ...d, eveningEnergy: { ...d.eveningEnergy, [key]: v } }));
+    // 答えたときの予測も残す（あとで行動ポイントの値を合わせるため）
+    const e = state.result.dayEnergy.find((x) => x.dayStart === day.dayStart);
+    update((d) => ({
+      ...d,
+      eveningEnergy: { ...d.eveningEnergy, [key]: v },
+      energyChecks: e ? { ...d.energyChecks, [key]: { predicted: e.used, budget: e.budget, at: Date.now() } } : d.energyChecks,
+    }));
     setEditing(false);
   };
   const picked = EVENING_OPTIONS.find((o) => o.value === answer);

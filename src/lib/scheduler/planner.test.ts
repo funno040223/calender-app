@@ -10,10 +10,10 @@ const taskBlocks = (r: ReturnType<typeof plan>) => r.blocks.filter((b) => b.kind
 
 describe("タスクの配置（減点方式）", () => {
   it("集中系は起きてすぐを避ける", () => {
-    // 9:00 起床、9:55 に朝ルーティンと準備が終わる → 10:55 までは減点
+    // 9:00 起床、9:15 に朝ルーティンが終わる（予定がない日は身支度なし）→ 10:15 までは減点
     const [b] = taskBlocks(plan(baseInput(now, { tags: [focus], tasks: [report] })));
-    expect(b.start).toBe(jst(2026, 10, 1, 11));
-    expect(b.end).toBe(jst(2026, 10, 1, 13));
+    expect(b.start).toBe(jst(2026, 10, 1, 10, 15));
+    expect(b.end).toBe(jst(2026, 10, 1, 12, 15));
   });
 
   it("「なるべく避ける」時間帯を外して置く", () => {
@@ -145,11 +145,11 @@ describe("生活の中身から決めた配置", () => {
     const [off] = taskBlocks(plan(baseInput(now, { tags: [focus], tasks: [report], avoidWindows: [holidayMorning] })));
     expect(off.start).toBe(jst(2026, 10, 1, 12));
 
-    // 遊び以外の予定がある日はオンの日 → 午前も使う（起きてすぐを避けて 11:00 から）
+    // 遊び以外の予定がある日はオンの日 → 午前も使う（起きてすぐを避けて 10:15 から）
     const work = { id: "w", title: "オンライン授業", start: jst(2026, 10, 1, 20), end: jst(2026, 10, 1, 21) };
     const r = plan(baseInput(now, { tags: [focus], tasks: [report], events: [work], avoidWindows: [holidayMorning] }));
     expect(r.dayPlans[0].holiday).toBe(false);
-    expect(taskBlocks(r)[0].start).toBe(jst(2026, 10, 1, 11));
+    expect(taskBlocks(r)[0].start).toBe(jst(2026, 10, 1, 10, 15));
 
     // 遊びの予定しかない日は休日のまま
     const play = { ...work, id: "p", title: "友だちと夕食", play: true };
@@ -159,7 +159,8 @@ describe("生活の中身から決めた配置", () => {
   describe("1日の余白", () => {
     // 10:00〜19:00 と 22:00〜翌1:00 が埋まっていて、空きは 19:00〜22:00 と 1:00〜1:30 だけ
     const events = [
-      { id: "a", title: "在宅作業", start: jst(2026, 10, 1, 10), end: jst(2026, 10, 1, 19) },
+      // 顔を出す予定なので、朝は 9:00〜9:55 が朝ルーティンと身支度で埋まる
+      { id: "a", title: "在宅作業", start: jst(2026, 10, 1, 10), end: jst(2026, 10, 1, 19), needsPrep: true },
       { id: "b", title: "夜の予定", start: jst(2026, 10, 1, 22), end: jst(2026, 10, 2, 1) },
     ];
     const chore: Task = { id: "c", title: "資料整理", durationMinutes: 120, priority: 2 };

@@ -22,6 +22,8 @@ export interface CalendarEvent {
   play?: boolean;
   /** この予定で使う行動ポイント。未指定なら外出・在宅と長さから計算する */
   energyCost?: number;
+  /** 身支度（人に見せられる格好にする時間）が要る予定か。未指定なら、外出する予定と会議のリンクがある予定 */
+  needsPrep?: boolean;
   /** 終日の予定で、その間ずっと家にいない（帰省・旅行など）。外出の日と同じに扱う */
   awayFromHome?: boolean;
 }
@@ -125,7 +127,9 @@ export type HabitFrequency =
   | { type: "daily" }
   | { type: "weekly"; times: number }
   | { type: "whenEnergy" }
-  | { type: "interval"; minDays: number; maxDays: number };
+  | { type: "interval"; minDays: number; maxDays: number }
+  /** タスクの見通しが順調な（締切に間に合わないタスクがない）休日だけ（自己成長の時間など） */
+  | { type: "onTrackHoliday" };
 
 export interface Habit {
   id: string;
@@ -139,8 +143,10 @@ export interface Habit {
   windowEnd: number;
   anchor?: "wake" | "bed";
   frequency: HabitFrequency;
-  /** 締切が迫ったときに飛ばしてよいか（食事・入浴は false） */
+  /** 締切が迫ったときに飛ばしてよいか（食事・入浴・洗濯は false） */
   skippable: boolean;
+  /** 飛ばしてよい習慣のうち、なるべく残すもの（朝の散歩など）。締切のために外すときは最後にする */
+  keepLast?: boolean;
   /** このあとの分数は集中系のタスクを避ける（食後など） */
   avoidFocusAfterMinutes?: number;
   /**
@@ -219,6 +225,8 @@ export interface DayPlan {
   wakeSource: WakeSource;
   /** 遊び以外の予定がない日 */
   holiday: boolean;
+  /** 朝に身支度の時間を取る日（最初の予定が外出か、人に顔を出す予定） */
+  prep?: boolean;
   /** 外出した日の、最後の外出から家に帰る時刻（帰りの移動を含む） */
   homeAt?: number;
 }

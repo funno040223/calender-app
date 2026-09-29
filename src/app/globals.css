@@ -417,7 +417,7 @@ body {
   background: var(--sleep);
   opacity: 1;
 }
-/* 就寝の2時間前から：タバコを控える時間（睡眠より薄く） */
+/* 就寝の3時間前から：タバコを控える時間（睡眠より薄く） */
 .app-cal .fc .fc-bg-event.nosmoke-band {
   background: color-mix(in srgb, var(--sleep) 45%, transparent);
   opacity: 1;

@@ -53,6 +53,8 @@
 - GitHub の非公開リポジトリ `funno040223/calender-app`（origin）。`main` と `feat/screens` は同じ内容。push はユーザーが自分の端末で行う（トークン認証。Mac のキーチェーンに保存済み）。コミットの作者はこのリポジトリだけ `funno040223`（GitHub の noreply アドレス）に設定済み。**作者が GitHub と結びついていないと Vercel の無料プランは公開を止める**
 - 公開先：https://calender-app-umber.vercel.app（Vercel の funno チームの `calender-app`。`main` を公開。7kf1 のほうのプロジェクトは削除した）。環境変数は6つ（Supabase の URL・publishable key、`NEXT_PUBLIC_VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`CRON_SECRET`、`SUPABASE_SECRET_KEY`）。**`NEXT_PUBLIC_` の付くものは Config の種類で作る**（Secret だと編集できなくなる）。値を変えたら Redeploy が必要。Supabase の Site URL / Redirect URLs も設定済み。iPhone の Safari でもログインとデータの表示を確認済み
 - 完了：要件定義・設計、配置エンジン、画面（今日・カレンダー3日/週/月・タスク・設定）、ログイン必須、Supabase への保存、Google カレンダーの取り込み（ユーザーの実カレンダーを1件登録済み）、公開（ステップ7）、iPhone 対応（ステップ8。ホーム画面に追加・機内モードでの表示と、戻ったときの保存を確認済み）、通知と定期実行（ステップ9。iPhone に届くことを確認済み）、iCal 配信（ステップ10）
+- 2026-09-29 のすり合わせ（要件定義書の「なぜ作るか」「原因と打ち手」「ロードマップ」「矛盾と未決事項」）：稼働日の夜の回復と眠りを最優先にした。実装済み：起床・就寝からの習慣の時間帯（朝の散歩・就寝90分前の入浴）、雨の日の散歩の入れ替え、昼寝は20分・15時までしか提案しない、ゲーム・動画は回復の候補にしない（根拠は docs/research/fatigue-recovery-research.md）、就寝3時間前（タバコ）と30分前（寝る準備）の通知、帰宅時の体力3択と今夜の組み直し、朝の眠りの3択、予測と答えの記録（energyChecks）、習慣の優先度3段階（keepLast）、順調な休日の自己成長の枠（onTrackHoliday）、身支度は人に会う日だけ（needsPrep、会議リンクで自動）。データの移行は state.ts の migrations で1回だけ行う
+- 行動ポイントは未決：値は今のまま試用し、記録で部品ごとに合わせる。基礎は入れない。回復の根拠は docs/research/fatigue-recovery-research.md。疲れのモデルは2段階：今は記録だけ（朝の疲れ・帰宅時の体力・睡眠）、2〜4週間後に係数を推定して持ち越しと睡眠負債を入れる
 - 残り（完成まで）：
   11. 1〜2週間使って調整
 - 第2段階以降：しんどさの記録で行動ポイントを合わせる、通知から実績を答える、朝ルーティンの記録の活用、iOS ショートカット・Siri、iPhone の「睡眠」（アラーム）の就寝・起床時刻をこの計算に合わせる（ショートカットで毎日設定する案）、発散の候補の編集、自炊の日の切り替え、天気で洗濯の日を選ぶ、AI での所要時間の推定と文の読み取り、ほかの配置戦略

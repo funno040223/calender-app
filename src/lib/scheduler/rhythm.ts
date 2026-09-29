@@ -1,13 +1,13 @@
 import type { CalendarEvent, DayPlan, Place, Settings, WakeSource } from "./types";
 import { DAY_MS, MIN } from "./time";
-import { resolveTravel } from "./travel";
+import { needsPrep, resolveTravel } from "./travel";
 
 /** これより前に始まる予定は、その日の「最初の予定」として扱わない */
 const DAY_BEGINS_AT_MINUTE = 4 * 60;
 
 type RawWake =
   | { kind: "away"; required: number; leave: number; first: CalendarEvent }
-  | { kind: "home"; required: number; first: CalendarEvent }
+  | { kind: "home"; required: number; first: CalendarEvent; prep: boolean }
   | { kind: "none" };
 
 function firstEventOf(dayStart: number, events: CalendarEvent[]): CalendarEvent | undefined {
@@ -26,7 +26,12 @@ function rawWakeOf(dayStart: number, events: CalendarEvent[], places: Place[], s
   const first = firstEventOf(dayStart, events);
   if (!first) return { kind: "none" };
   const travel = resolveTravel(first, places, s);
-  if (travel.atHome) return { kind: "home", required: first.start - s.homeWakeLeadMinutes * MIN, first };
+  if (travel.atHome) {
+    // オンラインで顔を出す予定は、外出と同じく身支度の時間を取る
+    const prep = needsPrep(first, travel);
+    const lead = prep ? s.routineMinutes + s.prepMinutes : s.homeWakeLeadMinutes;
+    return { kind: "home", required: first.start - lead * MIN, first, prep };
+  }
   const leave = first.start - travel.minutes * MIN;
   return { kind: "away", required: leave - (s.routineMinutes + s.prepMinutes) * MIN, leave, first };
 }
@@ -96,6 +101,7 @@ export function computeDayPlans(
       firstEvent: raw.kind === "none" ? undefined : raw.first,
       wakeSource: wakes[i].source,
       holiday,
+      prep: raw.kind === "away" || (raw.kind === "home" && raw.prep),
     };
   });
 }

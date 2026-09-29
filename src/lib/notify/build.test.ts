@@ -48,12 +48,12 @@ describe("buildNotices", () => {
     expect(got[1].body).toContain("予定1件（最初は 10:40 授業）");
   });
 
-  it("就寝の2時間前にタバコの区切り、30分前に寝る準備を送る", () => {
+  it("就寝の3時間前にタバコの区切り、30分前に寝る準備を送る", () => {
     const got = buildNotices(input()).filter((n) => /^(smoke|bedprep):/.test(n.key));
     expect(got.map((n) => [n.key.split(":")[0], n.at])).toEqual([
-      ["smoke", jst(2026, 10, 1, 23)],
+      ["smoke", jst(2026, 10, 1, 22)],
       ["bedprep", jst(2026, 10, 2, 0, 30)],
-      ["smoke", jst(2026, 10, 2, 23)],
+      ["smoke", jst(2026, 10, 2, 22)],
       ["bedprep", jst(2026, 10, 3, 0, 30)],
     ]);
   });

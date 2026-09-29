@@ -100,6 +100,18 @@ export interface WakeLog {
   /** 朝ルーティンの手順をすべて終えた時刻 */
   routineDoneAt?: number;
   doneStepIds: string[];
+  /** 「起きた」のあとに答えた、前の晩の眠り */
+  sleep?: SleepAnswer;
+}
+
+export type SleepAnswer = "good" | "ok" | "poor";
+
+/** 帰宅時に体力を答えたときの、行動ポイントの予測（あとで値を合わせるための記録） */
+export interface EnergyCheck {
+  /** 答えた時点のその日の行動ポイント（予測） */
+  predicted: number;
+  budget: number;
+  at: number;
 }
 
 export interface MockData {
@@ -126,6 +138,10 @@ export interface MockData {
   eveningEnergy: Record<DateKey, EveningEnergy>;
   /** 雨の日にした日。散歩を家の中の代わりにする */
   rainyDays: DateKey[];
+  /** 帰宅時の答えと、そのときの予測。答えと eveningEnergy を比べて値を合わせる */
+  energyChecks: Record<DateKey, EnergyCheck>;
+  /** 済ませたデータの移行の名前（同じ移行を2回しないため） */
+  migrations: string[];
 }
 
 // ---------- 日付 ----------

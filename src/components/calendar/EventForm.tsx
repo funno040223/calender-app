@@ -16,6 +16,8 @@ interface Draft {
   description: string;
   travelMinutes: string;
   atHome: boolean;
+  /** 在宅でも顔を出す予定（身支度の時間を取る） */
+  needsPrep: boolean;
   awayFromHome: boolean;
 }
 
@@ -31,6 +33,7 @@ function toDraft(ev: OwnEvent): Draft {
     description: ev.description ?? "",
     travelMinutes: ev.travelMinutes === undefined ? "" : String(ev.travelMinutes),
     atHome: !!ev.atHome,
+    needsPrep: !!ev.needsPrep,
     awayFromHome: !!ev.awayFromHome,
   };
 }
@@ -93,6 +96,7 @@ export default function EventForm({
       ...(d.description.trim() ? { description: d.description.trim() } : {}),
       ...(travel !== undefined ? { travelMinutes: travel } : {}),
       ...(d.atHome ? { atHome: true } : {}),
+      ...(!d.allDay && d.needsPrep ? { needsPrep: true } : {}),
       ...(d.allDay && d.awayFromHome ? { awayFromHome: true } : {}),
     };
     onSave(ev);
@@ -182,6 +186,13 @@ export default function EventForm({
             <input type="checkbox" className="ios-switch" checked={d.atHome} onChange={(e) => set("atHome", e.target.checked)} />
           </label>
         </div>
+        <label className="flex items-center justify-between gap-2 rounded-lg border border-line px-3 py-2 text-[15px]">
+          <span>
+            顔を出す（身支度をする）
+            <span className="block text-[12px] text-muted">外出する予定と、会議のリンクがある予定は自動で身支度をします</span>
+          </span>
+          <input type="checkbox" className="ios-switch" checked={d.needsPrep} onChange={(e) => set("needsPrep", e.target.checked)} />
+        </label>
         <textarea
           className={`${inputCls} min-h-20`}
           placeholder="メモ"

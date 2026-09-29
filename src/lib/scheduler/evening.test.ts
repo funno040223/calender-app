@@ -76,3 +76,40 @@ describe("起床・就寝からの時間帯と雨の日", () => {
     expect(w.end - w.start).toBe(15 * 60_000);
   });
 });
+
+describe("身支度・習慣の優先度・自己成長の枠", () => {
+  it("身支度は、外出する予定と会議のリンクがある予定の日だけ取る", () => {
+    const meet = { id: "m", title: "面談", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 14), description: "https://meet.google.com/abc-defg-hij" };
+    const home = { id: "h", title: "作業", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 14) };
+    const routine = (ev: CalendarEvent) => plan(baseInput(now, { events: [ev] })).blocks.find((b) => b.kind === "routine")!;
+    expect(routine(meet).title).toBe("朝ルーティン・身支度");
+    expect(routine(meet).end - routine(meet).start).toBe(55 * 60_000);
+    expect(routine(home).title).toBe("朝ルーティン");
+    expect(routine({ ...home, needsPrep: true }).title).toBe("朝ルーティン・身支度");
+  });
+
+  it("締切のために習慣を外すときは、なるべく残す習慣を最後にする", () => {
+    const h = (id: string, start: number, keepLast?: boolean): Habit => ({
+      id, name: id, durationMinutes: 480, windowStart: start, windowEnd: start + 480, frequency: { type: "daily" }, skippable: true, keepLast,
+    });
+    // 朝の散歩（なるべく残す）と夕方の作業（飛ばしてよい）。締切までに8時間の空きが1つ要る
+    const habits = [h("walk", 9 * 60 + 15, true), h("other", 17 * 60 + 30)];
+    const big: Task = { id: "b", title: "大仕事", durationMinutes: 480, priority: 3, deadline: jst(2026, 10, 2, 2) };
+    const tag: Tag = { id: "g", name: "g", mode: "gap", defaultMinutes: 60, minChunkMinutes: 15, maxChunkMinutes: 480 };
+    const r = plan(baseInput(now, { habits, tasks: [{ ...big, tagId: "g" }], tags: [tag], settings: { ...baseInput(now).settings, minSlackMinutesPerDay: 0 } }));
+    const d = r.dayPlans[0];
+    const kept = (id: string) => r.blocks.some((b) => b.refId === id && b.start >= d.wake && b.start < d.bed);
+    expect(kept("walk")).toBe(true);
+    expect(kept("other")).toBe(false);
+  });
+
+  it("自己成長の枠は、締切に間に合わないタスクがない休日だけ置く", () => {
+    const growth: Habit = { id: "grow", name: "自己成長", durationMinutes: 90, windowStart: 10 * 60, windowEnd: 20 * 60, frequency: { type: "onTrackHoliday" }, skippable: true };
+    const placed = (r: ReturnType<typeof plan>) => r.blocks.filter((b) => b.refId === "grow");
+    expect(placed(plan(baseInput(now, { habits: [growth] }))).length).toBeGreaterThan(0);
+    const impossible: Task = { id: "x", title: "無理", durationMinutes: 6000, priority: 3, deadline: jst(2026, 10, 1, 20) };
+    expect(placed(plan(baseInput(now, { habits: [growth], tasks: [impossible] })))).toEqual([]);
+    const workday = { id: "w", title: "授業", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 14) };
+    expect(placed(plan(baseInput(now, { habits: [growth], events: [workday] }))).some((b) => b.start < jst(2026, 10, 2))).toBe(false);
+  });
+});

@@ -188,9 +188,10 @@ export function plan(input: PlanInput): PlanResult {
   const routineBlocks: Block[] = [];
   for (const d of days) {
     const cap = d.leave ?? d.firstEvent?.start ?? Infinity;
-    const end = Math.min(d.wake + (s.routineMinutes + s.prepMinutes) * MIN, cap);
+    // 身支度は、人に会う予定がある日だけ
+    const end = Math.min(d.wake + (s.routineMinutes + (d.prep ? s.prepMinutes : 0)) * MIN, cap);
     if (end > d.wake && end > now) {
-      routineBlocks.push({ kind: "routine", refId: "routine", title: "朝ルーティン・準備", start: d.wake, end });
+      routineBlocks.push({ kind: "routine", refId: "routine", title: d.prep ? "朝ルーティン・身支度" : "朝ルーティン", start: d.wake, end });
     }
   }
 
@@ -314,8 +315,9 @@ export function plan(input: PlanInput): PlanResult {
   const habits = [...input.habits].sort((a, b) => rank(a) - rank(b));
   // 行動ポイントに余裕がある日だけの習慣（自炊など）は、タスクを置いたあとに置く
   const energyHabits = habits.filter((h) => h.frequency.type === "whenEnergy");
+  const onTrackHabits = habits.filter((h) => h.frequency.type === "onTrackHoliday");
   for (const habit of habits) {
-    if (habit.frequency.type === "whenEnergy") continue;
+    if (habit.frequency.type === "whenEnergy" || habit.frequency.type === "onTrackHoliday") continue;
     const dur = habit.durationMinutes * MIN;
     const prevOf = (window: Interval) =>
       movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end)?.start;
@@ -394,7 +396,10 @@ export function plan(input: PlanInput): PlanResult {
 
   // 締切を守るために、飛ばしてよい習慣を1つ外して空きに戻す
   const releaseHabitBefore = (deadline: number): boolean => {
-    const idx = placedHabits.findIndex((h) => h.releasable && h.block.start >= now && h.block.start < deadline);
+    // なるべく残す習慣（朝の散歩など）は、ほかに外せるものがないときだけ外す
+    const can = (h: (typeof placedHabits)[number]) => h.releasable && h.block.start >= now && h.block.start < deadline;
+    let idx = placedHabits.findIndex((h) => can(h) && !h.habit.keepLast);
+    if (idx < 0) idx = placedHabits.findIndex(can);
     if (idx < 0) return false;
     const [{ block }] = placedHabits.splice(idx, 1);
     blocks.splice(blocks.indexOf(block), 1);
@@ -407,7 +412,7 @@ export function plan(input: PlanInput): PlanResult {
   // ---- タスク ----
   const avoidWindows = input.avoidWindows ?? [];
   const focusZonesOf = (d: DayPlan) => ({
-    afterWakeEnd: (d.leave ?? d.wake + (s.routineMinutes + s.prepMinutes) * MIN) + s.avoidFocusAfterWakeMinutes * MIN,
+    afterWakeEnd: (d.leave ?? d.wake + (s.routineMinutes + (d.prep ? s.prepMinutes : 0)) * MIN) + s.avoidFocusAfterWakeMinutes * MIN,
     beforeBedStart: d.bed - (s.windDownMinutes + s.avoidFocusBeforeBedMinutes) * MIN,
   });
   const dayLoad = new Map<number, number>();
@@ -574,6 +579,22 @@ export function plan(input: PlanInput): PlanResult {
       const start = findStart(intersect(free, window), dur, () => true, prev?.start);
       if (start === undefined) continue;
       placeHabitBlock(habit, { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur }, habit.skippable);
+    }
+  }
+
+  // ---- 見通しが順調な休日だけの習慣（自己成長の時間など） ----
+  // 締切に間に合わないタスクが1つでもあれば置かない（まずタスクを片付ける）
+  if (shortfalls.length === 0) {
+    for (const habit of onTrackHabits) {
+      const dur = habit.durationMinutes * MIN;
+      for (const d of days.filter((x) => x.holiday)) {
+        const window = habitWindow(habit, d);
+        if (window.end <= now) continue;
+        const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);
+        const start = findStart(intersect(free, window), dur, () => true, prev?.start);
+        if (start === undefined) continue;
+        placeHabitBlock(habit, { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur }, habit.skippable);
+      }
     }
   }
 

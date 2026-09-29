@@ -35,6 +35,17 @@ export const WALK_TIMES = {
   rainAlternative: { title: "窓際で光を浴びる＋家での運動", durationMinutes: 15 },
 } as const satisfies Partial<Habit>;
 
+/** 自己成長の時間：タスクの見通しが順調な休日だけ、仮でもカレンダーに置く */
+export const GROWTH_HABIT: Habit = {
+  id: "habit-growth",
+  name: "自己成長（読書・勉強など）",
+  durationMinutes: 90,
+  windowStart: 10 * 60,
+  windowEnd: 20 * 60,
+  frequency: { type: "onTrackHoliday" },
+  skippable: true,
+};
+
 export const SAMPLE_HABITS: Habit[] = [
   // 昼食は30分で十分。食後30分の休憩は集中系だけ避ける（合わせて1時間）。多少遅れてもよいので幅は広め
   {
@@ -69,6 +80,7 @@ export const SAMPLE_HABITS: Habit[] = [
     ...WALK_TIMES,
     frequency: { type: "daily" },
     skippable: true,
+    keepLast: true,
     energyCost: -1,
   },
   // 自炊は、行動ポイントに余裕がある日だけ（外出の多い日には入れない）
@@ -114,13 +126,17 @@ export const SAMPLE_HABITS: Habit[] = [
     duringHabitId: "habit-laundry",
     energyCost: 0.5,
   },
+  GROWTH_HABIT,
 ];
 
 /** 行動ポイントが上限を超える日に提案する発散 */
 export const SAMPLE_RECOVERY_OPTIONS: RecoveryOption[] = [
-  { name: "ゲーム・動画", durationMinutes: 30, energy: -1.5 },
-  // 夕方以降の昼寝は夜の眠気を減らすので、16時までにする
-  { name: "昼寝・ごろごろする", durationMinutes: 30, energy: -1, latestStartMinuteOfDay: 16 * 60 },
+  // 根拠は docs/research/fatigue-recovery-research.md。ゲーム・動画は疲れが取れないので候補にしない
+  // 昼寝は10〜20分、15時まで（30分だと起きた直後にぼんやりが残り、遅いと夜の眠気が減る）
+  { name: "昼寝（20分まで）", durationMinutes: 20, energy: -1, latestStartMinuteOfDay: 15 * 60 },
+  // 10分ほどの小休憩で疲れが減る（Albulescu 2022）。画面は見ない
+  { name: "少し歩く・ストレッチ（画面を見ない）", durationMinutes: 10, energy: -0.5 },
+  { name: "横になって目を閉じる（画面を見ない）", durationMinutes: 10, energy: -0.5 },
 ];
 
 export const SAMPLE_AVOID_WINDOWS: AvoidWindow[] = [

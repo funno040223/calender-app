@@ -17,12 +17,13 @@ interface Draft {
   anchor: "clock" | "wake" | "bed";
   offStart: string;
   offEnd: string;
-  freq: "daily" | "weekly" | "whenEnergy" | "interval";
+  freq: "daily" | "weekly" | "whenEnergy" | "interval" | "onTrackHoliday";
   times: string;
   minDays: string;
   maxDays: string;
   meal: boolean;
-  skippable: boolean;
+  /** 締切が迫ったときの扱い：飛ばさない／なるべく残す／飛ばしてよい */
+  keep: "never" | "last" | "ok";
   avoidAfter: string;
   energy: string;
   hasFinish: boolean;
@@ -51,7 +52,7 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
     minDays: String(habit?.frequency.type === "interval" ? habit.frequency.minDays : 4),
     maxDays: String(habit?.frequency.type === "interval" ? habit.frequency.maxDays : 7),
     meal: habit?.meal ?? false,
-    skippable: habit?.skippable ?? true,
+    keep: habit && !habit.skippable ? "never" : habit?.keepLast ? "last" : "ok",
     avoidAfter: habit?.avoidFocusAfterMinutes === undefined ? "" : String(habit.avoidFocusAfterMinutes),
     energy: habit?.energyCost === undefined ? "" : String(habit.energyCost),
     hasFinish: !!habit?.finish,
@@ -94,8 +95,9 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
       windowStart: span.start,
       windowEnd: span.end,
       frequency: { type: "daily" },
-      skippable: d.skippable,
+      skippable: d.keep !== "never",
     };
+    if (d.keep === "last") next.keepLast = true;
     if (relative) next.anchor = d.anchor as "wake" | "bed";
     // 雨の日の代わりは、今はこの画面では変えない（散歩の初期値のまま残す）
     if (habit?.rainAlternative) next.rainAlternative = habit.rainAlternative;
@@ -105,6 +107,7 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
       next.frequency = { type: "weekly", times: Math.round(times) };
     }
     if (!during && d.freq === "whenEnergy") next.frequency = { type: "whenEnergy" };
+    if (!during && d.freq === "onTrackHoliday") next.frequency = { type: "onTrackHoliday" };
     if (!during && d.freq === "interval") {
       const lo = num(d.minDays);
       const hi = num(d.maxDays);
@@ -235,6 +238,7 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
                 { value: "daily", label: "毎日" },
                 { value: "weekly", label: "週に何回か" },
                 { value: "whenEnergy", label: "余裕がある日" },
+                { value: "onTrackHoliday", label: "順調な休日" },
                 { value: "interval", label: "間隔" },
               ]}
             />
@@ -261,13 +265,19 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
         </>
       )}
 
-      <label className="flex items-center justify-between gap-3">
-        <span>
-          <span className="block text-[16px]">飛ばしてよい</span>
-          <span className="block text-[12px] text-muted">締切が迫ったら、この習慣をお休みにしてタスクを入れます</span>
-        </span>
-        <Switch label="飛ばしてよい" checked={d.skippable} onChange={(v) => set("skippable", v)} />
-      </label>
+      <Field label="締切が迫ったとき" help="「なるべく残す」は、ほかにお休みにできる習慣がないときだけお休みにします">
+        <Segmented
+          label="締切が迫ったとき"
+          full
+          value={d.keep}
+          onChange={(v) => set("keep", v)}
+          options={[
+            { value: "never", label: "飛ばさない" },
+            { value: "last", label: "なるべく残す" },
+            { value: "ok", label: "飛ばしてよい" },
+          ]}
+        />
+      </Field>
 
       {!during && (
         <label className="flex items-center justify-between gap-3">
@@ -333,7 +343,9 @@ function summary(h: Habit, habits: Habit[]): string {
         ? `週${h.frequency.times}回`
         : h.frequency.type === "interval"
           ? `${h.frequency.minDays}〜${h.frequency.maxDays}日ごと`
-          : "余裕がある日";
+          : h.frequency.type === "onTrackHoliday"
+            ? "順調な休日"
+            : "余裕がある日";
   const when =
     h.anchor === "wake"
       ? `起床の${h.windowStart}〜${h.windowEnd}分後`
@@ -343,6 +355,7 @@ function summary(h: Habit, habits: Habit[]): string {
   const parts = [freq, when, formatMinutes(h.durationMinutes)];
   if (h.finish) parts.push(`${h.finish.afterStartMinutes}分後に${h.finish.title}`);
   if (!h.skippable) parts.push("飛ばさない");
+  else if (h.keepLast) parts.push("なるべく残す");
   return parts.join("・");
 }
 

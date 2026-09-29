@@ -194,7 +194,7 @@ export default function CalendarView(props: CalendarViewProps) {
           extendedProps: { type: "sleep" } satisfies Extended,
         });
       }
-      // 就寝の2時間前から：タバコを控える時間
+      // 就寝の3時間前から：タバコを控える時間
       for (const d of days) {
         const from = d.bed - SMOKE_CUTOFF_MINUTES * MIN;
         out.push({

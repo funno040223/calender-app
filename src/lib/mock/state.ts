@@ -10,6 +10,7 @@ import {
   SAMPLE_TAGS,
   SAMPLE_TREATS,
   BATH,
+  GROWTH_HABIT,
   WALK_TIMES,
   buildSampleCourses,
   buildSampleOwnEvents,
@@ -47,6 +48,8 @@ const DATA_KEYS = [
   "hiddenCalendars",
   "eveningEnergy",
   "rainyDays",
+  "energyChecks",
+  "migrations",
 ] as const satisfies readonly (keyof MockData)[];
 
 /** 日本時間で動かすので、タイムゾーンは設定で変えられない */
@@ -75,7 +78,20 @@ export function sampleData(now: number): MockData {
     hiddenCalendars: [],
     eveningEnergy: {},
     rainyDays: [],
+    energyChecks: {},
+    migrations: [...MIGRATIONS],
   };
+}
+
+/** 2026-09-29 のすり合わせ：朝の散歩はなるべく残す、順調な休日に自己成長の枠を置く */
+const MIGRATIONS = ["2026-09-29-walk-keeplast", "2026-09-29-growth"] as const;
+
+function migrate(d: MockData): MockData {
+  const done = new Set(d.migrations);
+  let habits = d.habits;
+  if (!done.has("2026-09-29-walk-keeplast")) habits = habits.map((h) => (h.id === "habit-walk" ? { ...h, keepLast: true } : h));
+  if (!done.has("2026-09-29-growth") && !habits.some((h) => h.id === GROWTH_HABIT.id)) habits = [...habits, GROWTH_HABIT];
+  return { ...d, habits, migrations: [...new Set([...d.migrations, ...MIGRATIONS])] };
 }
 
 const EVENING_LEVELS: EveningEnergy[] = ["high", "normal", "low"];
@@ -102,7 +118,7 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
   const d = raw as Partial<Record<keyof MockData, unknown>>;
   if (d.version !== 2) return undefined;
   const s = sampleData(now);
-  return {
+  return migrate({
     version: 2,
     settings: normalizeSettings(d.settings as Partial<Settings> | undefined),
     places: arr(d.places, s.places),
@@ -135,7 +151,12 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
           )
         : {},
     rainyDays: arr<unknown>(d.rainyDays, []).filter((x): x is string => typeof x === "string"),
-  };
+    energyChecks:
+      d.energyChecks && typeof d.energyChecks === "object" && !Array.isArray(d.energyChecks)
+        ? (d.energyChecks as MockData["energyChecks"])
+        : {},
+    migrations: arr<unknown>(d.migrations, []).filter((x): x is string => typeof x === "string"),
+  });
 }
 
 /**

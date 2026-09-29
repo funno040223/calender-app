@@ -27,10 +27,13 @@ export interface NoticeInput {
 const MIN = 60_000;
 export const NOTICE_LEAD_MINUTES = 15;
 export const NOTICE_HORIZON_MS = 48 * 60 * MIN;
-/** タバコの区切り（就寝の何分前） */
-export const SMOKE_CUTOFF_MINUTES = 120;
+/** タバコの区切り（就寝の何分前）。就寝前4時間以内の喫煙は睡眠を悪くする（Spadola 2019）。まずは3時間から */
+export const SMOKE_CUTOFF_MINUTES = 180;
 /** 寝る準備の合図（就寝の何分前） */
 export const BED_PREP_MINUTES = 30;
+/** 入浴：40〜42.5℃で10分以上、就寝の1〜2時間前（Haghayegh 2019）。入浴中に Watch を充電して、寝るときの記録に間に合わせる */
+const BATH_HABIT_ID = "habit-bath";
+const BATH_NOTE = "。お湯は40〜42℃で10分以上。入浴中に Apple Watch を充電";
 
 /**
  * 配置の結果から、これから送る通知を作る。
@@ -38,7 +41,8 @@ export const BED_PREP_MINUTES = 30;
  * - 習慣とタスクの枠の始まり（朝ルーティンは毎朝のまとめに含める）
  * - 毎朝、起床の時刻にその日のまとめ
  * - 外出した日は、帰宅の時刻に残りの体力を聞く（答えていなければ）
- * - 就寝の2時間前に「タバコはここまで」、30分前に「寝る準備」
+ * - 就寝の3時間前に「タバコはここまで」、30分前に「寝る準備」（Apple Watch をつける）
+ * - 入浴の始まりに、湯温の目安と Apple Watch の充電
  * 就寝から次の起床までに入るものは送らない（毎朝のまとめは起床の時刻ちょうどなので送る）
  */
 export function buildNotices(input: NoticeInput): Notice[] {
@@ -75,7 +79,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
       key: `block:${b.kind}:${b.refId}:${b.start}`,
       at: b.start,
       title: b.title,
-      body: `${formatTime(b.start)}〜${formatTime(b.end)}`,
+      body: `${formatTime(b.start)}〜${formatTime(b.end)}${b.refId === BATH_HABIT_ID ? BATH_NOTE : ""}`,
       url: "/",
     });
   }
@@ -116,7 +120,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
       key: `bedprep:${d.dayStart}`,
       at: d.bed - BED_PREP_MINUTES * MIN,
       title: "寝る準備の時間です",
-      body: `歯みがきをして、スマホを充電場所へ。就寝は ${formatTime(d.bed)}。`,
+      body: `歯みがきをして、スマホを充電場所へ。Apple Watch をつけて、就寝は ${formatTime(d.bed)}。`,
       url: "/",
     });
   }
