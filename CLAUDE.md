@@ -39,7 +39,7 @@
 - `src/lib/sync/` Supabase との同期（`remote.ts` app_state、`ical.ts` 取り込み元）
 - `src/lib/supabase/` クライアント（ブラウザ用・サーバー用・`admin.ts` secret key 用）。`src/lib/server/plan.ts` サーバーでの組み直し（取り込みも）
 - `src/lib/notify/build.ts` 通知の一覧（予定の15分前・身支度の開始・枠の始まり・毎朝のまとめ・帰宅時の体力・就寝3時間前のタバコ・30分前の寝る準備。就寝〜起床は送らない）
-- `src/components/calendar/CalendarView.tsx`：3日・週は横に長く並べた日を指で動かす（1日ずつ止まる、端で並べ直す）。月は週を縦に途切れずに並べる（1週ずつ止まる、見渡し用：終日の予定と締切〆だけ文字、時刻の予定は点、日付を押すと3日表示へ）。ピンチ（Ctrl＋スクロール）で30分の高さ 20〜90px、予定も同時に伸び縮み。1回目のタップは選ぶだけ、同じものをもう1回で詳しく開く（iPhone は1タップで2回届くので500ms以内の2回目は無視）。iPhone の注意：指を置いている間に scrollLeft を変えると日付だけ入れ替わって何日も飛ぶ（並べ直し・日の境目へ寄せるのは指を離して止まってから）。overflow-x を切り替えると横の位置が0に戻ることがある（上下に動かす間の横の止めは、位置を覚えて毎回戻す）
+- `src/components/calendar/CalendarView.tsx`：3日・週は横に長く並べた日を指で動かす（1日ずつ止まる、端で並べ直す）。月は週を縦に途切れずに並べる（1週ずつ止まる、見渡し用：終日の予定と締切〆だけ文字、時刻の予定は点、日付を押すと3日表示へ）。ピンチ（Ctrl＋スクロール）で30分の高さ 20〜90px、予定も同時に伸び縮み。1回目のタップは選ぶだけ、同じものをもう1回で詳しく開く（iPhone は1タップで2回届くので500ms以内の2回目は無視）。iPhone の注意：指を置いている間に scrollLeft を変えると日付だけ入れ替わって何日も飛ぶ（並べ直し・日の境目へ寄せるのは指を離して止まってから）。overflow-x を切り替えると横の位置が0に戻ることがある（そのため今は、純正カレンダーと同じく横の枠（.cal-strip）の中に縦の枠（FullCalendar 自身の時刻の欄のスクロール）を入れ、向きの判定はしない。時刻の目盛りは外に出した .cal-axis を縦の枠に合わせて動かす）
 - 根拠の資料：`docs/research/fatigue-recovery-research.md`（回復・睡眠・喫煙・疲れのモデル）
 - `public/sw.js` 電波がなくても開けるように、主な画面と部品を控える（**中身を変えたら VERSION を上げる**。画面を増やしたら SHELL に足す）。登録は `src/components/app/ServiceWorker.tsx`（本番だけ）。本番の形での確認は `.claude/launch.json` の "prod"（ポート3001、先に `npm run build`）。アイコンは `node scripts/make-icons.mjs`
 - `src/proxy.ts` ログインの確認と自動延長。未ログインはページ→/login、API→401

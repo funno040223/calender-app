@@ -37,12 +37,8 @@ type Extended = (
   group?: string;
 };
 
-/** 止めていた横のスクロールを戻す。戻したときに横の位置が0に戻ってしまうことがあるので、止めたときの位置に戻す */
-function releaseX(el: HTMLElement, left: number) {
-  if (el.style.overflowX !== "hidden") return;
-  el.style.overflowX = "";
-  el.scrollLeft = left;
-}
+/** 時刻の欄の縦のスクロール枠（FullCalendar が持つ） */
+const timeScroller = (el: HTMLElement) => el.querySelector<HTMLElement>(".fc-timegrid-body")?.closest<HTMLElement>(".fc-scroller") ?? null;
 
 /** 3日・週は、横に長く並べた日を指で動かす（1日ずつ止まる）。月はふつうの月表示 */
 export type CalendarMode = "day3" | "week" | "month";
@@ -256,7 +252,11 @@ export default function CalendarView(props: CalendarViewProps) {
   const [col, setCol] = useState(0);
   const axis = useRef(44);
   const pendingScroll = useRef<number | null>(STRIP_LEAD);
+  /** 時刻の目盛り（横の枠の外に置き、縦の枠に合わせて動かす） */
+  const boxRef = useRef<HTMLDivElement>(null);
+  const axisInnerRef = useRef<HTMLDivElement>(null);
   const didScrollTime = useRef(false);
+  const [axisBox, setAxisBox] = useState<{ top: number; height: number; allDayTop: number; allDayHeight: number }>();
 
   const setTitleFor = useCallback(
     (dayFc: number) => {
@@ -288,14 +288,6 @@ export default function CalendarView(props: CalendarViewProps) {
     el.scrollLeft = idx * col;
     requestAnimationFrame(() => (el.style.scrollSnapType = ""));
     setTitleFor(anchor + idx * DAY_MS);
-    // 縦は、最初だけ今の1時間前から見せる
-    if (!didScrollTime.current) {
-      didScrollTime.current = true;
-      const hour = Math.max(0, toFc(Date.now()).getUTCHours() - 1);
-      const row = el.querySelector<HTMLElement>(`.fc-timegrid-slot-lane[data-time="${String(hour).padStart(2, "0")}:00:00"]`);
-      const head = el.querySelector<HTMLElement>(".fc-col-header")?.offsetHeight ?? 0;
-      if (row) el.scrollTop = Math.max(0, row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - head - 8);
-    }
   }, [strip, col, anchor, setTitleFor]);
 
   const firstVisibleIdx = () => {
@@ -339,12 +331,10 @@ export default function CalendarView(props: CalendarViewProps) {
     const el = wrapRef.current;
     if (!strip || !el) return;
     let pinch: { d0: number; h0: number; y: number; top0: number; left0: number } | null = null;
+    const box = boxRef.current ?? el;
+    /** 縦に動く枠（FullCalendar の時刻の欄） */
+    const vs = () => timeScroller(el) ?? el;
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-    /** 時刻の欄が始まる位置（日付の見出しと終日の欄は伸び縮みしないので、ここから下だけを拡大する） */
-    const gridTop = () => {
-      const body = el.querySelector<HTMLElement>(".fc-timegrid-body");
-      return body ? body.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : 0;
-    };
     /**
      * 予定・枠・睡眠の帯・今の線の位置（上と下からの距離）を、拡大を始めたときに控える。
      * 拡大の間はこれを同じ割合で伸ばし、時刻の目盛りと一緒に動かす（FullCalendar の描き直しは終わってから）
@@ -369,16 +359,15 @@ export default function CalendarView(props: CalendarViewProps) {
     };
     /** ピンチを始めた点の時刻が、指の下から動かないように縦の位置を合わせる */
     const apply = (h: number, focusY: number, top0: number, h0: number) => {
-      const g = gridTop();
-      const at = top0 + focusY - g;
+      const at = top0 + focusY;
       slotRef.current = h;
-      el.style.setProperty("--slot-h", `${h}px`);
+      box.style.setProperty("--slot-h", `${h}px`);
       const r = marksH > 0 ? h / marksH : 1;
       for (const m of marks) {
         m.el.style.top = `${m.top * r}px`;
         if (m.bottom !== null) m.el.style.bottom = `${m.bottom * r}px`;
       }
-      el.scrollTop = g + at * (h / h0) - focusY;
+      vs().scrollTop = at * (h / h0) - focusY;
     };
     const save = () => {
       setSlotH(slotRef.current);
@@ -390,17 +379,17 @@ export default function CalendarView(props: CalendarViewProps) {
     };
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 2) return;
-      const rect = el.getBoundingClientRect();
+      const v = vs();
       pinch = {
         d0: dist(e.touches),
         h0: slotRef.current,
-        y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top,
-        top0: el.scrollTop,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - v.getBoundingClientRect().top,
+        top0: v.scrollTop,
         left0: el.scrollLeft,
       };
-      // ピンチの間はスクロールと、1日ずつ止める仕組みを止める（拡大・縮小とぶつからないように）
+      // ピンチの間は縦と横のスクロールと、1日ずつ止める仕組みを止める（拡大・縮小とぶつからないように）
       el.style.scrollSnapType = "none";
-      el.style.overflow = "hidden";
+      el.classList.add("is-pinching");
       takeMarks();
     };
     const onMove = (e: TouchEvent) => {
@@ -413,7 +402,7 @@ export default function CalendarView(props: CalendarViewProps) {
       if (!pinch || e.touches.length >= 2) return;
       const left = pinch.left0;
       pinch = null;
-      el.style.overflow = "";
+      el.classList.remove("is-pinching");
       // 横の位置を1日の境目にそろえてから、止める仕組みを戻す
       const c = el.clientWidth > 0 && col > 0 ? col : 1;
       el.scrollLeft = Math.round(left / c) * c;
@@ -427,10 +416,10 @@ export default function CalendarView(props: CalendarViewProps) {
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      const rect = el.getBoundingClientRect();
+      const v = vs();
       const h0 = slotRef.current;
       if (marks.length === 0) takeMarks();
-      apply(clampSlot(h0 * Math.exp(-e.deltaY * 0.005)), e.clientY - rect.top, el.scrollTop, h0);
+      apply(clampSlot(h0 * Math.exp(-e.deltaY * 0.005)), e.clientY - v.getBoundingClientRect().top, v.scrollTop, h0);
       window.clearTimeout(wheelTimer);
       wheelTimer = window.setTimeout(() => {
         relayout();
@@ -455,71 +444,93 @@ export default function CalendarView(props: CalendarViewProps) {
     };
   }, [strip, col]);
 
-  // ---- 上下に動かしている間は、左右に動かさない（iPhone は向きを固定しないので、指が少し斜めだと横にずれる） ----
-  /** "y" のあいだは横のスクロールを止めている。touching は指が画面に触れているか、scrolledAt は最後に動いた時刻 */
-  // left は止めたときの横の位置。iPhone は横のスクロールを止めたり戻したりすると、横の位置を0（並べた最初の日）に戻すことがあるので、そのたびに戻す
-  const axisLock = useRef<{ axis?: "x" | "y"; touching: boolean; scrolledAt: number; left: number }>({ touching: false, scrolledAt: 0, left: 0 });
+  // ---- 指が触れているか（並べ直しは指を離して止まってから） ----
+  const touch = useRef({ down: false, scrolledAt: 0 });
   useEffect(() => {
     const el = wrapRef.current;
     if (!strip || !el) return;
-    let start: { x: number; y: number } | null = null;
     let endTimer = 0;
-    const onStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) {
-        start = null;
-        return;
-      }
-      start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    const onStart = () => {
+      touch.current.down = true;
       window.clearTimeout(endTimer);
-      // 向きは動き始めてから決め直す（横の止めは、横に動かしたときに外す）
-      axisLock.current.axis = undefined;
-      axisLock.current.touching = true;
-    };
-    const onMove = (e: TouchEvent) => {
-      if (!start || axisLock.current.axis || e.touches.length !== 1) return;
-      const dx = Math.abs(e.touches[0].clientX - start.x);
-      const dy = Math.abs(e.touches[0].clientY - start.y);
-      if (Math.max(dx, dy) < 8) return;
-      axisLock.current.axis = dy > dx ? "y" : "x";
-      if (axisLock.current.axis === "y") {
-        if (el.style.overflowX !== "hidden") axisLock.current.left = el.scrollLeft;
-        el.style.overflowX = "hidden";
-        el.scrollLeft = axisLock.current.left;
-      } else releaseX(el, axisLock.current.left);
     };
     const onEnd = (e: TouchEvent) => {
       if (e.touches.length > 0) return;
-      axisLock.current.touching = false;
-      start = null;
-      // 惰性で動いていなければ、ここで止まったものとして片付ける（指を置いている間は、並べ直さずに待っていた）
-      window.clearTimeout(endTimer);
+      touch.current.down = false;
+      // 惰性で動いていなければ、ここで止まったものとして片付ける
       endTimer = window.setTimeout(() => {
-        if (Date.now() - axisLock.current.scrolledAt > 150) settleRef.current();
+        if (Date.now() - touch.current.scrolledAt > 150) settleRef.current();
       }, 200);
     };
     el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: true });
     el.addEventListener("touchend", onEnd);
     el.addEventListener("touchcancel", onEnd);
     return () => {
       el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
       window.clearTimeout(endTimer);
-      el.style.overflowX = "";
     };
   }, [strip]);
 
+  // ---- 時刻の目盛り：縦の枠の位置と高さに合わせ、縦に動かしたら一緒に動かす ----
+  // FullCalendar は描き直しで縦の枠を作り直すことがあるので、枠は毎回探し、スクロールは外側で受け取る（capture）
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    const boxEl = boxRef.current;
+    if (!strip || !el || !boxEl || col === 0) return;
+    const measure = () => {
+      const v = timeScroller(el);
+      if (!v) return;
+      const b = boxEl.getBoundingClientRect();
+      const r = v.getBoundingClientRect();
+      const a = el.querySelector<HTMLElement>(".fc-timegrid .fc-daygrid-body")?.getBoundingClientRect();
+      const next = { top: r.top - b.top, height: r.height, allDayTop: a ? a.top - b.top : 0, allDayHeight: a?.height ?? 0 };
+      setAxisBox((p) => (p && Object.entries(next).every(([k, x]) => Math.abs(p[k as keyof typeof p] - x) < 0.5) ? p : next));
+    };
+    const sync = () => {
+      const v = timeScroller(el);
+      if (v && axisInnerRef.current) axisInnerRef.current.style.transform = `translateY(${-v.scrollTop}px)`;
+    };
+    const onScroll = (e: Event) => {
+      if (e.target !== el) sync();
+    };
+    measure();
+    sync();
+    // 縦は、最初だけ今の1時間前から見せる（FullCalendar が描き終えてから）
+    let raf = 0;
+    if (!didScrollTime.current) {
+      didScrollTime.current = true;
+      raf = requestAnimationFrame(() => {
+        const hour = Math.max(0, toFc(Date.now()).getUTCHours() - 1);
+        api()?.scrollToTime(`${String(hour).padStart(2, "0")}:00:00`);
+        sync();
+      });
+    }
+    const ro = new ResizeObserver(() => {
+      measure();
+      sync();
+    });
+    ro.observe(el);
+    const fcRoot = el.querySelector<HTMLElement>(".fc");
+    if (fcRoot) ro.observe(fcRoot);
+    const allDay = el.querySelector<HTMLElement>(".fc-timegrid .fc-daygrid-body");
+    if (allDay) ro.observe(allDay);
+    el.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      el.removeEventListener("scroll", onScroll, { capture: true });
+    };
+  });
+
   /**
-   * 動きが止まったときの片付け：横の止めを外し、日の途中なら境目へ、端に近ければ並べ直す。
+   * 横の動きが止まったときの片付け：日の途中なら境目へ、端に近ければ並べ直す。
    * 指を置いている間はしない（iPhone は指で動かしている途中に位置を変えると、元の位置に戻して日付だけ入れ替わり、何日も飛ぶ）
    */
   const settle = () => {
     const el = wrapRef.current;
-    if (!el || col === 0 || axisLock.current.touching) return;
-    releaseX(el, axisLock.current.left);
-    axisLock.current.axis = undefined;
+    if (!el || col === 0 || touch.current.down) return;
     // 止まる仕組みが効かずに日の途中で止まったら、近いほうの日の境目まで動かす
     const off = el.scrollLeft / col;
     if (Math.abs(off - Math.round(off)) * col > 1) {
@@ -537,10 +548,8 @@ export default function CalendarView(props: CalendarViewProps) {
   const handleScroll = () => {
     const el = wrapRef.current;
     if (!el || col === 0) return;
-    // 上下に動かしている間は、横の位置を止めたときのままにする
-    if (axisLock.current.axis === "y" && el.scrollLeft !== axisLock.current.left) el.scrollLeft = axisLock.current.left;
     setTitleFor(anchor + Math.round(el.scrollLeft / col) * DAY_MS);
-    axisLock.current.scrolledAt = Date.now();
+    touch.current.scrolledAt = Date.now();
     window.clearTimeout(scrollEndTimer.current);
     scrollEndTimer.current = window.setTimeout(settle, 180);
   };
@@ -806,8 +815,9 @@ export default function CalendarView(props: CalendarViewProps) {
         dayGridStrip: { type: "dayGrid", duration: { weeks: MONTH_WEEKS } },
       }}
       headerToolbar={false}
-      height="auto"
-      stickyHeaderDates
+      // 3日・週は高さいっぱいにして、時刻の欄を FullCalendar 自身に縦に動かさせる（横は外側の枠）。月は外側の枠で縦に動かす
+      height={strip ? "100%" : "auto"}
+      stickyHeaderDates={!strip}
       events={events}
       eventContent={renderEventContent}
       dayHeaderContent={renderDayHeader}
@@ -845,7 +855,9 @@ export default function CalendarView(props: CalendarViewProps) {
       eventTimeFormat={{ hour: "numeric", minute: "2-digit", hour12: false }}
       scrollTime={scrollTime}
       scrollTimeReset={false}
-      allDayText="終日"
+      // 3日・週の時刻と「終日」は、横に流れないように外に出した目盛りに書く
+      allDayText={strip ? "" : "終日"}
+      slotLabelContent={strip ? () => "" : undefined}
       dayMaxEventRows={2}
       fixedWeekCount={false}
       expandRows={false}
@@ -867,19 +879,39 @@ export default function CalendarView(props: CalendarViewProps) {
       </div>
     );
   }
+  // iPhone の純正カレンダーと同じく、横に日をめくる枠の中に、縦に時間を動かす枠を入れる（指の向きで片方だけが動く）
   return (
     <div
-      ref={wrapRef}
-      className="cal-strip"
+      ref={boxRef}
+      className="cal-strip-box"
       style={{
         ["--col" as string]: `${col}px`,
         ["--axis" as string]: `${axis.current}px`,
         ["--strip-days" as string]: STRIP_DAYS,
         ["--slot-h" as string]: `${slotH}px`,
       }}
-      onScroll={handleScroll}
     >
-      {col > 0 && calendar}
+      <div className="cal-axis" aria-hidden>
+        {axisBox && axisBox.allDayHeight > 0 && (
+          <div className="cal-axis-allday" style={{ top: axisBox.allDayTop, height: axisBox.allDayHeight }}>
+            終日
+          </div>
+        )}
+        {axisBox && (
+          <div className="cal-axis-clip" style={{ top: axisBox.top, height: axisBox.height }}>
+            <div ref={axisInnerRef} className="cal-axis-inner">
+              {Array.from({ length: 24 }, (_, h) => (
+                <span key={h} style={{ top: `calc(var(--slot-h) * ${h * 2})` }}>
+                  {h}:00
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div ref={wrapRef} className="cal-strip" onScroll={handleScroll}>
+        {col > 0 && calendar}
+      </div>
     </div>
   );
 }

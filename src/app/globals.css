@@ -437,12 +437,21 @@ body {
   text-overflow: ellipsis;
 }
 
-/* 3日・週：横に長く並べた日を指で動かし、1日ずつぴったり止める。時刻の列と日付の見出しは固定 */
+/* 3日・週：横に日をめくる枠（外）の中に、縦に時間を動かす枠（FullCalendar の時刻の欄）を入れる。
+   iPhone の純正カレンダーと同じで、指の向きで片方だけが動く。横は1日ずつぴったり止める。
+   時刻の目盛りは横に流れないように外に出し（.cal-axis）、縦の枠に合わせて動かす */
+.app-cal .cal-strip-box {
+  --axis-w: 40px;
+  position: relative;
+  height: 100%;
+}
 .app-cal .cal-strip {
   /* スクロールだけをブラウザに任せ、2本の指の操作（ピンチ）はアプリが受け取る */
   touch-action: pan-x pan-y;
   height: 100%;
-  overflow: auto;
+  margin-left: var(--axis-w);
+  overflow-x: auto;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scroll-padding-left: var(--axis);
@@ -450,32 +459,71 @@ body {
 }
 .app-cal .cal-strip > .fc {
   width: calc(var(--axis) + var(--col) * var(--strip-days));
-  height: auto;
+  height: 100%;
 }
 /* 止まる位置は本体の日の列に付ける（固定表示の見出しに付けると、iPhone では途中で止まることがある） */
 .app-cal .cal-strip .fc .fc-timegrid-body .fc-timegrid-col.fc-day {
   scroll-snap-align: none start;
 }
-.app-cal .cal-strip .fc .fc-timegrid-axis,
-.app-cal .cal-strip .fc .fc-timegrid-slot-label,
-.app-cal .cal-strip .fc .fc-scrollgrid-shrink {
-  position: sticky;
-  left: 0;
+/* 縦の枠 */
+.app-cal .cal-strip .fc .fc-timegrid-body {
+  touch-action: pan-x pan-y;
+}
+.app-cal .cal-strip .fc .fc-scroller {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+/* ピンチの間は、縦も横も動かさない */
+.app-cal .cal-strip.is-pinching,
+.app-cal .cal-strip.is-pinching .fc .fc-scroller {
+  overflow: hidden !important;
+}
+/* FullCalendar の時刻の列は、文字を外に出したので細くする */
+.app-cal .cal-strip .fc .fc-timegrid-slot-label-cushion,
+.app-cal .cal-strip .fc .fc-timegrid-axis-cushion {
+  display: none;
+}
+/* 外に出した時刻の目盛り */
+.app-cal .cal-axis {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--axis-w);
   z-index: 3;
+  pointer-events: none;
   background: var(--bg);
 }
-/* 固定の列が効くように、FullCalendar の内側のはみ出し隠しを外す（高さは auto なので内側ではスクロールしない） */
-.app-cal .cal-strip .fc .fc-scroller-harness,
-.app-cal .cal-strip .fc .fc-scroller {
-  overflow: visible !important;
+.app-cal .cal-axis-allday {
+  position: absolute;
+  left: 0;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 11px;
+  color: var(--muted);
 }
-/* 予定の層にある時刻の列は透明にして、時刻の文字を上に出す */
-.app-cal .cal-strip .fc .fc-timegrid-cols .fc-timegrid-axis {
-  background: transparent;
-  pointer-events: none;
+.app-cal .cal-axis-clip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  overflow: hidden;
 }
-.app-cal .cal-strip .fc .fc-timegrid-slot-label {
-  z-index: 4;
+.app-cal .cal-axis-inner {
+  position: relative;
+  will-change: transform;
+}
+.app-cal .cal-axis-inner > span {
+  position: absolute;
+  right: 4px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+}
+.app-cal .cal-axis-inner > span:first-child {
+  transform: none;
+  margin-top: 2px;
 }
 
 /* 月表示：見渡すための画面。日付の下に時刻の予定の件数を点で、締切は〆で出す */
