@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dayStartOfKey, type ClassEvent, type Course, type MockData } from "./model";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type HabitMark, type MockData, HABIT_MARKS } from "./model";
 import {
   SAMPLE_RECOVERY_OPTIONS,
   SAMPLE_AVOID_WINDOWS,
@@ -11,6 +11,8 @@ import {
   SAMPLE_TREATS,
   BATH,
   GROWTH_HABIT,
+  BREAKFAST_HABIT,
+  homeExerciseHabit,
   WALK_TIMES,
   buildSampleCourses,
   buildSampleOwnEvents,
@@ -49,6 +51,8 @@ const DATA_KEYS = [
   "eveningEnergy",
   "rainyDays",
   "energyChecks",
+  "smokeLogs",
+  "habitLogs",
   "migrations",
 ] as const satisfies readonly (keyof MockData)[];
 
@@ -66,7 +70,7 @@ export function sampleData(now: number): MockData {
     places: SAMPLE_PLACES,
     periods: SAMPLE_PERIODS,
     courses: buildSampleCourses(now),
-    habits: SAMPLE_HABITS,
+    habits: [...SAMPLE_HABITS, BREAKFAST_HABIT, homeExerciseHabit(dateKeyOf(now))],
     avoidWindows: SAMPLE_AVOID_WINDOWS,
     treats: SAMPLE_TREATS,
     routineSteps: SAMPLE_ROUTINE_STEPS,
@@ -79,19 +83,68 @@ export function sampleData(now: number): MockData {
     eveningEnergy: {},
     rainyDays: [],
     energyChecks: {},
+    smokeLogs: [],
+    habitLogs: {},
     migrations: [...MIGRATIONS],
   };
 }
 
 /** 2026-09-29 のすり合わせ：朝の散歩はなるべく残す、順調な休日に自己成長の枠を置く */
-const MIGRATIONS = ["2026-09-29-walk-keeplast", "2026-09-29-growth"] as const;
+/** 2026-09-29 の作る順3：散歩のあとに家での運動（5分から） */
+/** 2026-09-29 の作る順3：家での運動は入浴の直前に（汗を流せるように） */
+/** 雨の日の散歩は光を浴びるだけに、余裕がある朝は朝食を */
+const MIGRATIONS = [
+  "2026-09-29-walk-keeplast",
+  "2026-09-29-growth",
+  "2026-09-29-home-exercise",
+  "2026-09-29-exercise-before-bath",
+  "2026-09-29-rain-light-only",
+  "2026-09-29-breakfast",
+  "2026-09-29-breakfast-after-walk",
+] as const;
 
-function migrate(d: MockData): MockData {
+function migrate(d: MockData, now: number): MockData {
   const done = new Set(d.migrations);
   let habits = d.habits;
   if (!done.has("2026-09-29-walk-keeplast")) habits = habits.map((h) => (h.id === "habit-walk" ? { ...h, keepLast: true } : h));
   if (!done.has("2026-09-29-growth") && !habits.some((h) => h.id === GROWTH_HABIT.id)) habits = [...habits, GROWTH_HABIT];
+  const exercise = homeExerciseHabit(dateKeyOf(now));
+  if (!done.has("2026-09-29-home-exercise") && !habits.some((h) => h.id === exercise.id)) habits = [...habits, exercise];
+  if (!done.has("2026-09-29-rain-light-only"))
+    habits = habits.map((h) =>
+      h.id === "habit-walk" && h.rainAlternative?.title === "窓際で光を浴びる＋家での運動" ? { ...h, rainAlternative: WALK_TIMES.rainAlternative } : h,
+    );
+  // 散歩のあとに置くように、散歩の次に並べる
+  if (!done.has("2026-09-29-breakfast") && !habits.some((h) => h.id === BREAKFAST_HABIT.id)) {
+    const i = habits.findIndex((h) => h.id === "habit-walk");
+    habits = i < 0 ? [...habits, BREAKFAST_HABIT] : [...habits.slice(0, i + 1), BREAKFAST_HABIT, ...habits.slice(i + 1)];
+  }
+  if (!done.has("2026-09-29-breakfast-after-walk"))
+    habits = habits.map((h) =>
+      h.id === BREAKFAST_HABIT.id && !h.cue && h.anchor === "wake" ? { ...h, ...BREAKFAST_HABIT, anchor: undefined, name: h.name, durationMinutes: h.durationMinutes } : h,
+    );
+  // 散歩のあとに置いていた最初の版を、入浴の直前に移す（自分で変えたきっかけはそのまま）
+  if (!done.has("2026-09-29-exercise-before-bath"))
+    habits = habits.map((h) => {
+      if (h.id !== exercise.id || h.cue?.type !== "habit" || h.cue.habitId !== "habit-walk") return h;
+      const { cueFallback: _drop, ...rest } = h as Habit & { cueFallback?: unknown };
+      void _drop;
+      return { ...rest, cue: exercise.cue, energyCost: exercise.energyCost };
+    });
   return { ...d, habits, migrations: [...new Set([...d.migrations, ...MIGRATIONS])] };
+}
+
+const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
+
+function parseHabitLogs(x: unknown): MockData["habitLogs"] {
+  if (!isRecord(x)) return {};
+  return Object.fromEntries(
+    Object.entries(x).flatMap(([day, v]) => {
+      if (!isRecord(v)) return [];
+      const marks = Object.entries(v).filter((e): e is [string, HabitMark] => HABIT_MARKS.includes(e[1] as HabitMark));
+      return marks.length ? [[day, Object.fromEntries(marks)]] : [];
+    }),
+  );
 }
 
 const EVENING_LEVELS: EveningEnergy[] = ["high", "normal", "low"];
@@ -155,8 +208,12 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
       d.energyChecks && typeof d.energyChecks === "object" && !Array.isArray(d.energyChecks)
         ? (d.energyChecks as MockData["energyChecks"])
         : {},
+    smokeLogs: arr<unknown>(d.smokeLogs, [])
+      .filter((x): x is number => typeof x === "number" && Number.isFinite(x))
+      .sort((a, b) => a - b),
+    habitLogs: parseHabitLogs(d.habitLogs),
     migrations: arr<unknown>(d.migrations, []).filter((x): x is string => typeof x === "string"),
-  });
+  }, now);
 }
 
 /**

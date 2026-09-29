@@ -27,13 +27,44 @@ export const BATH = {
   skippable: false,
 } as const satisfies Habit;
 
-/** 散歩：起床から150分のうち（朝ルーティンのすぐあと）。日の光を浴びて体内時計を合わせる。雨の日は家の中の代わり */
+/** 散歩：起床から150分のうち（朝ルーティンのすぐあと）。日の光を浴びて体内時計を合わせる。雨の日は光を浴びるだけ（運動は夜の家での運動にまとめる） */
 export const WALK_TIMES = {
   windowStart: 0,
   windowEnd: 150,
   anchor: "wake",
-  rainAlternative: { title: "窓際で光を浴びる＋家での運動", durationMinutes: 15 },
+  rainAlternative: { title: "窓際で光を浴びる", durationMinutes: 10 },
 } as const satisfies Partial<Habit>;
+
+/**
+ * 家での運動：5分・週3回から始め、2週間ごとに見直して5分ずつ増やす（20分まで。週3回20分で疲れが減る：Puetz 2008）。
+ * 汗を流せるように入浴の直前に置く。入浴は就寝の約90分前に終わるので、眠りは妨げない（Stutz 2019）。
+ * 行動ポイントを少し使うことにして、軽い日から選ぶ
+ */
+export const homeExerciseHabit = (reviewFrom: string): Habit => ({
+  id: "habit-home-exercise",
+  name: "家での運動",
+  durationMinutes: 5,
+  windowStart: 0,
+  windowEnd: 24 * 60,
+  cue: { type: "beforeHabit", habitId: BATH.id },
+  energyCost: 0.5,
+  frequency: { type: "weekly", times: 3 },
+  skippable: true,
+  track: true,
+  progression: { stepMinutes: 5, maxMinutes: 20, reviewFrom },
+});
+
+/** 朝食：時間に余裕がある日だけ、散歩のあとに。散歩が入らない（出発が早い）日は置かない */
+export const BREAKFAST_HABIT: Habit = {
+  id: "habit-breakfast",
+  name: "朝食",
+  durationMinutes: 15,
+  windowStart: 0,
+  windowEnd: 24 * 60,
+  cue: { type: "habit", habitId: "habit-walk" },
+  frequency: { type: "daily" },
+  skippable: true,
+};
 
 /** 自己成長の時間：タスクの見通しが順調な休日だけ、仮でもカレンダーに置く */
 export const GROWTH_HABIT: Habit = {
@@ -72,7 +103,7 @@ export const SAMPLE_HABITS: Habit[] = [
   },
   // 入浴は就寝の約90分前に終える（体温が下がるときに眠くなる）
   { ...BATH },
-  // 今は散歩が運動の代わり。続いたら家での運動15分を足す
+  // 散歩のあとに家での運動（homeExerciseHabit）を置く
   {
     id: "habit-walk",
     name: "散歩",

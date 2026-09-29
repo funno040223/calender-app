@@ -227,6 +227,7 @@ export function useMockStore() {
         events: planEvents(state, state.classEvents, state.googleEvents),
         places: state.places,
         settings: state.settings,
+        habits: state.habits,
       });
       const json = JSON.stringify(items);
       if (json === noticesSent.current) return;

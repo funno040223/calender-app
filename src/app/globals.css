@@ -452,8 +452,9 @@ body {
   width: calc(var(--axis) + var(--col) * var(--strip-days));
   height: auto;
 }
-.app-cal .cal-strip .fc .fc-col-header-cell {
-  scroll-snap-align: start;
+/* 止まる位置は本体の日の列に付ける（固定表示の見出しに付けると、iPhone では途中で止まることがある） */
+.app-cal .cal-strip .fc .fc-timegrid-body .fc-timegrid-col.fc-day {
+  scroll-snap-align: none start;
 }
 .app-cal .cal-strip .fc .fc-timegrid-axis,
 .app-cal .cal-strip .fc .fc-timegrid-slot-label,

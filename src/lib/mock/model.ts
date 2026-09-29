@@ -104,6 +104,9 @@ export interface WakeLog {
   fatigue?: MorningFatigue;
 }
 
+export type HabitMark = "done" | "five";
+export const HABIT_MARKS: HabitMark[] = ["done", "five"];
+
 export type MorningFatigue = 1 | 2 | 3 | 4 | 5;
 
 /** 帰宅時に体力を答えたときの、行動ポイントの予測（あとで値を合わせるための記録） */
@@ -140,6 +143,10 @@ export interface MockData {
   rainyDays: DateKey[];
   /** 帰宅時の答えと、そのときの予測。答えと eveningEnergy を比べて値を合わせる */
   energyChecks: Record<DateKey, EnergyCheck>;
+  /** タバコを吸った時刻（epoch ミリ秒、古い順）。就寝前の本数を、あとで疲れの予測の材料にする */
+  smokeLogs: number[];
+  /** 習慣をやったかの記録（日付 → 習慣の ID → やった／5分だけ）。押していない日は、やっていない */
+  habitLogs: Record<DateKey, Record<string, HabitMark>>;
   /** 済ませたデータの移行の名前（同じ移行を2回しないため） */
   migrations: string[];
 }

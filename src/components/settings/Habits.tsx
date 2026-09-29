@@ -13,8 +13,10 @@ interface Draft {
   duration: string;
   start: string;
   end: string;
-  /** 時間帯の決め方：時刻で／起床から（分後）／就寝まで（分前） */
-  anchor: "clock" | "wake" | "bed";
+  /** 時間帯の決め方：時刻で／起床から（分後）／就寝まで（分前）／きっかけのあと */
+  anchor: "clock" | "wake" | "bed" | "cue";
+  /** きっかけ："routine"・"home"・"habit:<習慣の ID>"（そのあと）・"before:<習慣の ID>"（その前） */
+  cue: string;
   offStart: string;
   offEnd: string;
   freq: "daily" | "weekly" | "whenEnergy" | "interval" | "onTrackHoliday";
@@ -22,6 +24,7 @@ interface Draft {
   minDays: string;
   maxDays: string;
   meal: boolean;
+  track: boolean;
   /** 締切が迫ったときの扱い：飛ばさない／なるべく残す／飛ばしてよい */
   keep: "never" | "last" | "ok";
   avoidAfter: string;
@@ -41,9 +44,16 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const [d, setD] = useState<Draft>(() => ({
     name: habit?.name ?? "",
     duration: String(habit?.durationMinutes ?? 30),
-    start: minutesToHHMM(habit?.anchor ? 9 * 60 : (habit?.windowStart ?? 9 * 60)),
-    end: minutesToHHMM(habit?.anchor ? 21 * 60 : (habit?.windowEnd ?? 21 * 60)),
-    anchor: habit?.anchor ?? "clock",
+    start: minutesToHHMM(habit?.anchor || habit?.cue ? 9 * 60 : (habit?.windowStart ?? 9 * 60)),
+    end: minutesToHHMM(habit?.anchor || habit?.cue ? 21 * 60 : (habit?.windowEnd ?? 21 * 60)),
+    anchor: habit?.cue ? "cue" : (habit?.anchor ?? "clock"),
+    cue: !habit?.cue
+      ? "routine"
+      : habit.cue.type === "habit"
+        ? `habit:${habit.cue.habitId}`
+        : habit.cue.type === "beforeHabit"
+          ? `before:${habit.cue.habitId}`
+          : habit.cue.type,
     // 就寝までは「何分前」で入力するので、符号を反転して、始まり＝より前（大きい分）にする
     offStart: String(habit?.anchor === "bed" ? -habit.windowStart : (habit?.windowStart ?? 0)),
     offEnd: String(habit?.anchor === "bed" ? -habit.windowEnd : (habit?.windowEnd ?? 120)),
@@ -52,6 +62,7 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
     minDays: String(habit?.frequency.type === "interval" ? habit.frequency.minDays : 4),
     maxDays: String(habit?.frequency.type === "interval" ? habit.frequency.maxDays : 7),
     meal: habit?.meal ?? false,
+    track: habit?.track ?? false,
     keep: habit && !habit.skippable ? "never" : habit?.keepLast ? "last" : "ok",
     avoidAfter: habit?.avoidFocusAfterMinutes === undefined ? "" : String(habit.avoidFocusAfterMinutes),
     energy: habit?.energyCost === undefined ? "" : String(habit.energyCost),
@@ -68,17 +79,22 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const parents = state.habits.filter((h) => h.finish && h.id !== habit?.id);
   const children = habit ? state.habits.filter((h) => h.duringHabitId === habit.id) : [];
   const during = !d.hasFinish && d.parentId !== "";
+  const byCue = !during && d.anchor === "cue";
+  // きっかけにできる習慣（食事）
+  const cueHabits = state.habits.filter((h) => h.meal && h.id !== habit?.id);
+  // 直前に置ける習慣（入浴など、就寝から決まるもの）
+  const beforeHabits = state.habits.filter((h) => h.anchor === "bed" && !h.cue && h.id !== habit?.id);
 
   const save = () => {
     const name = d.name.trim();
     const duration = num(d.duration);
     if (!name) return setError("名前を入力してください");
     if (!valid(duration)) return setError("所要時間は1分以上で入力してください");
-    const relative = !during && d.anchor !== "clock";
+    const relative = !during && (d.anchor === "wake" || d.anchor === "bed");
     const s = relative ? num(d.offStart) : hhmmToMinutes(d.start);
     const e = relative ? num(d.offEnd) : hhmmToMinutes(d.end);
-    if (!during && (s === undefined || e === undefined || !Number.isFinite(s) || !Number.isFinite(e))) return setError("時間帯を入力してください");
-    const span = during
+    if (!during && !byCue && (s === undefined || e === undefined || !Number.isFinite(s) || !Number.isFinite(e))) return setError("時間帯を入力してください");
+    const span = during || byCue
       ? { start: 0, end: 24 * 60 }
       : d.anchor === "wake"
         ? { start: Math.round(s!), end: Math.round(e!) }
@@ -99,6 +115,12 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
     };
     if (d.keep === "last") next.keepLast = true;
     if (relative) next.anchor = d.anchor as "wake" | "bed";
+    if (byCue)
+      next.cue = d.cue.startsWith("habit:")
+        ? { type: "habit", habitId: d.cue.slice(6) }
+        : d.cue.startsWith("before:")
+          ? { type: "beforeHabit", habitId: d.cue.slice(7) }
+          : { type: d.cue as "routine" | "home" };
     // 雨の日の代わりは、今はこの画面では変えない（散歩の初期値のまま残す）
     if (habit?.rainAlternative) next.rainAlternative = habit.rainAlternative;
     if (!during && d.freq === "weekly") {
@@ -115,6 +137,9 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
       next.frequency = { type: "interval", minDays: Math.round(lo), maxDays: Math.round(hi) };
     }
     if (d.meal) next.meal = true;
+    if (d.track) next.track = true;
+    // 少しずつ増やす設定は、今はこの画面では変えない
+    if (habit?.progression) next.progression = habit.progression;
     const energy = num(d.energy);
     if (energy !== undefined) {
       if (!Number.isFinite(energy) || Math.abs(energy) > 10) return setError("行動ポイントは -10〜10 で入力してください");
@@ -203,9 +228,25 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
                 { value: "clock", label: "時刻で" },
                 { value: "wake", label: "起床から" },
                 { value: "bed", label: "就寝まで" },
+                { value: "cue", label: "きっかけ" },
               ]}
             />
-            {d.anchor === "clock" ? (
+            {d.anchor === "cue" ? (
+              <select className={`${inputCls} mt-2`} aria-label="きっかけ" value={d.cue} onChange={(e) => set("cue", e.target.value)}>
+                <option value="routine">朝ルーティンのあと</option>
+                {cueHabits.map((h) => (
+                  <option key={h.id} value={`habit:${h.id}`}>
+                    {h.name}のあと
+                  </option>
+                ))}
+                <option value="home">帰宅後</option>
+                {beforeHabits.map((h) => (
+                  <option key={h.id} value={`before:${h.id}`}>
+                    {h.name}の前
+                  </option>
+                ))}
+              </select>
+            ) : d.anchor === "clock" ? (
               <div className="mt-2 flex items-center gap-2">
                 <input className={inputCls} type="time" step={300} aria-label="時間帯の始まり" value={d.start} onChange={(e) => set("start", e.target.value)} />
                 <span className="text-muted">〜</span>
@@ -271,6 +312,11 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
           ]}
         />
       </Field>
+
+      <label className="flex items-center justify-between gap-3">
+        <span className="block text-[16px]">記録する</span>
+        <Switch label="記録する" checked={d.track} onChange={(v) => set("track", v)} />
+      </label>
 
       {!during && (
         <label className="flex items-center justify-between gap-3">
@@ -338,14 +384,24 @@ function summary(h: Habit, habits: Habit[]): string {
           : h.frequency.type === "onTrackHoliday"
             ? "順調な休日"
             : "余裕がある日";
-  const when =
-    h.anchor === "wake"
+  const cue = h.cue;
+  const cueParent = cue && "habitId" in cue ? habits.find((p) => p.id === cue.habitId) : undefined;
+  const when = cue
+    ? cue.type === "routine"
+      ? "朝ルーティンのあと"
+      : cue.type === "home"
+        ? "帰宅後"
+        : cue.type === "beforeHabit"
+          ? `${cueParent?.name ?? "入浴"}の前`
+          : `${cueParent?.name ?? "食事"}のあと`
+    : h.anchor === "wake"
       ? `起床の${h.windowStart}〜${h.windowEnd}分後`
       : h.anchor === "bed"
         ? `就寝の${-h.windowStart}〜${-h.windowEnd}分前`
         : `${formatMinuteOfDay(h.windowStart)}〜${formatMinuteOfDay(h.windowEnd)}`;
   const parts = [freq, when, formatMinutes(h.durationMinutes)];
   if (h.finish) parts.push(`${h.finish.afterStartMinutes}分後に${h.finish.title}`);
+  if (h.track) parts.push("記録する");
   if (!h.skippable) parts.push("飛ばさない");
   else if (h.keepLast) parts.push("なるべく残す");
   return parts.join("・");

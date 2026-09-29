@@ -41,6 +41,13 @@ describe("buildNotices", () => {
     expect(got[0]).toMatchObject({ at: jst(2026, 10, 1, 10), title: "レポート", body: "10:00〜11:00" });
   });
 
+  it("きっかけのある習慣は「まず5分」と知らせる", () => {
+    const blocks = [{ kind: "habit" as const, refId: "h1", title: "ストレッチ", start: jst(2026, 10, 1, 13, 5), end: jst(2026, 10, 1, 13, 10) }];
+    const habits = [{ id: "h1", cue: { type: "habit" as const, habitId: "lunch" }, track: true }];
+    const [n] = buildNotices(input({ result: { ...input().result, blocks }, habits })).filter((x) => x.key.startsWith("block:"));
+    expect(n).toMatchObject({ at: jst(2026, 10, 1, 13, 5), title: "ストレッチ", body: "まず5分" });
+  });
+
   it("毎朝、起床の時刻にまとめを送る", () => {
     const ev = { id: "a", title: "授業", start: jst(2026, 10, 2, 10, 40), end: jst(2026, 10, 2, 12, 10) };
     const got = buildNotices(input({ events: [ev] })).filter((n) => n.key.startsWith("morning:"));

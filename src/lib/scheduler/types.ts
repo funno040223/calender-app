@@ -131,6 +131,22 @@ export type HabitFrequency =
   /** タスクの見通しが順調な（締切に間に合わないタスクがない）休日だけ（自己成長の時間など） */
   | { type: "onTrackHoliday" };
 
+/**
+ * きっかけの場面。習慣をその直後（CUE_GAP_MINUTES 後）に置く。
+ * routine: 朝ルーティンのあと、habit: 食事などの習慣のあと、home: 外出から帰って休んだあと、
+ * beforeHabit: その習慣の直前（入浴の前の運動など。CUE_GAP_MINUTES 前に終える）
+ */
+export type HabitCue =
+  | { type: "routine" }
+  | { type: "habit"; habitId: string }
+  | { type: "home" }
+  | { type: "beforeHabit"; habitId: string };
+
+/** きっかけから習慣の始まりまで（分）。通知もこの時刻に送る */
+export const CUE_GAP_MINUTES = 5;
+/** きっかけのあと、この分数までに始められなければその日は置かない */
+export const CUE_SLACK_MINUTES = 30;
+
 export interface Habit {
   id: string;
   name: string;
@@ -142,7 +158,16 @@ export interface Habit {
   windowStart: number;
   windowEnd: number;
   anchor?: "wake" | "bed";
+  /** きっかけの場面。あれば時間帯（windowStart・windowEnd・anchor）より優先する */
+  cue?: HabitCue;
   frequency: HabitFrequency;
+  /** 今日の画面で「やった／5分」を記録する（配置には使わない） */
+  track?: boolean;
+  /**
+   * 少しずつ増やす（家での運動など）。reviewFrom（日付 YYYY-MM-DD）から2週間たったら記録を見て、
+   * できていれば stepMinutes 増やすかを聞く（maxMinutes まで）。配置には使わない
+   */
+  progression?: { stepMinutes: number; maxMinutes: number; reviewFrom: string };
   /** 締切が迫ったときに飛ばしてよいか（食事・入浴・洗濯は false） */
   skippable: boolean;
   /** 飛ばしてよい習慣のうち、なるべく残すもの（朝の散歩など）。締切のために外すときは最後にする */

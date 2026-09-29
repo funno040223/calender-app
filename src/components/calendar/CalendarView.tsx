@@ -454,7 +454,15 @@ export default function CalendarView(props: CalendarViewProps) {
     if (!el || col === 0) return;
     setTitleFor(anchor + Math.round(el.scrollLeft / col) * DAY_MS);
     window.clearTimeout(scrollEndTimer.current);
-    scrollEndTimer.current = window.setTimeout(recenterIfNeeded, 180);
+    scrollEndTimer.current = window.setTimeout(() => {
+      // 止まる仕組みが効かずに日の途中で止まったら、近いほうの日の境目まで動かす
+      const off = el.scrollLeft / col;
+      if (Math.abs(off - Math.round(off)) * col > 1) {
+        el.scrollTo({ left: Math.round(off) * col, behavior: "smooth" });
+        return;
+      }
+      recenterIfNeeded();
+    }, 180);
   };
 
   const scrollToDay = (dayFc: number) => {

@@ -1,4 +1,4 @@
-import { resolveTravel, type CalendarEvent, type Place, type PlanResult, type Settings } from "@/lib/scheduler";
+import { resolveTravel, type CalendarEvent, type Habit, type Place, type PlanResult, type Settings } from "@/lib/scheduler";
 import { formatTime } from "@/lib/mock/jst";
 
 /** 1件の通知。サーバーが at の時刻に送る。key は同じ通知を2回送らないための名前 */
@@ -18,6 +18,8 @@ export interface NoticeInput {
   events: CalendarEvent[];
   places: Place[];
   settings: Settings;
+  /** きっかけがあって記録する習慣は、本文を「まず5分」にする */
+  habits?: Pick<Habit, "id" | "cue" | "track">[];
   /** 予定の何分前に知らせるか */
   leadMinutes?: number;
   /** どこまで先の通知を作るか */
@@ -74,13 +76,14 @@ export function buildNotices(input: NoticeInput): Notice[] {
     });
   }
 
+  const cued = new Set((input.habits ?? []).filter((h) => h.cue && h.track).map((h) => h.id));
   for (const b of result.blocks) {
     if (b.kind === "routine") continue;
     add({
       key: `block:${b.kind}:${b.refId}:${b.start}`,
       at: b.start,
       title: b.title,
-      body: `${formatTime(b.start)}〜${formatTime(b.end)}${b.refId === BATH_HABIT_ID ? BATH_NOTE : ""}`,
+      body: b.kind === "habit" && cued.has(b.refId) ? "まず5分" : `${formatTime(b.start)}〜${formatTime(b.end)}${b.refId === BATH_HABIT_ID ? BATH_NOTE : ""}`,
       url: "/",
     });
   }

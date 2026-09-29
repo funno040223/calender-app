@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { DayPlan, EveningEnergy } from "@/lib/scheduler";
+import type { DayPlan, EveningEnergy, Habit } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { TREAT_CATEGORIES, dateKeyOf, treatFor, wakeStreak, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
+import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import Notices, { hasNotices } from "./Notices";
@@ -478,6 +478,163 @@ function EnergyCard({ today }: { today: number }) {
   );
 }
 
+/** この日を含む14日間に記録した回数（5分だけは、5分以下の習慣なら1回、ほかは0.5回） */
+function countMarks(logs: Record<string, Record<string, HabitMark>>, habit: Habit, lastDay: number): number {
+  let n = 0;
+  for (let i = 0; i < 14; i++) {
+    const m = logs[dateKeyOf(lastDay - i * DAY_MS)]?.[habit.id];
+    if (m === "done" || (m === "five" && habit.durationMinutes <= 5)) n += 1;
+    else if (m === "five") n += 0.5;
+  }
+  return n;
+}
+
+/** 記録する習慣：やった／5分だけ を押す。押さなければ、やっていない */
+function HabitLogCard({ today }: { today: number }) {
+  const { state, update } = useApp();
+  const key = dateKeyOf(today);
+  const marks = state.habitLogs[key] ?? {};
+  const tracked = new Map(state.habits.filter((h) => h.track).map((h) => [h.id, h]));
+  const rows = state.result.blocks
+    .filter((b) => b.kind === "habit" && tracked.has(b.refId) && b.start >= today && b.start < today + DAY_MS)
+    .sort((a, b) => a.start - b.start)
+    .filter((b, i, all) => all.findIndex((x) => x.refId === b.refId) === i);
+  if (rows.length === 0) return null;
+  const mark = (id: string, m: HabitMark) =>
+    update((d) => {
+      const day = { ...d.habitLogs[key] };
+      if (day[id] === m) delete day[id];
+      else day[id] = m;
+      return { ...d, habitLogs: { ...d.habitLogs, [key]: day } };
+    });
+  return (
+    <Group title="今日の習慣">
+      <ul className="flex flex-col py-1">
+        {rows.map((b) => {
+          const m = marks[b.refId];
+          const btn = (value: HabitMark, label: string) => (
+            <button
+              type="button"
+              aria-pressed={m === value}
+              onClick={() => mark(b.refId, value)}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-[14px] ${m === value ? "bg-accent font-medium text-white" : "bg-surface2"}`}
+            >
+              {label}
+            </button>
+          );
+          return (
+            <li key={b.refId} className="flex items-center gap-2 px-4 py-2">
+              <span className="w-12 shrink-0 text-[13px] tabular-nums text-muted">{formatTime(b.start)}</span>
+              <span className="min-w-0 flex-1 truncate text-[15px]">{b.title}</span>
+              <span className="shrink-0 text-[12px] tabular-nums text-muted" aria-label="2週間の回数">
+                {countMarks(state.habitLogs, tracked.get(b.refId)!, today)}回
+              </span>
+              {btn("five", "5分")}
+              {btn("done", "やった")}
+            </li>
+          );
+        })}
+      </ul>
+    </Group>
+  );
+}
+
+/** 少しずつ増やす習慣（家での運動）：2週間たったら記録を見て、増やすか・きっかけを変えるかを聞く */
+function ReviewCard({ today }: { today: number }) {
+  const { state, update } = useApp();
+  const key = dateKeyOf(today);
+  const habit = state.habits.find((h) => {
+    const from = h.progression && dayStartOfKey(h.progression.reviewFrom);
+    return from !== undefined && today >= from + 14 * DAY_MS;
+  });
+  if (!habit?.progression) return null;
+  const p = habit.progression;
+  // 昨日までの2週間
+  const done = countMarks(state.habitLogs, habit, today - DAY_MS);
+  const planned = habit.frequency.type === "weekly" ? habit.frequency.times * 2 : 14;
+  const ratio = done / planned;
+  const up = ratio >= 0.8 && habit.durationMinutes < p.maxMinutes;
+  const low = ratio < 0.5;
+  const finish = (grow: boolean) =>
+    update((d) => ({
+      ...d,
+      habits: d.habits.map((h) =>
+        h.id === habit.id
+          ? {
+              ...h,
+              durationMinutes: grow ? Math.min(p.maxMinutes, h.durationMinutes + p.stepMinutes) : h.durationMinutes,
+              progression: { ...p, reviewFrom: key },
+            }
+          : h,
+      ),
+    }));
+  const btn = "rounded-lg px-4 py-2 text-[15px]";
+  return (
+    <Group title={habit.name}>
+      <div className="flex flex-col gap-3 px-4 py-3">
+        <p className="text-[15px] tabular-nums">
+          2週間で {done} / {planned} 回
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {up && (
+            <button type="button" onClick={() => finish(true)} className={`${btn} bg-accent font-medium text-white`}>
+              {habit.durationMinutes + p.stepMinutes}分にする
+            </button>
+          )}
+          {low && (
+            <Link href="/settings/habits" onClick={() => finish(false)} className={`${btn} bg-accent font-medium text-white`}>
+              きっかけを変える
+            </Link>
+          )}
+          <button type="button" onClick={() => finish(false)} className={`${btn} bg-surface2`}>
+            このまま
+          </button>
+        </div>
+      </div>
+    </Group>
+  );
+}
+
+/** タバコ：押すと時刻を残すだけ。目標や多い少ないは出さない */
+function SmokeCard({ today }: { today: number }) {
+  const { state, update } = useApp();
+  const [undoAt, setUndoAt] = useState<number>();
+  useEffect(() => {
+    if (undoAt === undefined) return;
+    const t = window.setTimeout(() => setUndoAt(undefined), 5000);
+    return () => window.clearTimeout(t);
+  }, [undoAt]);
+  const todays = state.smokeLogs.filter((t) => t >= today && t < today + DAY_MS);
+  const add = () => {
+    const at = Date.now();
+    // 60日より前の記録は捨てる
+    update((d) => ({ ...d, smokeLogs: [...d.smokeLogs.filter((t) => t >= at - 60 * DAY_MS), at] }));
+    setUndoAt(at);
+  };
+  const undo = () => {
+    update((d) => ({ ...d, smokeLogs: d.smokeLogs.filter((t) => t !== undoAt) }));
+    setUndoAt(undefined);
+  };
+  return (
+    <Group title="タバコ">
+      <div className="flex items-center gap-3 px-4 py-3">
+        {undoAt !== undefined ? (
+          <button type="button" onClick={undo} className="shrink-0 rounded-lg bg-surface2 px-4 py-2 text-[15px]">
+            取り消す
+          </button>
+        ) : (
+          <button type="button" onClick={add} className="shrink-0 rounded-lg bg-accent px-4 py-2 text-[15px] font-medium text-white">
+            吸った
+          </button>
+        )}
+        <p className="min-w-0 text-[13px] tabular-nums text-muted">
+          {todays.length > 0 ? `${todays.length}本・${todays.map(formatTime).join(" ")}` : ""}
+        </p>
+      </div>
+    </Group>
+  );
+}
+
 export default function TodayScreen() {
   const { state, update, openTask } = useApp();
   const now = useNow();
@@ -503,8 +660,11 @@ export default function TodayScreen() {
           <EnergyCard today={today} />
           <MorningCard day={day} now={now} />
           <TreatCard today={today} />
+          <SmokeCard today={today} />
         </div>
         <div className="flex flex-col gap-6">
+          <ReviewCard today={today} />
+          <HabitLogCard today={today} />
           <Timeline now={now} dayEnd={dayEnd} />
           {hasNotices(state) && (
             <Group title="お知らせ">

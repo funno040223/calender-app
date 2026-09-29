@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       events: planEvents(state, state.classEvents, state.googleEvents),
       places: state.places,
       settings: state.settings,
+      habits: state.habits,
     });
     const { error: e } = await db
       .from("push_schedule")
