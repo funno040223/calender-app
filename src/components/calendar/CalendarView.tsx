@@ -456,10 +456,6 @@ export default function CalendarView(props: CalendarViewProps) {
     if (!strip || !el) return;
     let start: { x: number; y: number } | null = null;
     let endTimer = 0;
-    const unlock = () => {
-      axisLock.current.axis = undefined;
-      el.style.overflowX = "";
-    };
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) {
         start = null;
@@ -483,10 +479,10 @@ export default function CalendarView(props: CalendarViewProps) {
       if (e.touches.length > 0) return;
       axisLock.current.touching = false;
       start = null;
-      // 惰性で動いていなければ、すぐに横のスクロールを戻す
+      // 惰性で動いていなければ、ここで止まったものとして片付ける（指を置いている間は、並べ直さずに待っていた）
       window.clearTimeout(endTimer);
       endTimer = window.setTimeout(() => {
-        if (Date.now() - axisLock.current.scrolledAt > 150) unlock();
+        if (Date.now() - axisLock.current.scrolledAt > 150) settleRef.current();
       }, 200);
     };
     el.addEventListener("touchstart", onStart, { passive: true });
@@ -503,6 +499,28 @@ export default function CalendarView(props: CalendarViewProps) {
     };
   }, [strip]);
 
+  /**
+   * 動きが止まったときの片付け：横の止めを外し、日の途中なら境目へ、端に近ければ並べ直す。
+   * 指を置いている間はしない（iPhone は指で動かしている途中に位置を変えると、元の位置に戻して日付だけ入れ替わり、何日も飛ぶ）
+   */
+  const settle = () => {
+    const el = wrapRef.current;
+    if (!el || col === 0 || axisLock.current.touching) return;
+    axisLock.current.axis = undefined;
+    el.style.overflowX = "";
+    // 止まる仕組みが効かずに日の途中で止まったら、近いほうの日の境目まで動かす
+    const off = el.scrollLeft / col;
+    if (Math.abs(off - Math.round(off)) * col > 1) {
+      el.scrollTo({ left: Math.round(off) * col, behavior: "smooth" });
+      return;
+    }
+    recenterIfNeeded();
+  };
+  const settleRef = useRef(settle);
+  useLayoutEffect(() => {
+    settleRef.current = settle;
+  });
+
   const scrollEndTimer = useRef<number | undefined>(undefined);
   const handleScroll = () => {
     const el = wrapRef.current;
@@ -510,20 +528,7 @@ export default function CalendarView(props: CalendarViewProps) {
     setTitleFor(anchor + Math.round(el.scrollLeft / col) * DAY_MS);
     axisLock.current.scrolledAt = Date.now();
     window.clearTimeout(scrollEndTimer.current);
-    scrollEndTimer.current = window.setTimeout(() => {
-      // 上下の動き（惰性を含む）が止まったら、横のスクロールを戻す
-      if (axisLock.current.axis === "y" && !axisLock.current.touching) {
-        axisLock.current.axis = undefined;
-        el.style.overflowX = "";
-      }
-      // 止まる仕組みが効かずに日の途中で止まったら、近いほうの日の境目まで動かす
-      const off = el.scrollLeft / col;
-      if (Math.abs(off - Math.round(off)) * col > 1) {
-        el.scrollTo({ left: Math.round(off) * col, behavior: "smooth" });
-        return;
-      }
-      recenterIfNeeded();
-    }, 180);
+    scrollEndTimer.current = window.setTimeout(settle, 180);
   };
 
   const scrollToDay = (dayFc: number) => {
