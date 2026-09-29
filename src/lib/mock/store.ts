@@ -267,12 +267,20 @@ export function useMockStore() {
   }, []);
 
   /** 予定・タスク・設定などを変えたら、必ず組み直す */
-  const update = useCallback((fn: (d: MockData) => MockData) => {
+  /**
+   * データを変えて組み直す。auto（天気・Notion の取り込みなど、自動の変更）は「直前の操作を元に戻す」の対象にしない。
+   * 取り消しの控えにも同じ変更を当てるので、元に戻しても自動で取り込んだ内容は消えない
+   */
+  const update = useCallback((fn: (d: MockData) => MockData, opts?: { auto?: boolean }) => {
     setState((prev) => {
       const next = fn(prev);
       if (next === prev) return prev;
-      undoData.current = toData(prev);
-      setCanUndo(true);
+      if (opts?.auto) {
+        if (undoData.current) undoData.current = fn(undoData.current);
+      } else {
+        undoData.current = toData(prev);
+        setCanUndo(true);
+      }
       return replan(next, prev.googleEvents, Date.now());
     });
   }, []);

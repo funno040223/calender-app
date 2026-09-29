@@ -60,7 +60,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       if (weatherBusy.current || Date.now() - fetchedAt < WEATHER_REFRESH_MS) return;
       weatherBusy.current = true;
       fetchRainChance(place)
-        .then((days) => update((d) => ({ ...d, rainForecast: { fetchedAt: Date.now(), days } })))
+        .then((days) => update((d) => ({ ...d, rainForecast: { fetchedAt: Date.now(), days } }), { auto: true }))
         .catch((e) => console.warn("天気予報を取れませんでした", e instanceof Error ? e.message : e))
         .finally(() => (weatherBusy.current = false));
     };
@@ -78,7 +78,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       if (notionBusy.current || Date.now() - (notion.fetchedAt ?? 0) < 30 * 60 * 1000) return;
       notionBusy.current = true;
       fetchNotionRows(notion.dateProp, notion.stageProp)
-        .then((r) => update((d) => applyNotionRows(d, r.rows, Date.now(), r.fetchedAt)))
+        .then((r) => update((d) => applyNotionRows(d, r.rows, Date.now(), r.fetchedAt), { auto: true }))
         .catch((e) => console.warn("Notion を読めませんでした", e instanceof Error ? e.message : e))
         .finally(() => (notionBusy.current = false));
     };
