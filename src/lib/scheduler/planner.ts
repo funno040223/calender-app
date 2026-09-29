@@ -395,15 +395,7 @@ export function plan(input: PlanInput): PlanResult {
     const tryPlaceOn = (d: DayPlan): boolean => {
       if (skipped(habit, d)) return false;
       const window = windowOf(d);
-      // 外出の日に外にいる時間と重なる食事は、外食・お弁当として置く（家での時間は取らない）
-      if (habit.meal && !habit.cue && outingDays.has(d.dayStart)) {
-        const out = mergedAway.find((a) => a.start < window.end && a.end > window.start);
-        if (out) {
-          const st = ceilToStep(Math.max(window.start, out.start));
-          blocks.push({ kind: "habit", refId: habit.id, title: `${habit.name}（外食・お弁当）`, start: st, end: st + dur });
-          return true;
-        }
-      }
+      // 食事は予定の最中には置かない。予定で時間帯に空きがなければ、外で食べてくるものとして置かない（時間にも数えない）
       const finish = habit.finish;
       // 待ち時間のある作業は、2つ目の枠も空いていて、終わるまで家にいられること
       // 食事は、ほかの食事の始まりから3時間あける
@@ -423,7 +415,9 @@ export function plan(input: PlanInput): PlanResult {
       const len = alt ? alt.durationMinutes * MIN : dur;
       // きっかけのある習慣は、15分刻みにそろえず、きっかけのちょうど5分後から（直前に置くものは、ちょうど5分前に終える）
       const exact = cueOn(habit.cue, d)?.cue.type === "beforeHabit" ? window.end - len : habit.cue ? window.start : undefined;
-      const start = findStart(intersect(free, window), len, ok, exact ?? prevOf(window));
+      // 食事は家にいない時間（旅行・帰省など）にも置かない
+      const room = habit.meal ? subtract(intersect(free, window), mergedAway) : intersect(free, window);
+      const start = findStart(room, len, ok, exact ?? prevOf(window));
       if (start === undefined) return false;
       placeHabitBlock(
         habit,

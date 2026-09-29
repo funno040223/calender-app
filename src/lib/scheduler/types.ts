@@ -190,7 +190,7 @@ export interface Habit {
   duringHabitId?: string;
   /** 1回あたりの行動ポイント。マイナスは回復（散歩、発散など） */
   energyCost?: number;
-  /** 食事。外出の日に外にいる時間と重なるときは、外食・お弁当として置く */
+  /** 食事。予定の最中には置かず、予定で時間帯に空きがなければ外で食べるものとして置かない */
   meal?: boolean;
   /** 雨の日の代わり（散歩 → 家の中でできること）。雨の日に指定した日だけ、この名前と長さで置く */
   rainAlternative?: { title: string; durationMinutes: number };

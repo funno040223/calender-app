@@ -328,7 +328,6 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
         <label className="flex items-center justify-between gap-3">
           <span>
             <span className="block text-[16px]">食事</span>
-            <span className="block text-[12px] text-muted">外出の日に外にいる時間と重なるときは「外食・お弁当」として置きます</span>
           </span>
           <Switch label="食事" checked={d.meal} onChange={(v) => set("meal", v)} />
         </label>

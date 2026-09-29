@@ -379,7 +379,7 @@ describe("洗濯の間隔と外出の日", () => {
     expect(starts(r).map(dayNo)).toEqual([1]);
   });
 
-  it("外出の日に外にいる時間と重なる食事は、外食・お弁当にする", () => {
+  it("予定の最中には食事を置かず、空きがなければ外で食べるものとして置かない", () => {
     const lunch: Habit = {
       id: "lunch",
       name: "昼食",
@@ -393,10 +393,9 @@ describe("洗濯の間隔と外出の日", () => {
     const settings = { ...baseInput(now).settings, planningDays: 2 };
     const r = plan(baseInput(now, { settings, events: [outing(1)], habits: [lunch] }));
     const meals = r.blocks.filter((b) => b.refId === "lunch");
-    expect(meals[0].title).toBe("昼食（外食・お弁当）");
-    expect(meals[0].start).toBe(jst(2026, 10, 1, 11));
-    // 次の日は家で
-    expect(meals[1].title).toBe("昼食");
+    // 外出の日は、予定の時間と重なる食事を置かない。次の日は家で
+    expect(meals.every((m) => !r.dayPlans.some((d) => d.homeAt !== undefined && m.start >= d.dayStart && m.start < d.dayStart + 86_400_000 && m.start < d.homeAt!))).toBe(true);
+    expect(meals.at(-1)!.title).toBe("昼食");
   });
 });
 
@@ -425,13 +424,13 @@ describe("帰省・旅行のような終日の予定", () => {
   // 10/2〜10/3 の2日間（終わりは 10/4 0:00）
   const trip = { id: "trip", title: "帰省", start: jst(2026, 10, 2), end: jst(2026, 10, 4), allDay: true };
 
-  it("「家にいない」にした日は外出の日になり、自炊をせず、食事は外食にする", () => {
+  it("「家にいない」にした日は外出の日になり、自炊をせず、食事も置かない", () => {
     const r = plan(baseInput(now, { settings, events: [{ ...trip, awayFromHome: true }], habits: [cook, dinner] }));
     expect(r.dayEnergy.map((d) => d.outingDay)).toEqual([false, true, true, false]);
     const cookDays = r.blocks.filter((b) => b.refId === "cook").map((b) => new Date(b.start + 9 * 3600e3).getUTCDate());
     expect(cookDays).toEqual([1, 4]);
     const dinners = r.blocks.filter((b) => b.refId === "dinner").map((b) => b.title);
-    expect(dinners).toEqual(["夕食", "夕食（外食・お弁当）", "夕食（外食・お弁当）", "夕食"]);
+    expect(dinners).toEqual(["夕食", "夕食"]);
   });
 
   it("印がない終日の予定（誕生日など）は、ふだんどおり", () => {

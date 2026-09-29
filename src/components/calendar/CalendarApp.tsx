@@ -402,7 +402,7 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
           </button>
         </div>
       )}
-      {habit?.skippable && block.end > state.plannedAt && (
+      {(habit?.skippable || habit?.meal) && block.end > state.plannedAt && (
         <button
           type="button"
           className="rounded-xl py-2.5 text-accent hover:bg-surface2"
@@ -411,7 +411,7 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
             onSkipped();
           }}
         >
-          今日は飛ばす
+          {habit?.meal ? "今日は外で食べる" : "今日は飛ばす"}
         </button>
       )}
     </div>
