@@ -1,5 +1,5 @@
-import { DEFAULT_SETTINGS, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type HabitMark, type MockData, HABIT_MARKS } from "./model";
+import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type HabitMark, type MockData, CONTACT_ANSWERS, HABIT_MARKS } from "./model";
 import {
   SAMPLE_RECOVERY_OPTIONS,
   SAMPLE_AVOID_WINDOWS,
@@ -53,6 +53,7 @@ const DATA_KEYS = [
   "energyChecks",
   "smokeLogs",
   "habitLogs",
+  "contactLogs",
   "migrations",
 ] as const satisfies readonly (keyof MockData)[];
 
@@ -85,6 +86,7 @@ export function sampleData(now: number): MockData {
     energyChecks: {},
     smokeLogs: [],
     habitLogs: {},
+    contactLogs: {},
     migrations: [...MIGRATIONS],
   };
 }
@@ -212,6 +214,9 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
       .filter((x): x is number => typeof x === "number" && Number.isFinite(x))
       .sort((a, b) => a - b),
     habitLogs: parseHabitLogs(d.habitLogs),
+    contactLogs: isRecord(d.contactLogs)
+      ? Object.fromEntries(Object.entries(d.contactLogs).filter((e): e is [string, ContactAnswer] => CONTACT_ANSWERS.includes(e[1] as ContactAnswer)))
+      : {},
     migrations: arr<unknown>(d.migrations, []).filter((x): x is string => typeof x === "string"),
   }, now);
 }
@@ -285,3 +290,11 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now };
 }
 
+
+/** 「連絡してみる？」を聞く日（まだ答えていない週だけ）。今日の画面と朝のまとめの通知で使う */
+export function contactDaysFor(state: MockState, now: number): { weekStart: number; dayStart: number }[] {
+  const tz = state.settings.tzOffsetMinutes;
+  const weeks = buildOutlook({ now, result: state.result, minSlackMinutesPerDay: state.settings.minSlackMinutesPerDay, tzOffsetMinutes: tz });
+  return contactDays(weeks, state.result.dayPlans, now, tz)
+    .filter((c) => !state.contactLogs[dateKeyOf(c.weekStart)]);
+}

@@ -1,5 +1,5 @@
 import { buildNotices } from "@/lib/notify/build";
-import { planEvents } from "@/lib/mock/state";
+import { contactDaysFor, planEvents } from "@/lib/mock/state";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { planOnServer } from "@/lib/server/plan";
 import { authorized } from "@/lib/push/cron";
@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       places: state.places,
       settings: state.settings,
       habits: state.habits,
+      contactDays: contactDaysFor(state, now).map((c) => c.dayStart),
     });
     const { error: e } = await db
       .from("push_schedule")

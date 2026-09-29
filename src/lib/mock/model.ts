@@ -105,6 +105,8 @@ export interface WakeLog {
 }
 
 export type HabitMark = "done" | "five";
+export type ContactAnswer = "done" | "skip";
+export const CONTACT_ANSWERS: ContactAnswer[] = ["done", "skip"];
 export const HABIT_MARKS: HabitMark[] = ["done", "five"];
 
 export type MorningFatigue = 1 | 2 | 3 | 4 | 5;
@@ -147,6 +149,8 @@ export interface MockData {
   smokeLogs: number[];
   /** 習慣をやったかの記録（日付 → 習慣の ID → やった／5分だけ）。押していない日は、やっていない */
   habitLogs: Record<DateKey, Record<string, HabitMark>>;
+  /** 「連絡してみる？」への答え（週の月曜の日付 → 連絡した／今週はいい）。答えた週はもう聞かない */
+  contactLogs: Record<DateKey, ContactAnswer>;
   /** 済ませたデータの移行の名前（同じ移行を2回しないため） */
   migrations: string[];
 }

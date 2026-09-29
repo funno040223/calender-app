@@ -48,6 +48,12 @@ describe("buildNotices", () => {
     expect(n).toMatchObject({ at: jst(2026, 10, 1, 13, 5), title: "ストレッチ", body: "まず5分" });
   });
 
+  it("連絡してみる日は、朝のまとめに添える", () => {
+    const got = buildNotices(input({ contactDays: [jst(2026, 10, 2)] })).filter((n) => n.key.startsWith("morning:"));
+    expect(got.find((n) => n.at === jst(2026, 10, 2, 8))?.body).toContain("連絡してみる？");
+    expect(got.find((n) => n.at === jst(2026, 10, 1, 8))?.body).not.toContain("連絡してみる？");
+  });
+
   it("毎朝、起床の時刻にまとめを送る", () => {
     const ev = { id: "a", title: "授業", start: jst(2026, 10, 2, 10, 40), end: jst(2026, 10, 2, 12, 10) };
     const got = buildNotices(input({ events: [ev] })).filter((n) => n.key.startsWith("morning:"));

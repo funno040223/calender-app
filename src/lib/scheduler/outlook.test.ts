@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOutlook } from "./outlook";
+import { buildOutlook, contactDays, type WeekOutlook } from "./outlook";
 import { jst } from "./test-helpers";
 import type { DayPlan } from "./types";
 
@@ -40,5 +40,29 @@ describe("buildOutlook", () => {
     });
     expect(w1.status).toBe("late");
     expect(w1.late).toEqual([{ taskId: "x", title: "レポート", shortfallMinutes: 90 }]);
+  });
+});
+
+describe("contactDays", () => {
+  const week = (start: number, status: WeekOutlook["status"]): WeekOutlook => ({ start, end: start + 7 * 86_400_000, taskMinutes: 0, freeMinutes: 0, status, late: [] });
+  const plans = [
+    { ...day(1), holiday: false },
+    { ...day(2), holiday: false },
+    day(3),
+    day(4),
+    { ...day(5), holiday: false },
+    day(10),
+  ];
+
+  it("順調な週の、今日から先で最初の休日だけ", () => {
+    const got = contactDays([week(jst(2026, 9, 28), "ok"), week(jst(2026, 10, 5), "ok")], plans, now, 540);
+    expect(got).toEqual([
+      { weekStart: jst(2026, 9, 28), dayStart: jst(2026, 10, 3) },
+      { weekStart: jst(2026, 10, 5), dayStart: jst(2026, 10, 10) },
+    ]);
+  });
+
+  it("順調でない週には聞かない", () => {
+    expect(contactDays([week(jst(2026, 9, 28), "tight"), week(jst(2026, 10, 5), "late")], plans, now, 540)).toEqual([]);
   });
 });

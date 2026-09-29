@@ -9,7 +9,7 @@ import type { Block, CalendarEvent } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
 import type { MockData } from "./model";
 import { buildGoogleEvents } from "./sample";
-import { fromStoredV2, migrateV1, planEvents, replan, sampleData, toData, type MockState } from "./state";
+import { contactDaysFor, fromStoredV2, migrateV1, planEvents, replan, sampleData, toData, type MockState } from "./state";
 
 export type { OwnEvent } from "./model";
 export { TAGS, fromStoredV2, migrateV1, planEvents, sampleData, toData, type MockState } from "./state";
@@ -228,6 +228,7 @@ export function useMockStore() {
         places: state.places,
         settings: state.settings,
         habits: state.habits,
+        contactDays: contactDaysFor(state, Date.now()).map((c) => c.dayStart),
       });
       const json = JSON.stringify(items);
       if (json === noticesSent.current) return;

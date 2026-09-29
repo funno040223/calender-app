@@ -7,7 +7,8 @@ import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
+import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type ContactAnswer, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
+import { contactDaysFor } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import Notices, { hasNotices } from "./Notices";
@@ -595,6 +596,26 @@ function ReviewCard({ today }: { today: number }) {
   );
 }
 
+/** 余裕のある週の最初の休日に「連絡してみる？」。答えたらその週はもう出さない */
+function ContactCard({ today, now }: { today: number; now: number }) {
+  const { state, update } = useApp();
+  const c = contactDaysFor(state, now).find((x) => x.dayStart === today);
+  if (!c) return null;
+  const answer = (a: ContactAnswer) => update((d) => ({ ...d, contactLogs: { ...d.contactLogs, [dateKeyOf(c.weekStart)]: a } }));
+  return (
+    <Group title="連絡してみる？">
+      <div className="flex gap-2 px-4 py-3">
+        <button type="button" onClick={() => answer("done")} className="rounded-lg bg-accent px-4 py-2 text-[15px] font-medium text-white">
+          連絡した
+        </button>
+        <button type="button" onClick={() => answer("skip")} className="rounded-lg bg-surface2 px-4 py-2 text-[15px]">
+          今週はいい
+        </button>
+      </div>
+    </Group>
+  );
+}
+
 /** タバコ：押すと時刻を残すだけ。目標や多い少ないは出さない */
 function SmokeCard({ today }: { today: number }) {
   const { state, update } = useApp();
@@ -660,6 +681,7 @@ export default function TodayScreen() {
           <EnergyCard today={today} />
           <MorningCard day={day} now={now} />
           <TreatCard today={today} />
+          <ContactCard today={today} now={now} />
           <SmokeCard today={today} />
         </div>
         <div className="flex flex-col gap-6">

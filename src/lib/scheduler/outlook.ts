@@ -46,3 +46,23 @@ export function buildOutlook(input: {
     return { start, end, taskMinutes: Math.round(taskMinutes), freeMinutes: Math.round(freeMinutes), status, late };
   });
 }
+
+/**
+ * 人に連絡してみるかを聞く日：見通しが順調な週の、今日から先で最初の休日（週に1日まで）。
+ * 休日がない週や、順調でない週は聞かない
+ */
+export function contactDays(
+  weeks: WeekOutlook[],
+  dayPlans: Pick<PlanResult, "dayPlans">["dayPlans"],
+  now: number,
+  tzOffsetMinutes: number,
+): { weekStart: number; dayStart: number }[] {
+  const today = localDayStart(now, tzOffsetMinutes);
+  return weeks.flatMap((w) => {
+    if (w.status !== "ok") return [];
+    const d = dayPlans
+      .filter((p) => p.holiday && p.dayStart >= Math.max(today, w.start) && p.dayStart < w.end)
+      .sort((a, b) => a.dayStart - b.dayStart)[0];
+    return d ? [{ weekStart: w.start, dayStart: d.dayStart }] : [];
+  });
+}

@@ -20,6 +20,8 @@ export interface NoticeInput {
   settings: Settings;
   /** きっかけがあって記録する習慣は、本文を「まず5分」にする */
   habits?: Pick<Habit, "id" | "cue" | "track">[];
+  /** 「連絡してみる？」を朝のまとめに添える日（その日の 0:00） */
+  contactDays?: number[];
   /** 予定の何分前に知らせるか */
   leadMinutes?: number;
   /** どこまで先の通知を作るか */
@@ -98,6 +100,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
       tasks.length ? `タスクの枠${tasks.length}つ` : "",
       d.leave ? `${formatTime(d.leave)} に出発` : "",
       result.shortfalls.length ? `締切に間に合わないタスクが${result.shortfalls.length}件あります` : "",
+      input.contactDays?.includes(d.dayStart) ? "連絡してみる？" : "",
     ].filter(Boolean);
     add({ key: `morning:${d.dayStart}`, at: d.wake, title: "おはようございます", body: parts.join("・"), url: "/" });
   }
