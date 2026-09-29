@@ -140,6 +140,7 @@ function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
                 setLog((l) => {
                   const next = { ...l };
                   delete next.wokeAt;
+                  delete next.plannedWake;
                   return next;
                 })
               }
@@ -767,24 +768,6 @@ function SmokeCard({ today }: { today: number }) {
 
 export default function TodayScreen() {
   const { state, update, openTask, sync } = useApp();
-  // アラームを止めたときのショートカットから /?woke=1 で開いたら、「起きた」を記録する（サーバーの内容を読んでから）
-  useEffect(() => {
-    if (sync === "loading") return;
-    if (!new URLSearchParams(window.location.search).has("woke")) return;
-    window.history.replaceState(null, "", "/");
-    const at = Date.now();
-    const key = dateKeyOf(at);
-    const planned = state.result.dayPlans.find((p) => p.dayStart === dayStartOf(at))?.wake;
-    update((d) => {
-      const cur = d.wakeLogs.find((l) => l.date === key);
-      if (cur?.wokeAt !== undefined) return d;
-      const log: WakeLog = { ...(cur ?? { date: key, doneStepIds: [] }), wokeAt: at, plannedWake: planned };
-      return { ...d, wakeLogs: [...d.wakeLogs.filter((l) => l.date !== key), log] };
-    });
-    // 今日の予定を読むのは最初の1回だけ
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sync, update]);
-
   // タスクの枠の始まりの通知から開いたら、その枠を「やった」にする（サーバーの内容を読んでから）
   useEffect(() => {
     if (sync === "loading") return;
