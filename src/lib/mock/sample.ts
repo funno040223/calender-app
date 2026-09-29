@@ -157,6 +157,8 @@ export const SAMPLE_HABITS: Habit[] = [
     skippable: false,
     // 干すときに、前の洗濯物の取り込みも一緒にする
     finish: { title: "洗濯物を干す・取り込む", durationMinutes: 30, afterStartMinutes: 90 },
+    // 天気予報で雨の日は避ける
+    avoidRain: true,
     energyCost: 1,
   },
   {

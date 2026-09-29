@@ -108,6 +108,14 @@ export interface WakeLog {
   sleepMinutes?: number;
 }
 
+export interface WeatherPlace {
+  name: string;
+  lat: number;
+  lon: number;
+}
+/** 雨の確率がこれ以上の日は雨の日として扱う（%） */
+export const RAIN_THRESHOLD = 60;
+
 export interface TaskBlockLog {
   title: string;
   start: number;
@@ -194,6 +202,12 @@ export interface MockData {
   eveningEnergy: Record<DateKey, EveningEnergy>;
   /** 雨の日にした日。散歩を家の中の代わりにする */
   rainyDays: DateKey[];
+  /** 予報では雨だが、晴れたので戻した日 */
+  notRainyDays: DateKey[];
+  /** 天気予報を取る場所（設定の「天気」で選ぶ） */
+  weatherPlace?: WeatherPlace;
+  /** 最後に取った天気予報（日付 → その日の雨の確率の最大 %） */
+  rainForecast?: { fetchedAt: number; days: Record<DateKey, number> };
   /** 帰宅時の答えと、そのときの予測。答えと eveningEnergy を比べて値を合わせる */
   energyChecks: Record<DateKey, EnergyCheck>;
   /** タバコを吸った時刻（epoch ミリ秒、古い順）。就寝前の本数を、あとで疲れの予測の材料にする */

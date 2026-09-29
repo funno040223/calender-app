@@ -143,8 +143,9 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
     }
     if (d.meal) next.meal = true;
     if (d.track) next.track = true;
-    // 少しずつ増やす設定は、今はこの画面では変えない
+    // 少しずつ増やす設定と雨の日を避ける設定は、今はこの画面では変えない
     if (habit?.progression) next.progression = habit.progression;
+    if (habit?.avoidRain) next.avoidRain = true;
     const energy = num(d.energy);
     if (energy !== undefined) {
       if (!Number.isFinite(energy) || Math.abs(energy) > 10) return setError("行動ポイントは -10〜10 で入力してください");

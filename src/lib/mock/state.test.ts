@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
-import { learnedMinutes, planTagsOf, replan, sampleData, travelAsks } from "./state";
+import { learnedMinutes, planTagsOf, rainyDayKeys, replan, sampleData, travelAsks } from "./state";
 
 describe("終わったタスクの枠", () => {
   it("未回答の枠は時間が過ぎても残り時間から引かない", () => {
@@ -46,5 +46,16 @@ describe("実績からの所要時間の目安", () => {
     expect(planTagsOf(data).find((t) => t.id === "tag-focus")?.defaultMinutes).toBe(90);
     const three = { ...data, doneTasks: [...data.doneTasks, done("c")], taskBlockLog: { ...data.taskBlockLog, ...log("c", 7, 240) } };
     expect(planTagsOf(three).find((t) => t.id === "tag-focus")?.defaultMinutes).toBe(180);
+  });
+});
+
+describe("雨の日", () => {
+  it("予報の雨の確率が60%以上の日と、手で雨にした日。晴れたので戻した日は除く", () => {
+    const got = rainyDayKeys({
+      rainyDays: ["2026-10-03"],
+      notRainyDays: ["2026-10-02"],
+      rainForecast: { fetchedAt: 0, days: { "2026-10-01": 70, "2026-10-02": 80, "2026-10-04": 30 } },
+    });
+    expect(got.sort()).toEqual(["2026-10-01", "2026-10-03"]);
   });
 });

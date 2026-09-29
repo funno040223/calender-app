@@ -14,6 +14,7 @@ import Notifications from "./Notifications";
 import Feed from "./Feed";
 import Tags from "./Tags";
 import CalendarColors from "./CalendarColors";
+import Weather from "./Weather";
 
 const BODY: Record<SectionId, () => React.ReactNode> = {
   calendars: CalendarSources,
@@ -21,6 +22,7 @@ const BODY: Record<SectionId, () => React.ReactNode> = {
   feed: Feed,
   tags: Tags,
   colors: CalendarColors,
+  weather: Weather,
   timetable: Timetable,
   places: Places,
   habits: Habits,

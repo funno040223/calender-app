@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Task } from "@/lib/scheduler";
 import { useMockStore } from "@/lib/mock/store";
 import { completeTask } from "@/lib/mock/state";
 import { CALENDARS } from "@/lib/mock/calendars";
+import { fetchRainChance } from "@/lib/weather/openMeteo";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
 import { warningCount } from "@/components/today/Notices";
@@ -21,6 +22,9 @@ const TABS = [
   { href: "/stats", label: "記録", Icon: StatsIcon },
   { href: "/settings", label: "設定", Icon: SettingsIcon },
 ] as const;
+
+/** 天気予報を取り直す間隔 */
+const WEATHER_REFRESH_MS = 3 * 60 * 60 * 1000;
 
 const isActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
@@ -43,6 +47,25 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const { state, update } = store;
   const warnings = warningCount(state);
+
+  // 天気予報：場所があれば、開いたときと3時間ごとに雨の確率を取り直す（取れなければ前の予報のまま）
+  const place = state.weatherPlace;
+  const fetchedAt = state.rainForecast?.fetchedAt ?? 0;
+  const weatherBusy = useRef(false);
+  useEffect(() => {
+    if (store.sync === "loading" || !place) return;
+    const check = () => {
+      if (weatherBusy.current || Date.now() - fetchedAt < WEATHER_REFRESH_MS) return;
+      weatherBusy.current = true;
+      fetchRainChance(place)
+        .then((days) => update((d) => ({ ...d, rainForecast: { fetchedAt: Date.now(), days } })))
+        .catch((e) => console.warn("天気予報を取れませんでした", e instanceof Error ? e.message : e))
+        .finally(() => (weatherBusy.current = false));
+    };
+    check();
+    const t = window.setInterval(check, 10 * 60 * 1000);
+    return () => window.clearInterval(t);
+  }, [store.sync, place, fetchedAt, update]);
 
   // 設定で選んだカレンダーの色を、画面全体の色の変数に上書きする（選んでいなければ初期の色）
   useEffect(() => {

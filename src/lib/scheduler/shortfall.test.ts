@@ -35,3 +35,15 @@ describe("今日は飛ばす", () => {
     expect(on(3)).toHaveLength(1);
   });
 });
+
+describe("雨の日を避ける習慣", () => {
+  it("洗濯は、間隔の中に雨でない日があれば雨の日を避ける", () => {
+    const laundry = { id: "l", name: "洗濯", durationMinutes: 10, windowStart: 9 * 60, windowEnd: 16 * 60, frequency: { type: "interval" as const, minDays: 1, maxDays: 3 }, skippable: false, avoidRain: true };
+    const firstDay = (rainy: number[]) =>
+      plan(baseInput(now, { settings, habits: [laundry], rainyDays: rainy, habitLastDone: { l: jst(2026, 9, 30, 10) } })).blocks
+        .filter((b) => b.refId === "l")
+        .map((b) => new Date(b.start + 9 * 3600_000).getUTCDate())[0];
+    const dry = firstDay([]);
+    expect(firstDay([jst(2026, 10, dry)])).not.toBe(dry);
+  });
+});

@@ -1,6 +1,6 @@
 import { captureTaskBlocks } from "./progress";
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
 import { DAY_MS, MIN } from "./jst";
 import {
   SAMPLE_RECOVERY_OPTIONS,
@@ -95,6 +95,9 @@ const DATA_KEYS = [
   "hiddenCalendars",
   "eveningEnergy",
   "rainyDays",
+  "notRainyDays",
+  "weatherPlace",
+  "rainForecast",
   "energyChecks",
   "smokeLogs",
   "habitLogs",
@@ -138,6 +141,7 @@ export function sampleData(now: number): MockData {
     hiddenCalendars: [],
     eveningEnergy: {},
     rainyDays: [],
+    notRainyDays: [],
     energyChecks: {},
     smokeLogs: [],
     habitLogs: {},
@@ -169,6 +173,7 @@ const MIGRATIONS = [
   "2026-09-29-breakfast-after-walk",
   "2026-09-30-morning-meals",
   "2026-09-30-laundry-30",
+  "2026-09-30-laundry-avoid-rain",
 ] as const;
 
 function migrate(d: MockData, now: number): MockData {
@@ -208,6 +213,7 @@ function migrate(d: MockData, now: number): MockData {
         ? { ...h, finish: { ...h.finish, title: "洗濯物を干す・取り込む", durationMinutes: 30 } }
         : h,
     );
+  if (!done.has("2026-09-30-laundry-avoid-rain")) habits = habits.map((h) => (h.id === "habit-laundry" ? { ...h, avoidRain: true } : h));
   // 散歩のあとに置いていた最初の版を、入浴の直前に移す（自分で変えたきっかけはそのまま）
   if (!done.has("2026-09-29-exercise-before-bath"))
     habits = habits.map((h) => {
@@ -289,6 +295,18 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
           )
         : {},
     rainyDays: arr<unknown>(d.rainyDays, []).filter((x): x is string => typeof x === "string"),
+    notRainyDays: arr<unknown>(d.notRainyDays, []).filter((x): x is string => typeof x === "string"),
+    weatherPlace:
+      isRecord(d.weatherPlace) && typeof d.weatherPlace.name === "string" && typeof d.weatherPlace.lat === "number" && typeof d.weatherPlace.lon === "number"
+        ? { name: d.weatherPlace.name, lat: d.weatherPlace.lat, lon: d.weatherPlace.lon }
+        : undefined,
+    rainForecast:
+      isRecord(d.rainForecast) && typeof d.rainForecast.fetchedAt === "number" && isRecord(d.rainForecast.days)
+        ? {
+            fetchedAt: d.rainForecast.fetchedAt,
+            days: Object.fromEntries(Object.entries(d.rainForecast.days).filter((e): e is [string, number] => typeof e[1] === "number")),
+          }
+        : undefined,
     energyChecks:
       d.energyChecks && typeof d.energyChecks === "object" && !Array.isArray(d.energyChecks)
         ? (d.energyChecks as MockData["energyChecks"])
@@ -415,7 +433,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
         return day === undefined ? [] : [[day, v]];
       }),
     ),
-    rainyDays: data.rainyDays.flatMap((k) => dayStartOfKey(k) ?? []),
+    rainyDays: rainyDayKeys(data).flatMap((k) => dayStartOfKey(k) ?? []),
     skipHabitDays: skipDays,
   });
   return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now, planTags };
@@ -454,4 +472,13 @@ export function travelAsks(state: Pick<MockState, "googleEvents" | "importedTrav
       e.start > now &&
       e.start < now + 7 * DAY_MS,
   );
+}
+
+/** 雨の日：手で雨にした日と、予報の雨の確率が RAIN_THRESHOLD 以上の日。晴れたので戻した日は除く */
+export function rainyDayKeys(data: Pick<MockData, "rainyDays" | "notRainyDays" | "rainForecast">): string[] {
+  const forecast = Object.entries(data.rainForecast?.days ?? {})
+    .filter(([, p]) => p >= RAIN_THRESHOLD)
+    .map(([k]) => k);
+  const not = new Set(data.notRainyDays);
+  return [...new Set([...data.rainyDays, ...forecast])].filter((k) => !not.has(k));
 }

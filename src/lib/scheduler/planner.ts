@@ -297,13 +297,15 @@ export function plan(input: PlanInput): PlanResult {
         last = to;
         continue;
       }
-      const home = inWindow.filter((d) => !outingDays.has(d.dayStart));
+      // 洗濯などは雨の日を避ける（外出の日と同じく、最後の日だけの手段にする）
+      const unfit = (d: DayPlan) => outingDays.has(d.dayStart) || (!!habit.avoidRain && rainyDays.has(d.dayStart));
+      const home = inWindow.filter((d) => !unfit(d));
       const lighter = (a: DayPlan, b: DayPlan) => energyOn(a) - energyOn(b) || a.dayStart - b.dayStart;
       const holidays = home.filter((d) => d.holiday).sort(lighter);
       const late = home.filter((d) => dayIdx(d.dayStart) >= to - 1).sort(lighter);
       const rest = home.filter((d) => !holidays.includes(d) && !late.includes(d)).sort(lighter);
       // 最後の日が範囲の中にあるときだけ、外出の日も最後の手段にする
-      const lastResort = inWindow.filter((d) => outingDays.has(d.dayStart) && dayIdx(d.dayStart) === to);
+      const lastResort = inWindow.filter((d) => unfit(d) && dayIdx(d.dayStart) === to);
       // 休日がなければ、間隔の終わりまで待ってから（間隔の終わりが先なら今は置かない）
       const order = holidays.length || to < days.length ? [...holidays, ...late, ...rest, ...lastResort] : [];
       const placed = order.find((d) => tryPlaceOn(d));

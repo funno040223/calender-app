@@ -194,6 +194,8 @@ export interface Habit {
   meal?: boolean;
   /** 雨の日の代わり（散歩 → 家の中でできること）。雨の日に指定した日だけ、この名前と長さで置く */
   rainAlternative?: { title: string; durationMinutes: number };
+  /** 雨の日を避ける（洗濯など）。間隔の中に雨でない日がなければ、最後の日だけ雨の日にも置く */
+  avoidRain?: boolean;
 }
 
 /** focus: 長い空き時間に置く / gap: 予定の合間の短い空き時間に詰める */

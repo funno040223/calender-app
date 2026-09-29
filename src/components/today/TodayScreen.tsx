@@ -8,7 +8,7 @@ import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
 import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type ContactAnswer, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
-import { contactDaysFor } from "@/lib/mock/state";
+import { contactDaysFor, rainyDayKeys } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import ProgressCard from "./ProgressCard";
@@ -287,11 +287,14 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
     });
   }
   const todayKey = dateKeyOf(now);
-  const rainy = state.rainyDays.includes(todayKey);
+  // 雨の日は、予報（雨の確率が高い日）と手で切り替えた日から決める
+  const rainy = rainyDayKeys(state).includes(todayKey);
+  const keep = (k: string) => k >= dateKeyOf(now - 14 * DAY_MS) && k !== todayKey;
   const toggleRain = () =>
     update((d) => ({
       ...d,
-      rainyDays: rainy ? d.rainyDays.filter((k) => k !== todayKey) : [...d.rainyDays.filter((k) => k >= dateKeyOf(now - 14 * DAY_MS)), todayKey],
+      rainyDays: rainy ? d.rainyDays.filter(keep) : [...d.rainyDays.filter(keep), todayKey],
+      notRainyDays: rainy ? [...d.notRainyDays.filter(keep), todayKey] : d.notRainyDays.filter(keep),
     }));
   for (const b of state.result.blocks) {
     if (b.end <= now || b.start >= dayEnd) continue;
