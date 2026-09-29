@@ -436,3 +436,41 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* 3日・週：横に長く並べた日を指で動かし、1日ずつぴったり止める。時刻の列と日付の見出しは固定 */
+.app-cal .cal-strip {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: var(--axis);
+  -webkit-overflow-scrolling: touch;
+}
+.app-cal .cal-strip > .fc {
+  width: calc(var(--axis) + var(--col) * var(--strip-days));
+  height: auto;
+}
+.app-cal .cal-strip .fc .fc-col-header-cell {
+  scroll-snap-align: start;
+}
+.app-cal .cal-strip .fc .fc-timegrid-axis,
+.app-cal .cal-strip .fc .fc-timegrid-slot-label,
+.app-cal .cal-strip .fc .fc-scrollgrid-shrink {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--bg);
+}
+/* 固定の列が効くように、FullCalendar の内側のはみ出し隠しを外す（高さは auto なので内側ではスクロールしない） */
+.app-cal .cal-strip .fc .fc-scroller-harness,
+.app-cal .cal-strip .fc .fc-scroller {
+  overflow: visible !important;
+}
+/* 予定の層にある時刻の列は透明にして、時刻の文字を上に出す */
+.app-cal .cal-strip .fc .fc-timegrid-cols .fc-timegrid-axis {
+  background: transparent;
+  pointer-events: none;
+}
+.app-cal .cal-strip .fc .fc-timegrid-slot-label {
+  z-index: 4;
+}

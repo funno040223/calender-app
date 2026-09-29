@@ -1,8 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import type FullCalendar from "@fullcalendar/react";
-import type { DatesSetArg } from "@fullcalendar/core";
+import { useMemo, useRef, useState } from "react";
 import type { Block } from "@/lib/scheduler";
 import { sameBlock, type OwnEvent } from "@/lib/mock/store";
 import type { CalendarId } from "@/lib/mock/calendars";
@@ -10,32 +8,27 @@ import { useApp } from "@/components/app/StoreProvider";
 import { eventIndex, formatEventShort, groupKeyOf, tasksByEvent } from "@/lib/mock/related";
 import { parseClassEventId } from "@/lib/mock/model";
 import { formatDate } from "@/lib/mock/jst";
-import CalendarView, { type EventSource } from "./CalendarView";
+import CalendarView, { type CalendarHandle, type CalendarMode, type EventSource } from "./CalendarView";
 import CalendarToggles from "./CalendarToggles";
 import EventForm from "./EventForm";
 import { BlockSheet, ReadonlyEventSheet, RelatedTasks } from "./InfoSheet";
 import Sheet from "@/components/ui/Sheet";
 
 // 1日だけの表示は横長で見にくいので、最小は3日表示にする
-const VIEWS = [
-  { id: "timeGrid3Day", label: "3日" },
-  { id: "timeGridWeek", label: "週" },
-  { id: "dayGridMonth", label: "月" },
-] as const;
+const VIEWS: { id: CalendarMode; label: string }[] = [
+  { id: "day3", label: "3日" },
+  { id: "week", label: "週" },
+  { id: "month", label: "月" },
+];
 
 type Editing = { event: OwnEvent; isNew: boolean };
 type Viewing = { kind: "block"; block: Block } | { kind: "event"; source: EventSource; eventId: string };
 
-function titleOf(arg: DatesSetArg): { year: string; month: string } {
-  // timeZone: "UTC" で動かしているので、UTC の値がそのまま日本時間の日付
-  const d = arg.view.currentStart;
-  return { year: `${d.getUTCFullYear()}年`, month: `${d.getUTCMonth() + 1}月` };
-}
 
-/** 関連する予定とタスクのまとまりを強調し、ほかを薄くする */
 /** これより早い2回目のタップは、同じタップの重なりとみなす */
 const TAP_REPEAT_IGNORE_MS = 500;
 
+/** 関連する予定とタスクのまとまりを強調し、ほかを薄くする */
 function FocusStyle({ group }: { group?: string }) {
   if (!group) return null;
   const sel = `[data-g="${CSS.escape(group)}"]`;
@@ -49,11 +42,10 @@ function FocusStyle({ group }: { group?: string }) {
 
 export default function CalendarApp() {
   const { state, update, setHidden, openTask } = useApp();
-  const calRef = useRef<FullCalendar>(null);
-  const [initialView] = useState(() =>
-    window.matchMedia("(max-width: 639px)").matches ? "timeGrid3Day" : "timeGridWeek",
+  const calRef = useRef<CalendarHandle>(null);
+  const [view, setView] = useState<CalendarMode>(() =>
+    window.matchMedia("(max-width: 639px)").matches ? "day3" : "week",
   );
-  const [view, setView] = useState<string>(initialView);
   const [title, setTitle] = useState({ year: "", month: "" });
   const [editing, setEditing] = useState<Editing | null>(null);
   const [viewing, setViewing] = useState<Viewing | null>(null);
@@ -83,12 +75,7 @@ export default function CalendarApp() {
   const hidden = useMemo(() => new Set(state.hiddenCalendars), [state.hiddenCalendars]);
   const events = useMemo(() => eventIndex(state), [state]);
   const related = useMemo(() => tasksByEvent(state.tasks, events), [state.tasks, events]);
-  const api = () => calRef.current?.getApi();
-
-  const onDatesSet = useCallback((arg: DatesSetArg) => {
-    setTitle(titleOf(arg));
-    setView(arg.view.type);
-  }, []);
+  const api = () => calRef.current;
 
   /** 押した予定・枠が属するまとまり（関連するタスクがなければなし） */
   const groupOfEvent = (eventId: string) => (related.has(eventId) ? groupKeyOf(eventId) : undefined);
@@ -225,7 +212,7 @@ export default function CalendarApp() {
               type="button"
               role="tab"
               aria-selected={view === v.id}
-              onClick={() => api()?.changeView(v.id)}
+              onClick={() => setView(v.id)}
               className={`rounded-md px-2.5 py-1 text-[13px] font-medium ${
                 view === v.id ? "bg-surface text-fg shadow-sm" : "text-muted"
               }`}
@@ -241,6 +228,8 @@ export default function CalendarApp() {
         <main
           className="app-cal min-h-0 min-w-0 flex-1"
           onTouchStart={(e) => {
+            // 3日・週は指の動きに合わせて横に動くので、月表示だけ
+            if (view !== "month") return;
             const t = e.touches[0];
             swipe.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
           }}
@@ -258,11 +247,12 @@ export default function CalendarApp() {
           }}
         >
           <CalendarView
+            key={view}
             ref={calRef}
+            mode={view}
+            onTitle={setTitle}
             state={state}
             hidden={hidden}
-            initialView={initialView}
-            onDatesSet={onDatesSet}
             onCreate={(start, end, allDay) =>
               setEditing({ event: { id: "", title: "", start, end, ...(allDay ? { allDay } : {}) }, isNew: true })
             }

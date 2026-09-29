@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -36,11 +36,26 @@ type Extended = (
   group?: string;
 };
 
+/** 3日・週は、横に長く並べた日を指で動かす（1日ずつ止まる）。月はふつうの月表示 */
+export type CalendarMode = "day3" | "week" | "month";
+
+export interface CalendarHandle {
+  prev: () => void;
+  next: () => void;
+  today: () => void;
+}
+
+/** 横に並べておく日数と、今見ている日の前に置く日数。端に近づいたら並べ直す */
+const STRIP_DAYS = 42;
+const STRIP_LEAD = 14;
+const STRIP_EDGE = 5;
+
 export interface CalendarViewProps {
   state: MockState;
   hidden: Set<CalendarId>;
-  initialView: string;
-  onDatesSet: (arg: DatesSetArg) => void;
+  mode: CalendarMode;
+  /** 見出しに出す年と月（見ている範囲の最初の日） */
+  onTitle: (t: { year: string; month: string }) => void;
   onCreate: (start: number, end: number, allDay: boolean) => void;
   onEventClick: (source: EventSource, eventId: string) => void;
   onOwnEventChange: (id: string, start: number, end: number, allDay: boolean) => void;
@@ -51,7 +66,7 @@ export interface CalendarViewProps {
   onHoverGroup: (group: string | undefined) => void;
   /** 1回押して選んでいる予定・枠（もう1回押すと詳しく開く） */
   selectedId?: string;
-  ref?: Ref<FullCalendar>;
+  ref?: Ref<CalendarHandle>;
 }
 
 const BLOCK_CAL: Record<Block["kind"], CalendarId> = { task: "task", habit: "habit", routine: "routine" };
@@ -141,7 +156,130 @@ function renderDayHeader(arg: DayHeaderContentArg) {
 }
 
 export default function CalendarView(props: CalendarViewProps) {
-  const { state, hidden, ref } = props;
+  const { state, hidden, ref, mode, onTitle } = props;
+  const strip = mode !== "month";
+  const visible = mode === "week" ? 7 : 3;
+  const fcRef = useRef<FullCalendar>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const api = () => fcRef.current?.getApi();
+
+  /** 日本時間の 0:00（FullCalendar の日付）を、その日の番号にする */
+  const todayFc = useMemo(() => {
+    const now = toFc(Date.now());
+    return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  }, []);
+  /** 最初に見る日：3日は今日、週はその週の月曜 */
+  const homeDay = useCallback(() => {
+    if (mode !== "week") return todayFc;
+    const wd = new Date(todayFc).getUTCDay();
+    return todayFc - ((wd + 6) % 7) * DAY_MS;
+  }, [mode, todayFc]);
+  const [anchor, setAnchor] = useState(() => homeDay() - STRIP_LEAD * DAY_MS);
+  const [col, setCol] = useState(0);
+  const axis = useRef(44);
+  const pendingScroll = useRef<number | null>(STRIP_LEAD);
+  const didScrollTime = useRef(false);
+
+  const setTitleFor = useCallback(
+    (dayFc: number) => {
+      const d = new Date(dayFc);
+      onTitle({ year: `${d.getUTCFullYear()}年`, month: `${d.getUTCMonth() + 1}月` });
+    },
+    [onTitle],
+  );
+
+  // 1日の幅は、画面の幅から時刻の列を引いて、3日（週は7日）で割る
+  useLayoutEffect(() => {
+    if (!strip) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => setCol(Math.max(40, (el.clientWidth - axis.current) / visible));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [strip, visible]);
+
+  // 並べ直したあと・幅が変わったあとは、見ていた日に戻す（ぴったり止める仕組みは一時止める）
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!strip || !el || col === 0 || pendingScroll.current === null) return;
+    const idx = pendingScroll.current;
+    pendingScroll.current = null;
+    el.style.scrollSnapType = "none";
+    el.scrollLeft = idx * col;
+    requestAnimationFrame(() => (el.style.scrollSnapType = ""));
+    setTitleFor(anchor + idx * DAY_MS);
+    // 縦は、最初だけ今の1時間前から見せる
+    if (!didScrollTime.current) {
+      didScrollTime.current = true;
+      const hour = Math.max(0, toFc(Date.now()).getUTCHours() - 1);
+      const row = el.querySelector<HTMLElement>(`.fc-timegrid-slot-lane[data-time="${String(hour).padStart(2, "0")}:00:00"]`);
+      const head = el.querySelector<HTMLElement>(".fc-col-header")?.offsetHeight ?? 0;
+      if (row) el.scrollTop = Math.max(0, row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - head - 8);
+    }
+  }, [strip, col, anchor, setTitleFor]);
+
+  const firstVisibleIdx = () => {
+    const el = wrapRef.current;
+    return el && col > 0 ? Math.round(el.scrollLeft / col) : STRIP_LEAD;
+  };
+
+  /** 端に近づいたら、今見ている日を真ん中寄りにして並べ直す */
+  const recenterIfNeeded = useCallback(() => {
+    const el = wrapRef.current;
+    if (!el || col === 0) return;
+    const idx = Math.round(el.scrollLeft / col);
+    if (idx >= STRIP_EDGE && idx <= STRIP_DAYS - visible - STRIP_EDGE) return;
+    const first = anchor + idx * DAY_MS;
+    pendingScroll.current = STRIP_LEAD;
+    setAnchor(first - STRIP_LEAD * DAY_MS);
+  }, [anchor, col, visible]);
+
+  useEffect(() => {
+    if (strip) api()?.gotoDate(new Date(anchor));
+  }, [strip, anchor]);
+
+  // 時刻の列の実際の幅に合わせて、1日の幅を直す
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!strip || !el || col === 0) return;
+    api()?.updateSize();
+    const a = el.querySelector<HTMLElement>(".fc-timegrid-axis")?.getBoundingClientRect().width;
+    if (a && Math.abs(a - axis.current) > 1) {
+      axis.current = a;
+      pendingScroll.current = firstVisibleIdx();
+      setCol(Math.max(40, (el.clientWidth - a) / visible));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strip, col, visible]);
+
+  const scrollEndTimer = useRef<number | undefined>(undefined);
+  const handleScroll = () => {
+    const el = wrapRef.current;
+    if (!el || col === 0) return;
+    setTitleFor(anchor + Math.round(el.scrollLeft / col) * DAY_MS);
+    window.clearTimeout(scrollEndTimer.current);
+    scrollEndTimer.current = window.setTimeout(recenterIfNeeded, 180);
+  };
+
+  const scrollToDay = (dayFc: number) => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const idx = Math.round((dayFc - anchor) / DAY_MS);
+    if (idx < STRIP_EDGE || idx > STRIP_DAYS - visible - STRIP_EDGE) {
+      pendingScroll.current = STRIP_LEAD;
+      setAnchor(dayFc - STRIP_LEAD * DAY_MS);
+      return;
+    }
+    el.scrollTo({ left: idx * col, behavior: "smooth" });
+  };
+
+  useImperativeHandle(ref, () => ({
+    prev: () => (strip ? wrapRef.current?.scrollBy({ left: -visible * col, behavior: "smooth" }) : api()?.prev()),
+    next: () => (strip ? wrapRef.current?.scrollBy({ left: visible * col, behavior: "smooth" }) : api()?.next()),
+    today: () => (strip ? scrollToDay(homeDay()) : api()?.today()),
+  }));
 
   const events = useMemo(() => {
     const out: EventInput[] = [];
@@ -262,24 +400,28 @@ export default function CalendarView(props: CalendarViewProps) {
   const nowFc = toFc(Date.now());
   const scrollTime = `${String(Math.max(0, nowFc.getUTCHours() - 1)).padStart(2, "0")}:00:00`;
 
-  return (
+  const calendar = (
     <FullCalendar
-      ref={ref}
+      ref={fcRef}
       plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
       locale={jaLocale}
       timeZone="UTC"
       now={() => toFc(Date.now())}
       firstDay={1}
-      initialView={props.initialView}
-      views={{ timeGrid3Day: { type: "timeGrid", duration: { days: 3 } } }}
+      initialView={strip ? "timeGridStrip" : "dayGridMonth"}
+      initialDate={strip ? new Date(anchor) : undefined}
+      views={{ timeGridStrip: { type: "timeGrid", duration: { days: STRIP_DAYS } } }}
       headerToolbar={false}
-      height="100%"
+      height={strip ? "auto" : "100%"}
+      stickyHeaderDates
       events={events}
       eventContent={renderEventContent}
       dayHeaderContent={renderDayHeader}
       // 月表示の日付は「1日」ではなく「1」だけにする（時間表示の終日欄には何も出さない）
       dayCellContent={(arg) => arg.dayNumberText.replace("日", "")}
-      datesSet={props.onDatesSet}
+      datesSet={(arg: DatesSetArg) => {
+        if (!strip) onTitle({ year: `${arg.view.currentStart.getUTCFullYear()}年`, month: `${arg.view.currentStart.getUTCMonth() + 1}月` });
+      }}
       nowIndicator
       selectable
       selectMirror
@@ -308,5 +450,17 @@ export default function CalendarView(props: CalendarViewProps) {
       eventMouseEnter={handleEnter}
       eventMouseLeave={handleLeave}
     />
+  );
+
+  if (!strip) return calendar;
+  return (
+    <div
+      ref={wrapRef}
+      className="cal-strip"
+      style={{ ["--col" as string]: `${col}px`, ["--axis" as string]: `${axis.current}px`, ["--strip-days" as string]: STRIP_DAYS }}
+      onScroll={handleScroll}
+    >
+      {col > 0 && calendar}
+    </div>
   );
 }
