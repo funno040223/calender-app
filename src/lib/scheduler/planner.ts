@@ -126,7 +126,8 @@ export function plan(input: PlanInput): PlanResult {
   const dayIndex = (d: DayPlan) => Math.round((d.dayStart - firstDay) / DAY_MS);
 
   // 始まった枠と固定した枠は残す。朝ルーティンは毎回計算し直す
-  const previous = input.previousBlocks.filter((b) => b.kind !== "routine" && b.end > now);
+  // 当日の終了済み習慣も残す。再計算で食事を再び置いたり、食事間隔を忘れたりしない。
+  const previous = input.previousBlocks.filter((b) => b.kind !== "routine" && (b.end > now || (b.kind === "habit" && b.start >= firstDay)));
   // 消えたタスク・習慣の枠は、始まっていても固定していても残さない
   const taskIds = new Set(input.tasks.map((t) => t.id));
   const habitIds = new Set(input.habits.map((h) => h.id));
@@ -502,8 +503,8 @@ export function plan(input: PlanInput): PlanResult {
     const tag = tagOf(task.id);
     const keptMs = kept
       .filter((b) => b.kind === "task" && b.refId === task.id)
-      .reduce((sum, b) => sum + (b.end - Math.max(b.start, now)), 0);
-    // 作業中の枠の残りは分の端数になるので、15分単位に切り上げて枠の時刻を揃える
+      .reduce((sum, b) => sum + (b.end - b.start), 0);
+    // 残り時間から実績を引くのは枠の終了時。途中の枠も全長を予約済みとして差し引く。
     let remaining = Math.ceil((estimateMinutes(task, tag) - keptMs / MIN) / 15) * 15;
 
     const ownDeadline = deadlineOf(task);
@@ -622,6 +623,7 @@ export function plan(input: PlanInput): PlanResult {
     const dur = habit.durationMinutes * MIN;
     const cost = habit.energyCost ?? 0;
     for (const d of days) {
+      if (kept.some((b) => b.kind === "habit" && b.refId === habit.id && b.start >= d.dayStart && b.start < d.dayStart + DAY_MS)) continue;
       const window = habitWindow(habit, d);
       if (window.end <= now || skipped(habit, d) || outingDays.has(d.dayStart) || energyOn(d) + cost > s.dailyEnergyBudget) continue;
       const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);
@@ -640,6 +642,7 @@ export function plan(input: PlanInput): PlanResult {
     for (const habit of onTrackHabits) {
       const dur = habit.durationMinutes * MIN;
       for (const d of days.filter((x) => x.holiday)) {
+        if (kept.some((b) => b.kind === "habit" && b.refId === habit.id && b.start >= d.dayStart && b.start < d.dayStart + DAY_MS)) continue;
         const window = habitWindow(habit, d);
         if (window.end <= now || skipped(habit, d)) continue;
         const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);

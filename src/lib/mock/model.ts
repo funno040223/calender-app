@@ -198,7 +198,7 @@ export interface MockData {
   contactLogs: Record<DateKey, ContactAnswer>;
   /**
    * 始まったタスクの枠の記録（"タスクの ID:開始の epoch ミリ秒" → 枠）。doneAt は「やった」の時刻
-   * （枠の始まりの通知から開いた、または今日の画面で押した）。60日より前は捨てる
+   * （枠の始まりの通知から開いた、または今日の画面で押した）。ご褒美の計算元として保持する
    */
   taskBlockLog: Record<string, TaskBlockLog>;
   /** 「終わった」と答えたタスク（一覧と配置からは外す。締切までに終えたかを数える） */

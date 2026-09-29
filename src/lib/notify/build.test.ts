@@ -77,9 +77,9 @@ describe("buildNotices", () => {
   });
 
   it("移動時間が分からない予定は、すぐに1回だけ聞く", () => {
-    const got = buildNotices(input({ travelAsks: [{ id: "g1", title: "富士通", start: jst(2026, 10, 1, 13) }] })).filter((n) => n.key.startsWith("travel:"));
+    const got = buildNotices(input({ now: jst(2026, 10, 1, 9), travelAsks: [{ id: "g1", title: "富士通", start: jst(2026, 10, 1, 13) }] })).filter((n) => n.key.startsWith("travel:"));
     expect(got).toHaveLength(1);
-    expect(got[0]).toMatchObject({ key: "travel:g1", at: jst(2026, 10, 1, 6, 1), title: "移動時間は？" });
+    expect(got[0]).toMatchObject({ key: "travel:g1", at: jst(2026, 10, 1, 9, 1), title: "移動時間は？" });
     expect(got[0].body).toContain("富士通");
   });
 

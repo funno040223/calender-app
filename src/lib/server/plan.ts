@@ -8,7 +8,7 @@ const DAY_MS = 24 * 60 * 60_000;
 
 export type ServerPlan =
   | { ok: true; state: MockState }
-  | { ok: false; reason: "data" | "ical" | "no-sources"; data?: ReturnType<typeof fromStoredV2> };
+  | { ok: false; reason: "data" | "ical"; data?: ReturnType<typeof fromStoredV2> };
 
 /**
  * サーバーで、あるユーザーの配置を組み直す（定期実行と iCal 配信から使う）。
@@ -19,8 +19,8 @@ export async function planOnServer(db: SupabaseClient, userId: string, raw: unkn
   const data = fromStoredV2(raw, now);
   if (!data) return { ok: false, reason: "data" };
 
-  const { data: sources } = await db.from("ical_sources").select("id, url").eq("user_id", userId);
-  if (!sources?.length) return { ok: false, reason: "no-sources", data };
+  const { data: sources, error } = await db.from("ical_sources").select("id, url").eq("user_id", userId);
+  if (error || !sources) return { ok: false, reason: "ical", data };
 
   const events: CalendarEvent[] = [];
   let failed = false;

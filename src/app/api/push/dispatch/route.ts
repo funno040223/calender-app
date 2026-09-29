@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanNotices, sendPush, type PushTarget } from "@/lib/push/send";
 import { authorized } from "@/lib/push/cron";
+import { deliverNotice, deliveryLedger } from "@/lib/push/delivery";
 
 /** 遅れて届いた一覧でも、この時間までは送る */
 const GRACE_MS = 10 * 60_000;
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
   if (error) return Response.json({ error: "通知の一覧を読めませんでした。" }, { status: 500 });
 
   let sent = 0;
+  let failed = 0;
   for (const row of rows ?? []) {
     const due = cleanNotices(row.items).filter((n) => n.at <= now && n.at > now - GRACE_MS);
     if (!due.length) continue;
@@ -26,25 +28,22 @@ export async function POST(request: Request) {
     const { data: subs } = await db.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", row.user_id);
     if (!subs?.length) continue;
 
-    // 先に「送った」と記録できたものだけ送る（1分ごとの呼び出しが重なっても2回送らない）
-    const { data: claimed } = await db
-      .from("push_sent")
-      .upsert(
-        due.map((n) => ({ user_id: row.user_id, key: n.key })),
-        { onConflict: "user_id,key", ignoreDuplicates: true },
-      )
-      .select("key");
-    const keys = new Set((claimed ?? []).map((c) => c.key as string));
-
-    for (const n of due.filter((x) => keys.has(x.key))) {
+    const ledger = deliveryLedger(db, row.user_id);
+    for (const n of due) {
       for (const sub of subs as PushTarget[]) {
-        const r = await sendPush(sub, { title: n.title, body: n.body, url: n.url, tag: n.key });
-        if (r === "ok") sent++;
-        if (r === "gone") await db.from("push_subscriptions").delete().eq("id", sub.id);
+        try {
+          const r = await deliverNotice(ledger, sub, n, sendPush);
+          if (r === "ok") sent++;
+          if (r === "error") failed++;
+          if (r === "gone") await db.from("push_subscriptions").delete().eq("id", sub.id);
+        } catch {
+          failed++;
+          console.warn("通知の送信または記録に失敗しました。次回再試行します。");
+        }
       }
     }
   }
 
   await db.from("push_sent").delete().lt("sent_at", new Date(now - KEEP_SENT_MS).toISOString());
-  return Response.json({ sent });
+  return Response.json({ sent, failed });
 }

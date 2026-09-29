@@ -57,6 +57,8 @@ export function buildNotices(input: NoticeInput): Notice[] {
   const until = now + (input.horizonMs ?? NOTICE_HORIZON_MS);
   const days = [...result.dayPlans].sort((a, b) => a.dayStart - b.dayStart);
   const quiet = days.slice(0, -1).map((d, i) => ({ start: d.bed, end: days[i + 1].wake }));
+  // 日付が変わったあとも、前夜から続いている睡眠を含める。
+  if (days[0]) quiet.unshift({ start: days[0].wake - settings.sleepMinutes * MIN, end: days[0].wake });
   const isQuiet = (t: number) => quiet.some((q) => t >= q.start && t < q.end);
 
   const out: Notice[] = [];

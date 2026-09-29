@@ -342,7 +342,8 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     }
   }
   // 始まったタスクの枠を記録に残す（組み直すと過ぎた枠は消えるため。予定どおりできたかを数える）
-  const taskBlockLog = Object.fromEntries(Object.entries(data.taskBlockLog).filter(([, l]) => l.start >= now - 60 * DAY_MS));
+  // ご褒美残高の計算元でもあるため、時間の経過で実績を削除しない。
+  const taskBlockLog = { ...data.taskBlockLog };
   for (const b of data.blocks) {
     if (b.kind !== "task" || b.start > now) continue;
     const key = taskBlockKey(b.refId, b.start);
