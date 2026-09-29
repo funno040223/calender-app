@@ -632,6 +632,50 @@ function ReviewCard({ today }: { today: number }) {
   );
 }
 
+/** 今日の食事：家で食べるか、外で食べるかを選ぶ（選ばなければ、予定の空きから自動で決まる） */
+function MealCard({ today }: { today: number }) {
+  const { state, update } = useApp();
+  const key = dateKeyOf(today);
+  // 朝食（朝ルーティンのあと）→ 昼食 → 夕食 の順
+  const meals = state.habits.filter((h) => h.meal).sort((a, b) => (a.cue ? -1 : a.windowStart) - (b.cue ? -1 : b.windowStart));
+  if (meals.length === 0) return null;
+  const home = new Set(state.mealsAtHome[key] ?? []);
+  const out = new Set(state.habitSkips[key] ?? []);
+  const choose = (id: string, where: "home" | "out") =>
+    update((d) => {
+      const h = new Set(d.mealsAtHome[key] ?? []);
+      const o = new Set(d.habitSkips[key] ?? []);
+      const on = where === "home" ? h.has(id) : o.has(id);
+      h.delete(id);
+      o.delete(id);
+      // もう一度押すと、自動に戻す
+      if (!on) (where === "home" ? h : o).add(id);
+      return { ...d, mealsAtHome: { ...d.mealsAtHome, [key]: [...h] }, habitSkips: { ...d.habitSkips, [key]: [...o] } };
+    });
+  const btn = (on: boolean) => `shrink-0 rounded-lg px-3 py-1.5 text-[14px] ${on ? "bg-accent font-medium text-white" : "bg-surface2"}`;
+  return (
+    <Group title="今日の食事">
+      <ul className="flex flex-col py-1">
+        {meals.map((m) => {
+          const b = state.result.blocks.find((x) => x.kind === "habit" && x.refId === m.id && x.start >= today && x.start < today + DAY_MS);
+          return (
+            <li key={m.id} className="flex items-center gap-2 px-4 py-2">
+              <span className="min-w-0 flex-1 truncate text-[15px]">{m.name}</span>
+              <span className="w-12 shrink-0 text-right text-[13px] tabular-nums text-muted">{b ? formatTime(b.start) : out.has(m.id) ? "" : "—"}</span>
+              <button type="button" aria-pressed={home.has(m.id)} onClick={() => choose(m.id, "home")} className={btn(home.has(m.id))}>
+                家で
+              </button>
+              <button type="button" aria-pressed={out.has(m.id)} onClick={() => choose(m.id, "out")} className={btn(out.has(m.id))}>
+                外で
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </Group>
+  );
+}
+
 /** 余裕のある週の最初の休日に「連絡してみる？」。答えたらその週はもう出さない */
 function ContactCard({ today, now }: { today: number; now: number }) {
   const { state, update } = useApp();
@@ -729,6 +773,7 @@ export default function TodayScreen() {
           {day && <EveningCard day={day} now={now} />}
           {day && <SleepCard day={day} today={today} now={now} />}
           <EnergyCard today={today} />
+          <MealCard today={today} />
           <MorningCard day={day} now={now} />
           <TreatCard today={today} />
           <ContactCard today={today} now={now} />

@@ -227,6 +227,8 @@ export interface MockData {
   taskChecks: Record<string, TaskCheck>;
   /** 「今日は飛ばす」にした習慣（日付 → 習慣の ID）。その日には置かない */
   habitSkips: Record<DateKey, string[]>;
+  /** 「家で食べる」にした食事（日付 → 習慣の ID）。「外で」は habitSkips */
+  mealsAtHome: Record<DateKey, string[]>;
   /** 作業の種類（集中・事務）。1回の長さや休憩を設定で変えられる */
   tags: Tag[];
   /** カレンダーの色を変えたもの（カレンダーの ID → #rrggbb）。なければ初期の色 */

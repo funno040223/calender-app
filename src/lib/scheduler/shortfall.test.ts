@@ -47,3 +47,15 @@ describe("雨の日を避ける習慣", () => {
     expect(firstDay([jst(2026, 10, dry)])).not.toBe(dry);
   });
 });
+
+describe("家で食べる", () => {
+  it("予定で時間帯に入らない食事も、「家で」にすれば寝る準備の前まで遅らせて置く", () => {
+    const dinner = { id: "dinner", name: "夕食", durationMinutes: 60, windowStart: 18 * 60, windowEnd: 20 * 60 + 30, frequency: { type: "daily" as const }, skippable: false, meal: true };
+    const events = [{ id: "e", title: "訪問", start: jst(2026, 10, 1, 18), end: jst(2026, 10, 1, 20) }];
+    const on = (r: ReturnType<typeof plan>) => r.blocks.filter((b) => b.refId === "dinner" && b.start < jst(2026, 10, 2));
+    expect(on(plan(baseInput(now, { settings, events, habits: [dinner] })))).toHaveLength(0);
+    const r = plan(baseInput(now, { settings, events, habits: [dinner], mealAtHomeDays: { dinner: [jst(2026, 10, 1)] } }));
+    expect(on(r)).toHaveLength(1);
+    expect(on(r)[0].start).toBeGreaterThanOrEqual(jst(2026, 10, 1, 20));
+  });
+});

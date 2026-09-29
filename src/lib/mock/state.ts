@@ -108,6 +108,7 @@ const DATA_KEYS = [
   "importedTravel",
   "tags",
   "habitSkips",
+  "mealsAtHome",
   "calendarColors",
   "taskChecks",
   "rewardRates",
@@ -152,6 +153,7 @@ export function sampleData(now: number): MockData {
     importedTravel: {},
     tags: SAMPLE_TAGS,
     habitSkips: {},
+    mealsAtHome: {},
     calendarColors: {},
     taskChecks: {},
     rewardRates: DEFAULT_REWARD_RATES,
@@ -338,6 +340,11 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
           Object.entries(d.habitSkips).flatMap(([k, v]) => (Array.isArray(v) ? [[k, v.filter((x): x is string => typeof x === "string")]] : [])),
         )
       : {},
+    mealsAtHome: isRecord(d.mealsAtHome)
+      ? Object.fromEntries(
+          Object.entries(d.mealsAtHome).flatMap(([k, v]) => (Array.isArray(v) ? [[k, v.filter((x): x is string => typeof x === "string")]] : [])),
+        )
+      : {},
     calendarColors: isRecord(d.calendarColors)
       ? Object.fromEntries(Object.entries(d.calendarColors).filter((e): e is [string, string] => typeof e[1] === "string" && /^#[0-9a-f]{6}$/i.test(e[1])))
       : {},
@@ -406,12 +413,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   data = captureTaskBlocks({ ...data, habitLastDone }, now);
   const planTags = planTagsOf(data);
   // 「今日は飛ばす」にした習慣：その日には置かず、もう始まっている枠も外す
-  const skipDays: Record<string, number[]> = {};
-  for (const [key, ids] of Object.entries(data.habitSkips)) {
-    const day = dayStartOfKey(key);
-    if (day === undefined) continue;
-    for (const id of ids) (skipDays[id] ??= []).push(day);
-  }
+  const skipDays = byHabit(data.habitSkips);
   const isSkipped = (b: MockData["blocks"][number]) =>
     b.kind === "habit" && (skipDays[b.refId] ?? []).some((day) => b.start >= day && b.start < day + DAY_MS);
   const result = plan({
@@ -435,6 +437,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     ),
     rainyDays: rainyDayKeys(data).flatMap((k) => dayStartOfKey(k) ?? []),
     skipHabitDays: skipDays,
+    mealAtHomeDays: byHabit(data.mealsAtHome),
   });
   return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now, planTags };
 }
@@ -481,4 +484,15 @@ export function rainyDayKeys(data: Pick<MockData, "rainyDays" | "notRainyDays" |
     .map(([k]) => k);
   const not = new Set(data.notRainyDays);
   return [...new Set([...data.rainyDays, ...forecast])].filter((k) => !not.has(k));
+}
+
+/** 日付 → 習慣の ID の記録を、習慣の ID → その日の 0:00 にする */
+function byHabit(rec: Record<string, string[]>): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  for (const [key, ids] of Object.entries(rec)) {
+    const day = dayStartOfKey(key);
+    if (day === undefined) continue;
+    for (const id of ids) (out[id] ??= []).push(day);
+  }
+  return out;
 }

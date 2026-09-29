@@ -336,6 +336,8 @@ export interface PlanInput {
   rainyDays?: number[];
   /** 「今日は飛ばす」にした習慣（習慣の ID → その日の 0:00）。その日には置かない */
   skipHabitDays?: Record<string, number[]>;
+  /** 「家で食べる」にした食事（習慣の ID → その日の 0:00）。時間帯に入らなければ、寝る準備の前まで遅らせて置く */
+  mealAtHomeDays?: Record<string, number[]>;
 }
 
 export interface PlanResult {

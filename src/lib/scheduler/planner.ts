@@ -417,7 +417,12 @@ export function plan(input: PlanInput): PlanResult {
       const exact = cueOn(habit.cue, d)?.cue.type === "beforeHabit" ? window.end - len : habit.cue ? window.start : undefined;
       // 食事は家にいない時間（旅行・帰省など）にも置かない
       const room = habit.meal ? subtract(intersect(free, window), mergedAway) : intersect(free, window);
-      const start = findStart(room, len, ok, exact ?? prevOf(window));
+      let start = findStart(room, len, ok, exact ?? prevOf(window));
+      // 「家で食べる」にした食事は、時間帯に入らなければ寝る準備の前まで遅らせて置く
+      if (start === undefined && habit.meal && input.mealAtHomeDays?.[habit.id]?.includes(d.dayStart)) {
+        const later = { start: window.start, end: d.bed - s.windDownMinutes * MIN };
+        start = findStart(subtract(intersect(free, later), mergedAway), len, ok);
+      }
       if (start === undefined) return false;
       placeHabitBlock(
         habit,
