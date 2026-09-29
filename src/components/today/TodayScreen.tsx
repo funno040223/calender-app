@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { DayPlan, EveningEnergy, Habit } from "@/lib/scheduler";
+import { estimateMinutes, type DayPlan, type EveningEnergy, type Habit, type Task } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, taskBlockKey, type ContactAnswer, type HabitMark, type MorningFatigue, type TaskBlockLog, type WakeLog } from "@/lib/mock/model";
-import { contactDaysFor } from "@/lib/mock/state";
+import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, taskBlockKey, taskCheckKey, type ContactAnswer, type DoneTask, type TaskCheck, type HabitMark, type MorningFatigue, type TaskBlockLog, type WakeLog } from "@/lib/mock/model";
+import { TAGS, contactDaysFor } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import Notices, { hasNotices } from "./Notices";
@@ -624,6 +624,76 @@ function ReviewCard({ today }: { today: number }) {
   );
 }
 
+const MORE_OPTIONS = [15, 30, 60, 90, 120];
+
+/** その日の最後の枠が終わったタスクに「終わった？」。終わった／あと○分／今日はやってない */
+function TaskCheckCard({ today, now }: { today: number; now: number }) {
+  const { state, update } = useApp();
+  const key = dateKeyOf(today);
+  const [more, setMore] = useState<string>();
+  // 今日の枠（始まったもの）の最後が終わっていて、このあと今日の枠がなく、まだ答えていないタスク
+  const lastEnd = new Map<string, number>();
+  for (const l of Object.entries(state.taskBlockLog)) {
+    const [k, b] = l;
+    if (b.start < today || b.start >= today + DAY_MS) continue;
+    const id = k.slice(0, k.lastIndexOf(":"));
+    lastEnd.set(id, Math.max(lastEnd.get(id) ?? 0, b.end));
+  }
+  const ask = state.tasks.filter((t) => {
+    const end = lastEnd.get(t.id);
+    if (end === undefined || end > now || state.taskChecks[taskCheckKey(t.id, key)]) return false;
+    return !state.result.blocks.some((b) => b.kind === "task" && b.refId === t.id && b.start > now && b.start < today + DAY_MS);
+  });
+  if (ask.length === 0) return null;
+  const answer = (t: Task, a: TaskCheck["answer"], remaining?: number) => {
+    setMore(undefined);
+    update((d) => {
+      const before = t.remainingMinutes ?? estimateMinutes(t, TAGS.find((g) => g.id === t.tagId));
+      const check: TaskCheck = { at: Date.now(), answer: a, beforeMinutes: before, ...(remaining !== undefined ? { remainingMinutes: remaining } : {}) };
+      const taskChecks = { ...d.taskChecks, [taskCheckKey(t.id, key)]: check };
+      if (a === "done") {
+        const done: DoneTask = { id: t.id, title: t.title, deadline: t.deadline, tagId: t.tagId, estimateMinutes: t.durationMinutes, doneAt: Date.now() };
+        return { ...d, taskChecks, tasks: d.tasks.filter((x) => x.id !== t.id), doneTasks: [...d.doneTasks, done] };
+      }
+      if (a === "more" && remaining !== undefined) return { ...d, taskChecks, tasks: d.tasks.map((x) => (x.id === t.id ? { ...x, remainingMinutes: remaining } : x)) };
+      return { ...d, taskChecks };
+    });
+  };
+  const btn = "shrink-0 rounded-lg px-3 py-1.5 text-[14px]";
+  return (
+    <Group title="終わった？">
+      <ul className="flex flex-col py-1">
+        {ask.map((t) => (
+          <li key={t.id} className="flex flex-col gap-2 px-4 py-2.5">
+            <p className="truncate text-[15px] font-medium">{t.title}</p>
+            {more === t.id ? (
+              <div className="flex flex-wrap gap-2">
+                {MORE_OPTIONS.map((m) => (
+                  <button key={m} type="button" onClick={() => answer(t, "more", m)} className={`${btn} bg-surface2 tabular-nums`}>
+                    {formatMinutes(m)}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => answer(t, "done")} className={`${btn} bg-accent font-medium text-white`}>
+                  終わった
+                </button>
+                <button type="button" onClick={() => setMore(t.id)} className={`${btn} bg-surface2`}>
+                  あと…
+                </button>
+                <button type="button" onClick={() => answer(t, "none")} className={`${btn} bg-surface2`}>
+                  今日はやってない
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Group>
+  );
+}
+
 /** 余裕のある週の最初の休日に「連絡してみる？」。答えたらその週はもう出さない */
 function ContactCard({ today, now }: { today: number; now: number }) {
   const { state, update } = useApp();
@@ -727,6 +797,7 @@ export default function TodayScreen() {
           <SmokeCard today={today} />
         </div>
         <div className="flex flex-col gap-6">
+          <TaskCheckCard today={today} now={now} />
           <ReviewCard today={today} />
           <HabitLogCard today={today} now={now} />
           <Timeline now={now} dayEnd={dayEnd} />

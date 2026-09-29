@@ -68,6 +68,14 @@ describe("buildNotices", () => {
     expect(prep.map((n) => [n.at, n.body])).toEqual([[jst(2026, 10, 1, 8, 50), "出発 9:30"]]);
   });
 
+  it("タスクは、その日の最後の枠が終わったら「終わった？」と聞く", () => {
+    const t = (id: string, h: number) => ({ kind: "task" as const, refId: id, title: "レポート", start: jst(2026, 10, 1, h), end: jst(2026, 10, 1, h + 1) });
+    const blocks = [t("a", 10), t("a", 14), t("b", 16), { ...t("a", 11), start: jst(2026, 10, 2, 11), end: jst(2026, 10, 2, 12) }];
+    const got = buildNotices(input({ result: { ...input().result, blocks } })).filter((n) => n.key.startsWith("check:"));
+    expect(got.map((n) => n.at)).toEqual([jst(2026, 10, 1, 15), jst(2026, 10, 1, 17), jst(2026, 10, 2, 12)]);
+    expect(got[0].body).toBe("終わった？");
+  });
+
   it("Apple Watch の充電は就寝の2時間前、帰宅がそれより遅い日は帰宅の時刻に", () => {
     const late = { ...day(2, 8, 25), homeAt: jst(2026, 10, 2, 23, 30) };
     const got = buildNotices(input({ result: { ...input().result, dayPlans: [day(1, 8, 25), late, day(3, 8, 25)] } })).filter((n) => n.key.startsWith("watch:"));

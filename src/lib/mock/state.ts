@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type HabitMark, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS, taskBlockKey } from "./model";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS, taskBlockKey } from "./model";
 import { DAY_MS } from "./jst";
 import {
   SAMPLE_RECOVERY_OPTIONS,
@@ -57,6 +57,8 @@ const DATA_KEYS = [
   "contactLogs",
   "taskBlockLog",
   "rewardSpends",
+  "doneTasks",
+  "taskChecks",
   "rewardRates",
   "migrations",
 ] as const satisfies readonly (keyof MockData)[];
@@ -93,6 +95,8 @@ export function sampleData(now: number): MockData {
     contactLogs: {},
     taskBlockLog: {},
     rewardSpends: [],
+    doneTasks: [],
+    taskChecks: {},
     rewardRates: DEFAULT_REWARD_RATES,
     migrations: [...MIGRATIONS],
   };
@@ -231,6 +235,12 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     rewardSpends: arr<unknown>(d.rewardSpends, []).filter(
       (x): x is RewardSpend => isRecord(x) && typeof x.id === "string" && typeof x.at === "number" && typeof x.amount === "number",
     ),
+    doneTasks: arr<unknown>(d.doneTasks, []).filter(
+      (x): x is DoneTask => isRecord(x) && typeof x.id === "string" && typeof x.title === "string" && typeof x.doneAt === "number",
+    ),
+    taskChecks: isRecord(d.taskChecks)
+      ? Object.fromEntries(Object.entries(d.taskChecks).filter((e): e is [string, TaskCheck] => isRecord(e[1]) && typeof e[1].at === "number"))
+      : {},
     rewardRates: { ...DEFAULT_REWARD_RATES, ...(isRecord(d.rewardRates) ? (d.rewardRates as Partial<RewardRates>) : {}) },
     contactLogs: isRecord(d.contactLogs)
       ? Object.fromEntries(Object.entries(d.contactLogs).filter((e): e is [string, ContactAnswer] => CONTACT_ANSWERS.includes(e[1] as ContactAnswer)))

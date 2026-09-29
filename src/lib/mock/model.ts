@@ -112,6 +112,24 @@ export interface TaskBlockLog {
   end: number;
   doneAt?: number;
 }
+export interface DoneTask {
+  id: string;
+  title: string;
+  deadline?: number;
+  tagId?: string;
+  /** 登録したときの見積もり（分） */
+  estimateMinutes?: number;
+  doneAt: number;
+}
+export interface TaskCheck {
+  at: number;
+  answer: "done" | "more" | "none";
+  /** 「あと○分」の答え */
+  remainingMinutes?: number;
+  /** 答える前の残り（分） */
+  beforeMinutes?: number;
+}
+export const taskCheckKey = (taskId: string, day: DateKey) => `${taskId}:${day}`;
 export interface RewardSpend {
   id: string;
   at: number;
@@ -180,6 +198,10 @@ export interface MockData {
    * （枠の始まりの通知から開いた、または今日の画面で押した）。60日より前は捨てる
    */
   taskBlockLog: Record<string, TaskBlockLog>;
+  /** 「終わった」と答えたタスク（一覧と配置からは外す。締切までに終えたかを数える） */
+  doneTasks: DoneTask[];
+  /** その日の最後の枠のあとに聞いた「終わった？」の答え（"タスクの ID:日付" → 答え）。見積もりを合わせる材料 */
+  taskChecks: Record<string, TaskCheck>;
   /** ご褒美のお金を使った記録 */
   rewardSpends: RewardSpend[];
   /** ご褒美のお金の金額（円） */

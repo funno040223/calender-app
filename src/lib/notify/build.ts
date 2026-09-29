@@ -77,6 +77,17 @@ export function buildNotices(input: NoticeInput): Notice[] {
     });
   }
 
+  // タスクは、その日の最後の枠が終わったら「終わった？」と聞く（押すと今日の画面で答える）
+  const lastOfDay = new Map<string, (typeof result.blocks)[number]>();
+  for (const b of result.blocks) {
+    if (b.kind !== "task") continue;
+    const day = days.find((d) => b.start >= d.dayStart && b.start < d.dayStart + 24 * 60 * MIN)?.dayStart ?? 0;
+    const k = `${b.refId}:${day}`;
+    const cur = lastOfDay.get(k);
+    if (!cur || b.end > cur.end) lastOfDay.set(k, b);
+  }
+  for (const [k, b] of lastOfDay) add({ key: `check:${k}`, at: b.end, title: b.title, body: "終わった？", url: "/" });
+
   const cued = new Set((input.habits ?? []).filter((h) => h.cue && h.track).map((h) => h.id));
   for (const b of result.blocks) {
     if (b.kind === "routine") continue;
