@@ -68,12 +68,12 @@ describe("buildNotices", () => {
     expect(prep.map((n) => [n.at, n.body])).toEqual([[jst(2026, 10, 1, 8, 50), "出発 9:30"]]);
   });
 
-  it("タスクは、その日の最後の枠が終わったら「終わった？」と聞く", () => {
+  it("タスクは枠ごとの終了時に進捗を確認する", () => {
     const t = (id: string, h: number) => ({ kind: "task" as const, refId: id, title: "レポート", start: jst(2026, 10, 1, h), end: jst(2026, 10, 1, h + 1) });
     const blocks = [t("a", 10), t("a", 14), t("b", 16), { ...t("a", 11), start: jst(2026, 10, 2, 11), end: jst(2026, 10, 2, 12) }];
     const got = buildNotices(input({ result: { ...input().result, blocks } })).filter((n) => n.key.startsWith("check:"));
-    expect(got.map((n) => n.at)).toEqual([jst(2026, 10, 1, 15), jst(2026, 10, 1, 17), jst(2026, 10, 2, 12)]);
-    expect(got[0].body).toBe("終わった？");
+    expect(got.map((n) => n.at)).toEqual([jst(2026, 10, 1, 11), jst(2026, 10, 1, 15), jst(2026, 10, 1, 17), jst(2026, 10, 2, 12)]);
+    expect(got[0].body).toBe("どのくらい進んだ？");
   });
 
   it("移動時間が分からない予定は、すぐに1回だけ聞く", () => {

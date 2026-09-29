@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+
 
 import { useMemo, useRef, useState } from "react";
 import type { Block } from "@/lib/scheduler";
@@ -6,7 +8,7 @@ import { sameBlock, type OwnEvent } from "@/lib/mock/store";
 import type { CalendarId } from "@/lib/mock/calendars";
 import { useApp } from "@/components/app/StoreProvider";
 import { eventIndex, formatEventShort, groupKeyOf, tasksByEvent } from "@/lib/mock/related";
-import { dateKeyOf, parseClassEventId, taskBlockKey, type HabitMark } from "@/lib/mock/model";
+import { dateKeyOf, parseClassEventId, type HabitMark } from "@/lib/mock/model";
 import { formatDate } from "@/lib/mock/jst";
 import CalendarView, { type CalendarHandle, type CalendarMode, type EventSource } from "./CalendarView";
 import CalendarToggles from "./CalendarToggles";
@@ -375,23 +377,7 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
   const btn = (on: boolean) => `flex-1 rounded-xl py-2.5 font-medium ${on ? "bg-accent text-white" : "bg-surface2"}`;
   if (block.kind === "task") {
     if (!started) return null;
-    const key = taskBlockKey(block.refId, block.start);
-    const done = state.taskBlockLog[key]?.doneAt !== undefined;
-    return (
-      <button
-        type="button"
-        aria-pressed={done}
-        className={btn(done)}
-        onClick={() =>
-          update((d) => {
-            const cur = d.taskBlockLog[key] ?? { title: block.title, start: block.start, end: block.end };
-            return { ...d, taskBlockLog: { ...d.taskBlockLog, [key]: { ...cur, doneAt: cur.doneAt === undefined ? Date.now() : undefined } } };
-          })
-        }
-      >
-        やった
-      </button>
-    );
+    return <Link href="/" className={btn(false)}>今日の画面で進み具合を確認</Link>;
   }
   if (block.kind !== "habit") return null;
   const habit = state.habits.find((h) => h.id === block.refId);

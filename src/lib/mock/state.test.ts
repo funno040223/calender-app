@@ -3,15 +3,15 @@ import { jst } from "@/lib/scheduler/test-helpers";
 import { replan, sampleData, travelAsks } from "./state";
 
 describe("終わったタスクの枠", () => {
-  it("枠の長さを残り時間から一度だけ引く", () => {
+  it("未回答の枠は時間が過ぎても残り時間から引かない", () => {
     const now = jst(2026, 10, 1, 12);
     const base = sampleData(now);
     const task = { id: "t-report", title: "レポート", durationMinutes: 180, priority: 2 as const };
     const block = { kind: "task" as const, refId: task.id, title: task.title, start: jst(2026, 10, 1, 9), end: jst(2026, 10, 1, 10) };
     const s1 = replan({ ...base, tasks: [task], blocks: [block] }, [], now);
-    expect(s1.tasks[0].remainingMinutes).toBe(120);
+    expect(s1.tasks[0].remainingMinutes).toBeUndefined();
     const s2 = replan({ ...s1, blocks: [...s1.blocks, block] }, [], now + 60_000);
-    expect(s2.tasks[0].remainingMinutes).toBe(120);
+    expect(s2.tasks[0].remainingMinutes).toBeUndefined();
   });
 });
 

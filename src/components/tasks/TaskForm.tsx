@@ -13,6 +13,7 @@ type DurationMode = "fixed" | "range" | "unknown";
 interface Draft {
   title: string;
   hasDeadline: boolean;
+  deadlineKind: "fixed" | "target";
   deadlineDate: string;
   deadlineTime: string;
   mode: DurationMode;
@@ -35,6 +36,7 @@ function toDraft(t: Task | undefined, now: number): Draft {
   return {
     title: t?.title ?? "",
     hasDeadline: dl !== undefined,
+    deadlineKind: t?.deadlineKind ?? "fixed",
     deadlineDate: toInputDate(dl === undefined ? fallbackDay - 1 : endOfDay ? dl - 1 : dl),
     deadlineTime: dl === undefined || endOfDay ? "" : toInputDateTime(dl).slice(11),
     mode: t?.durationMinutes !== undefined ? "fixed" : t?.durationRange ? "range" : t ? "unknown" : "fixed",
@@ -108,6 +110,7 @@ export default function TaskForm({
     delete next.relatedEventId;
     delete next.timing;
     if (deadline !== undefined) next.deadline = deadline;
+    next.deadlineKind = d.deadlineKind;
 
     if (d.mode === "fixed") {
       const n = Number(d.fixed);
@@ -173,6 +176,7 @@ export default function TaskForm({
               <input type="checkbox" className="ios-switch" checked={d.hasDeadline} onChange={(e) => set("hasDeadline", e.target.checked)} />
             </label>
           </div>
+          {d.hasDeadline && <label className="block text-[14px]">期限の種類<select aria-label="期限の種類" value={d.deadlineKind} onChange={(e) => set("deadlineKind", e.target.value as "fixed" | "target")} className="ml-2 rounded-lg bg-surface2 p-2"><option value="fixed">提出・約束の締切</option><option value="target">自分の目標日</option></select></label>}
           {d.hasDeadline && (
             <div className="grid grid-cols-[1fr_7.5rem] gap-2">
               <input className={inputCls} type="date" aria-label="締切の日付" value={d.deadlineDate} onChange={(e) => set("deadlineDate", e.target.value)} />

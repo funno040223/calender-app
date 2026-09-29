@@ -111,8 +111,11 @@ export interface TaskBlockLog {
   start: number;
   end: number;
   doneAt?: number;
-  /** 枠が終わって、その長さをタスクの残り時間から引いた（2回引かない） */
+  /** 旧版で差し引き済みの記録。新しい実績は reviewedAt と outcome で管理する */
   counted?: boolean;
+  reviewedAt?: number;
+  outcome?: "planned" | "partial" | "none" | "done";
+  workedMinutes?: number;
 }
 export interface DoneTask {
   id: string;
@@ -165,6 +168,7 @@ export interface EnergyCheck {
 }
 
 export interface MockData {
+  rhythmResets?: import("@/lib/scheduler").RhythmReset[];
   version: 2;
   settings: Settings;
   places: Place[];
@@ -198,7 +202,7 @@ export interface MockData {
   contactLogs: Record<DateKey, ContactAnswer>;
   /**
    * 始まったタスクの枠の記録（"タスクの ID:開始の epoch ミリ秒" → 枠）。doneAt は「やった」の時刻
-   * （枠の始まりの通知から開いた、または今日の画面で押した）。ご褒美の計算元として保持する
+   * （予定どおり実行・完了を明示した時刻）。旧版の報酬記録も保持する
    */
   taskBlockLog: Record<string, TaskBlockLog>;
   /** 「終わった」と答えたタスク（一覧と配置からは外す。締切までに終えたかを数える） */

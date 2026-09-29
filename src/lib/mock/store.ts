@@ -106,6 +106,8 @@ export function useMockStore() {
   const [state, setState] = useState<MockState>(initialState);
   const [sync, setSync] = useState<SyncStatus>("loading");
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const undoData = useRef<MockData | undefined>(undefined);
+  const [canUndo, setCanUndo] = useState(false);
   const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
@@ -158,6 +160,8 @@ export function useMockStore() {
       const remote = row && newer ? fromStoredV2(row.data, Date.now()) : undefined;
       if (row) remoteAt.current = Math.max(remoteAt.current, row.updatedAt);
       if (remote) {
+        undoData.current = undefined;
+        setCanUndo(false);
         fromRemote.current = true;
         const now = Date.now();
         setState(replan(remote, stateRef.current.googleEvents, now));
@@ -264,11 +268,27 @@ export function useMockStore() {
 
   /** 予定・タスク・設定などを変えたら、必ず組み直す */
   const update = useCallback((fn: (d: MockData) => MockData) => {
-    setState((prev) => replan(fn(prev), prev.googleEvents, Date.now()));
+    setState((prev) => {
+      const next = fn(prev);
+      if (next === prev) return prev;
+      undoData.current = toData(prev);
+      setCanUndo(true);
+      return replan(next, prev.googleEvents, Date.now());
+    });
+  }, []);
+
+  const undo = useCallback(() => {
+    const previous = undoData.current;
+    if (!previous) return;
+    undoData.current = undefined;
+    setCanUndo(false);
+    setState((current) => replan(previous, current.googleEvents, Date.now()));
   }, []);
 
   /** 配置に関係しない変更（表示の設定・楽しみ・朝の記録など）。組み直さない */
   const patch = useCallback((fn: (d: MockData) => Partial<MockData>) => {
+    undoData.current = undefined;
+    setCanUndo(false);
     setState((prev) => ({ ...prev, ...fn(prev) }));
   }, []);
 
@@ -279,7 +299,7 @@ export function useMockStore() {
 
   const setHidden = useCallback((hidden: CalendarId[]) => patch(() => ({ hiddenCalendars: hidden })), [patch]);
 
-  return { state, update, patch, reset, setHidden, sync, imports, refreshImports, initialLoaded };
+  return { state, update, patch, reset, setHidden, sync, imports, refreshImports, initialLoaded, undo, canUndo };
 }
 
 export type MockStore = ReturnType<typeof useMockStore>;

@@ -28,6 +28,18 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
+it("直前の手動変更を戻して再計算する", async () => {
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  const title = result.current.state.tasks[0].title;
+  act(() => result.current.update((d) => ({ ...d, tasks: d.tasks.map((t, i) => i === 0 ? { ...t, title: "変更後" } : t) })));
+  expect(result.current.canUndo).toBe(true);
+  expect(result.current.state.tasks[0].title).toBe("変更後");
+  act(() => result.current.undo());
+  expect(result.current.state.tasks[0].title).toBe(title);
+  expect(result.current.canUndo).toBe(false);
+});
+
 it("初回のサーバー応答まで編集画面を表示せず、応答後に表示する", async () => {
   let resolve!: (row: RemoteRow) => void;
   vi.mocked(loadRemote).mockReturnValue(new Promise<RemoteRow>((r) => { resolve = r; }));

@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { estimateMinutes, type DayPlan, type EveningEnergy, type Habit, type Task } from "@/lib/scheduler";
+import { type DayPlan, type EveningEnergy, type Habit } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, taskBlockKey, taskCheckKey, type ContactAnswer, type TaskCheck, type HabitMark, type MorningFatigue, type TaskBlockLog, type WakeLog } from "@/lib/mock/model";
-import { completeTask, contactDaysFor } from "@/lib/mock/state";
+import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type ContactAnswer, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
+import { contactDaysFor } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
+import ProgressCard from "./ProgressCard";
+import RecoveryCard from "./RecoveryCard";
+import WorkNowCard from "./WorkNowCard";
 import Notices, { hasNotices } from "./Notices";
 
 const colorOf = (id: CalendarId) => CALENDARS.find((c) => c.id === id)?.colorVar ?? "var(--muted)";
@@ -492,20 +495,8 @@ function countMarks(logs: Record<string, Record<string, HabitMark>>, habit: Habi
 }
 
 /** 記録する習慣：やった／5分だけ を押す。押さなければ、やっていない */
-function HabitLogCard({ today, now }: { today: number; now: number }) {
+function HabitLogCard({ today }: { today: number }) {
   const { state, update } = useApp();
-  // 始まったタスクの枠（記録に残っているものと、今の枠）
-  const taskRows = new Map<string, TaskBlockLog>();
-  for (const [k, l] of Object.entries(state.taskBlockLog)) if (l.start >= today && l.start < today + DAY_MS) taskRows.set(k, l);
-  for (const b of state.result.blocks) {
-    const k = taskBlockKey(b.refId, b.start);
-    if (b.kind === "task" && b.start >= today && b.start <= now && !taskRows.has(k)) taskRows.set(k, { title: b.title, start: b.start, end: b.end });
-  }
-  const toggleTask = (k: string, l: TaskBlockLog) =>
-    update((d) => {
-      const cur = d.taskBlockLog[k] ?? l;
-      return { ...d, taskBlockLog: { ...d.taskBlockLog, [k]: { ...cur, doneAt: cur.doneAt === undefined ? Date.now() : undefined } } };
-    });
   const key = dateKeyOf(today);
   const marks = state.habitLogs[key] ?? {};
   const tracked = new Map(state.habits.filter((h) => h.track).map((h) => [h.id, h]));
@@ -513,7 +504,7 @@ function HabitLogCard({ today, now }: { today: number; now: number }) {
     .filter((b) => b.kind === "habit" && tracked.has(b.refId) && b.start >= today && b.start < today + DAY_MS)
     .sort((a, b) => a.start - b.start)
     .filter((b, i, all) => all.findIndex((x) => x.refId === b.refId) === i);
-  if (rows.length === 0 && taskRows.size === 0) return null;
+  if (rows.length === 0) return null;
   const mark = (id: string, m: HabitMark) =>
     update((d) => {
       const day = { ...d.habitLogs[key] };
@@ -524,22 +515,6 @@ function HabitLogCard({ today, now }: { today: number; now: number }) {
   return (
     <Group title="今日の記録">
       <ul className="flex flex-col py-1">
-        {[...taskRows]
-          .sort((a, b) => a[1].start - b[1].start)
-          .map(([k, l]) => (
-            <li key={k} className="flex items-center gap-2 px-4 py-2">
-              <span className="w-12 shrink-0 text-[13px] tabular-nums text-muted">{formatTime(l.start)}</span>
-              <span className="min-w-0 flex-1 truncate text-[15px]">{l.title}</span>
-              <button
-                type="button"
-                aria-pressed={l.doneAt !== undefined}
-                onClick={() => toggleTask(k, l)}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-[14px] ${l.doneAt !== undefined ? "bg-accent font-medium text-white" : "bg-surface2"}`}
-              >
-                やった
-              </button>
-            </li>
-          ))}
         {rows.map((b) => {
           const m = marks[b.refId];
           const btn = (value: HabitMark, label: string) => (
@@ -625,87 +600,6 @@ function ReviewCard({ today }: { today: number }) {
   );
 }
 
-/** 残り時間を − ＋ で動かす幅（分） */
-const STEP = 30;
-
-/** その日の最後の枠が終わったタスクに「終わった？」。終わった／今日はやってない／残り時間を − ＋ で直して決める */
-function TaskCheckCard({ today, now }: { today: number; now: number }) {
-  const { state, update } = useApp();
-  const key = dateKeyOf(today);
-  /** − ＋ で動かした分（タスクの ID → 分） */
-  const [delta, setDelta] = useState<Record<string, number>>({});
-  // 今日の枠（始まったもの）の最後が終わっていて、このあと今日の枠がなく、まだ答えていないタスク
-  const todays = new Map<string, TaskBlockLog[]>();
-  for (const [k, b] of Object.entries(state.taskBlockLog)) {
-    if (b.start < today || b.start >= today + DAY_MS) continue;
-    const id = k.slice(0, k.lastIndexOf(":"));
-    todays.set(id, [...(todays.get(id) ?? []), b]);
-  }
-  const ask = state.tasks.filter((t) => {
-    const logs = todays.get(t.id);
-    if (!logs || logs.some((l) => l.end > now) || state.taskChecks[taskCheckKey(t.id, key)]) return false;
-    return !state.result.blocks.some((b) => b.kind === "task" && b.refId === t.id && b.start > now && b.start < today + DAY_MS);
-  });
-  if (ask.length === 0) return null;
-  const leftOf = (t: Task) => t.remainingMinutes ?? estimateMinutes(t, state.tags.find((g) => g.id === t.tagId));
-  const answer = (t: Task, a: TaskCheck["answer"], delta = 0) =>
-    update((d) => {
-      const before = leftOf(t);
-      const check: TaskCheck = { at: Date.now(), answer: a, beforeMinutes: before, ...(a === "adjust" ? { deltaMinutes: delta } : {}) };
-      const taskChecks = { ...d.taskChecks, [taskCheckKey(t.id, key)]: check };
-      if (a === "done") return completeTask({ ...d, taskChecks }, t.id, Date.now());
-      // やっていなければ、今日の枠のぶん引いた残りを戻す
-      const back = a === "none" ? (todays.get(t.id) ?? []).filter((l) => l.counted).reduce((s, l) => s + Math.round((l.end - l.start) / MIN), 0) : 0;
-      const next = Math.max(15, before + delta + back);
-      return { ...d, taskChecks, tasks: d.tasks.map((x) => (x.id === t.id ? { ...x, remainingMinutes: next } : x)) };
-    });
-  const btn = "shrink-0 rounded-lg px-3 py-1.5 text-[14px] tabular-nums";
-  const round = "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-[20px] leading-none";
-  return (
-    <Group title="終わった？">
-      <ul className="flex flex-col divide-y divide-line py-1">
-        {ask.map((t) => {
-          const left = leftOf(t);
-          const dm = delta[t.id] ?? 0;
-          const next = Math.max(STEP, left + dm);
-          const move = (m: number) => setDelta((p) => ({ ...p, [t.id]: Math.max(STEP - left, dm + m) }));
-          return (
-            <li key={t.id} className="flex flex-col gap-3 px-4 py-3">
-              <p className="truncate text-[15px] font-medium">{t.title}</p>
-              <div className="flex items-center gap-2">
-                <button type="button" aria-label="残りを30分減らす" onClick={() => move(-STEP)} className={round}>
-                  −
-                </button>
-                <div className="min-w-0 flex-1 text-center tabular-nums">
-                  <p className="text-[12px] text-muted">残り</p>
-                  <p className="text-[17px] font-semibold">
-                    {formatMinutes(next)}
-                    {dm !== 0 && <span className="ml-1 text-[12px] font-normal text-muted">（予定 {formatMinutes(left)}）</span>}
-                  </p>
-                </div>
-                <button type="button" aria-label="残りを30分増やす" onClick={() => move(STEP)} className={round}>
-                  ＋
-                </button>
-                <button type="button" onClick={() => answer(t, "adjust", next - left)} className={`${btn} bg-surface2 font-medium`}>
-                  決定
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => answer(t, "done")} className={`${btn} bg-accent font-medium text-white`}>
-                  終わった
-                </button>
-                <button type="button" onClick={() => answer(t, "none")} className={`${btn} bg-surface2`}>
-                  今日はやってない
-                </button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </Group>
-  );
-}
-
 /** 余裕のある週の最初の休日に「連絡してみる？」。答えたらその週はもう出さない */
 function ContactCard({ today, now }: { today: number; now: number }) {
   const { state, update } = useApp();
@@ -767,21 +661,17 @@ function SmokeCard({ today }: { today: number }) {
 }
 
 export default function TodayScreen() {
-  const { state, update, openTask, sync } = useApp();
-  // タスクの枠の始まりの通知から開いたら、その枠を「やった」にする（サーバーの内容を読んでから）
+  const { state, update, openTask, sync, undo, canUndo } = useApp();
+  // 新旧どちらの通知リンクも、開くだけでは実績にしない。
   useEffect(() => {
     if (sync === "loading") return;
-    const key = new URLSearchParams(window.location.search).get("done");
+    const params = new URLSearchParams(window.location.search);
+    const key = params.get("task") ?? params.get("done");
     if (!key) return;
     window.history.replaceState(null, "", "/");
-    update((d) => {
-      const cur = d.taskBlockLog[key];
-      if (cur?.doneAt !== undefined) return d;
-      const b = cur ?? d.blocks.find((x) => x.kind === "task" && taskBlockKey(x.refId, x.start) === key);
-      if (!b) return d;
-      return { ...d, taskBlockLog: { ...d.taskBlockLog, [key]: { title: b.title, start: b.start, end: b.end, doneAt: Date.now() } } };
-    });
-  }, [sync, update]);
+    const id = key.slice(0, key.lastIndexOf(":"));
+    if (state.tasks.some((t) => t.id === id)) openTask(id);
+  }, [sync, openTask, state.tasks]);
   const now = useNow();
   const today = dayStartOf(now);
   const days = state.result.dayPlans;
@@ -798,8 +688,12 @@ export default function TodayScreen() {
   return (
     <div className="h-full overflow-y-auto bg-grouped">
       <ScreenHeader title="今日" sub={formatDate(today)} width="max-w-5xl" />
+      {canUndo && <div className="mx-auto max-w-5xl px-4 pb-3"><button onClick={undo} className="text-[14px] text-accent">直前の操作を元に戻す</button></div>}
+      {!!state.result.movedBlocks?.length && <div role="status" className="mx-auto max-w-5xl px-4 pb-3 text-[13px] text-muted">予定に合わせて今日の自動枠を{state.result.movedBlocks.length}件変更しました。{state.result.movedBlocks.slice(0, 3).map((b) => `${formatTime(b.start)} ${b.title}`).join("、")}</div>}
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
+          <RecoveryCard now={now} />
+          <WorkNowCard now={now} />
           {day && <EveningCard day={day} now={now} />}
           {day && <SleepCard day={day} today={today} now={now} />}
           <EnergyCard today={today} />
@@ -809,9 +703,9 @@ export default function TodayScreen() {
           <SmokeCard today={today} />
         </div>
         <div className="flex flex-col gap-6">
-          <TaskCheckCard today={today} now={now} />
+          <ProgressCard now={now} />
           <ReviewCard today={today} />
-          <HabitLogCard today={today} now={now} />
+          <HabitLogCard today={today} />
           <Timeline now={now} dayEnd={dayEnd} />
           {hasNotices(state) && (
             <Group title="お知らせ">
@@ -830,7 +724,7 @@ export default function TodayScreen() {
                           ? { ...t, first: true }
                           : fix === "stretch"
                             ? { ...t, stretch: true }
-                            : t.deadline !== undefined
+                            : t.deadline !== undefined && t.deadlineKind === "target" && !t.relatedEventId
                               ? { ...t, deadline: t.deadline + DAY_MS }
                               : t,
                     ),
