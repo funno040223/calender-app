@@ -250,7 +250,7 @@ export default function Notion() {
           disabled={busy}
           onClick={() => void syncNow()}
         >
-          {busy ? "読んでいます…" : "今すぐ取り込む"}
+          {busy ? "同期しています…" : "同期する"}
         </PrimaryButton>
       )}
       {status && (
