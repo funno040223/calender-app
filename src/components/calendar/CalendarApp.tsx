@@ -33,6 +33,9 @@ function titleOf(arg: DatesSetArg): { year: string; month: string } {
 }
 
 /** 関連する予定とタスクのまとまりを強調し、ほかを薄くする */
+/** これより早い2回目のタップは、同じタップの重なりとみなす */
+const TAP_REPEAT_IGNORE_MS = 500;
+
 function FocusStyle({ group }: { group?: string }) {
   if (!group) return null;
   const sel = `[data-g="${CSS.escape(group)}"]`;
@@ -59,6 +62,21 @@ export default function CalendarApp() {
   const [hoverGroup, setHoverGroup] = useState<string>();
   /** 1回押して選んだもの。同じものをもう1回押すと詳しく開く（1回目は関連する予定・タスクを光らせるだけ） */
   const [selected, setSelected] = useState<string>();
+  /** 選んだ時刻。iPhone では1回のタップで押した合図が2回届くので、すぐあとの2回目は「もう1回押した」に数えない */
+  const selectedAt = useRef(0);
+  /** 1回目なら選ぶだけで false、選んでいるものをもう1回押したら true */
+  const tapOpens = (key: string) => {
+    const now = Date.now();
+    if (selected === key && now - selectedAt.current > TAP_REPEAT_IGNORE_MS) {
+      setSelected(undefined);
+      return true;
+    }
+    if (selected !== key) {
+      setSelected(key);
+      selectedAt.current = now;
+    }
+    return false;
+  };
   /** 横にスワイプして前後の日へ */
   const swipe = useRef<{ x: number; y: number; t: number } | null>(null);
 
@@ -250,19 +268,15 @@ export default function CalendarApp() {
             }
             selectedId={selected}
             onEventClick={(source, eventId) => {
-              const key = `${source}:${eventId}`;
               setFocusGroup(groupOfEvent(eventId));
-              if (selected !== key) return setSelected(key);
-              setSelected(undefined);
+              if (!tapOpens(`${source}:${eventId}`)) return;
               if (source === "own") openOwn(eventId);
               else setViewing({ kind: "event", source, eventId });
             }}
             onOwnEventChange={moveEvent}
             onBlockClick={(block) => {
-              const key = `block:${block.kind}:${block.refId}:${block.start}`;
               setFocusGroup(groupOfBlock(block));
-              if (selected !== key) return setSelected(key);
-              setSelected(undefined);
+              if (!tapOpens(`block:${block.kind}:${block.refId}:${block.start}`)) return;
               setViewing({ kind: "block", block });
             }}
             onBlockChange={moveBlock}
