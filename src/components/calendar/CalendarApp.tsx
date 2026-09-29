@@ -57,6 +57,10 @@ export default function CalendarApp() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [focusGroup, setFocusGroup] = useState<string>();
   const [hoverGroup, setHoverGroup] = useState<string>();
+  /** 1回押して選んだもの。同じものをもう1回押すと詳しく開く（1回目は関連する予定・タスクを光らせるだけ） */
+  const [selected, setSelected] = useState<string>();
+  /** 横にスワイプして前後の日へ */
+  const swipe = useRef<{ x: number; y: number; t: number } | null>(null);
 
   const hidden = useMemo(() => new Set(state.hiddenCalendars), [state.hiddenCalendars]);
   const events = useMemo(() => eventIndex(state), [state]);
@@ -216,7 +220,25 @@ export default function CalendarApp() {
 
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-line px-3 py-4 lg:block">{toggles}</aside>
-        <main className="app-cal min-h-0 min-w-0 flex-1">
+        <main
+          className="app-cal min-h-0 min-w-0 flex-1"
+          onTouchStart={(e) => {
+            const t = e.touches[0];
+            swipe.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
+          }}
+          onTouchEnd={(e) => {
+            const s = swipe.current;
+            swipe.current = null;
+            const t = e.changedTouches[0];
+            if (!s || !t) return;
+            const dx = t.clientX - s.x;
+            const dy = t.clientY - s.y;
+            // すばやく横に大きく動かしたときだけ（長押しのドラッグや縦のスクロールとは分ける）
+            if (Date.now() - s.t > 600 || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 2) return;
+            if (dx < 0) api()?.next();
+            else api()?.prev();
+          }}
+        >
           <CalendarView
             ref={calRef}
             state={state}
@@ -226,20 +248,28 @@ export default function CalendarApp() {
             onCreate={(start, end, allDay) =>
               setEditing({ event: { id: "", title: "", start, end, ...(allDay ? { allDay } : {}) }, isNew: true })
             }
+            selectedId={selected}
             onEventClick={(source, eventId) => {
+              const key = `${source}:${eventId}`;
               setFocusGroup(groupOfEvent(eventId));
+              if (selected !== key) return setSelected(key);
+              setSelected(undefined);
               if (source === "own") openOwn(eventId);
               else setViewing({ kind: "event", source, eventId });
             }}
             onOwnEventChange={moveEvent}
             onBlockClick={(block) => {
+              const key = `block:${block.kind}:${block.refId}:${block.start}`;
               setFocusGroup(groupOfBlock(block));
+              if (selected !== key) return setSelected(key);
+              setSelected(undefined);
               setViewing({ kind: "block", block });
             }}
             onBlockChange={moveBlock}
             onEmptyClick={() => {
-              if (!focusGroup) return false;
+              if (!focusGroup && !selected) return false;
               setFocusGroup(undefined);
+              setSelected(undefined);
               return true;
             }}
             onHoverGroup={setHoverGroup}

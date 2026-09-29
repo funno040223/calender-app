@@ -3,15 +3,20 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { OwnEvent } from "@/lib/mock/store";
 import { OWN_CALENDARS, type OwnCalendarId } from "@/lib/mock/calendars";
-import { DAY_MS, MIN, dayStartOf, fromInputDateTime, newId, toInputDate, toInputDateTime } from "@/lib/mock/jst";
+import { DAY_MS, dayStartOf, fromInputDateTime, newId, toInputDate, toInputDateTime } from "@/lib/mock/jst";
 import Sheet from "@/components/ui/Sheet";
 
 interface Draft {
   calendarId: OwnCalendarId;
   title: string;
   allDay: boolean;
-  start: string;
-  end: string;
+  /** 日付（"2026-10-01"）と時刻（"13:00"）を分けて持つ。時刻の予定は、終わりが始まりより前なら翌日とみなす */
+  date: string;
+  startTime: string;
+  endTime: string;
+  /** 終わりの日。終日の予定と、24時間以上の予定でだけ使う */
+  endDate: string;
+  multiDay: boolean;
   location: string;
   description: string;
   travelMinutes: string;
@@ -26,9 +31,12 @@ function toDraft(ev: OwnEvent): Draft {
     calendarId: ev.calendarId ?? "own",
     title: ev.title,
     allDay: !!ev.allDay,
-    start: ev.allDay ? toInputDate(ev.start) : toInputDateTime(ev.start),
+    date: toInputDate(ev.start),
+    startTime: toInputDateTime(ev.start).slice(11),
+    endTime: toInputDateTime(ev.end).slice(11),
     // 終日の終わりは「翌日 0:00」なので、画面では最終日を出す
-    end: ev.allDay ? toInputDate(ev.end - DAY_MS) : toInputDateTime(ev.end),
+    endDate: toInputDate(ev.allDay ? ev.end - DAY_MS : ev.end),
+    multiDay: !ev.allDay && ev.end - ev.start >= DAY_MS,
     location: ev.location ?? "",
     description: ev.description ?? "",
     travelMinutes: ev.travelMinutes === undefined ? "" : String(ev.travelMinutes),
@@ -62,25 +70,35 @@ export default function EventForm({
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((prev) => ({ ...prev, [k]: v }));
 
   const toggleAllDay = (allDay: boolean) => {
-    const s = fromInputDateTime(d.start) ?? initial.start;
-    const e = fromInputDateTime(d.end) ?? initial.end;
-    if (allDay) {
-      setD({ ...d, allDay, start: toInputDate(s), end: toInputDate(Math.max(s, e - (d.allDay ? 0 : MIN))) });
-    } else {
-      const day = dayStartOf(s);
-      setD({ ...d, allDay, start: toInputDateTime(day + 9 * 60 * MIN), end: toInputDateTime(day + 10 * 60 * MIN) });
-    }
+    if (allDay) setD({ ...d, allDay, endDate: d.endDate < d.date ? d.date : d.endDate });
+    else setD({ ...d, allDay, startTime: d.startTime || "09:00", endTime: d.endTime || "10:00", endDate: d.date, multiDay: false });
+  };
+
+  /** 始まりの時刻を変えたら、長さを保って終わりも動かす */
+  const setStartTime = (v: string) => {
+    const before = fromInputDateTime(`${d.date}T${d.startTime}`);
+    const after = fromInputDateTime(`${d.date}T${v}`);
+    const end = fromInputDateTime(`${d.multiDay ? d.endDate : d.date}T${d.endTime}`);
+    if (before === undefined || after === undefined || end === undefined || d.multiDay) return set("startTime", v);
+    const len = (end > before ? end : end + DAY_MS) - before;
+    setD({ ...d, startTime: v, endTime: toInputDateTime(after + len).slice(11) });
   };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    let start = fromInputDateTime(d.start);
-    let end = fromInputDateTime(d.end);
-    if (start === undefined || end === undefined) return setError("日時を入力してください");
+    let start: number | undefined;
+    let end: number | undefined;
     if (d.allDay) {
-      start = dayStartOf(start);
-      end = dayStartOf(end) + DAY_MS;
+      start = fromInputDateTime(d.date);
+      const last = fromInputDateTime(d.endDate || d.date);
+      end = last === undefined ? undefined : dayStartOf(last) + DAY_MS;
+    } else {
+      start = fromInputDateTime(`${d.date}T${d.startTime}`);
+      end = fromInputDateTime(`${d.multiDay ? d.endDate : d.date}T${d.endTime}`);
+      // 23:00〜1:00 のように終わりが前なら、翌日の時刻
+      if (!d.multiDay && start !== undefined && end !== undefined && end <= start) end += DAY_MS;
     }
+    if (start === undefined || end === undefined) return setError("日時を入力してください");
     if (end <= start) return setError("終了は開始より後にしてください");
     const travel = d.travelMinutes.trim() === "" ? undefined : Number(d.travelMinutes);
     if (travel !== undefined && (!Number.isFinite(travel) || travel < 0)) return setError("移動時間は0以上の数で入力してください");
@@ -133,30 +151,26 @@ export default function EventForm({
             ))}
           </div>
         </div>
-        <label className="flex items-center justify-between text-[15px]">
-          終日
-          <input type="checkbox" className="ios-switch" checked={d.allDay} onChange={(e) => toggleAllDay(e.target.checked)} />
-        </label>
-        <label className="grid grid-cols-[3.5em_1fr] items-center gap-2 text-[15px]">
-          開始
-          <input
-            className={inputCls}
-            type={d.allDay ? "date" : "datetime-local"}
-            step={900}
-            value={d.start}
-            onChange={(e) => set("start", e.target.value)}
-          />
-        </label>
-        <label className="grid grid-cols-[3.5em_1fr] items-center gap-2 text-[15px]">
-          終了
-          <input
-            className={inputCls}
-            type={d.allDay ? "date" : "datetime-local"}
-            step={900}
-            value={d.end}
-            onChange={(e) => set("end", e.target.value)}
-          />
-        </label>
+        {!d.allDay && (
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[15px]">
+            <input className={inputCls} type="time" step={300} aria-label="開始" value={d.startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <span className="text-muted">〜</span>
+            <input className={inputCls} type="time" step={300} aria-label="終了" value={d.endTime} onChange={(e) => set("endTime", e.target.value)} />
+          </div>
+        )}
+        <div className="grid grid-cols-[1fr_auto] items-center gap-3 text-[15px]">
+          <input className={inputCls} type="date" aria-label="日付" value={d.date} onChange={(e) => set("date", e.target.value)} />
+          <label className="flex items-center gap-2">
+            終日
+            <input type="checkbox" className="ios-switch" checked={d.allDay} onChange={(e) => toggleAllDay(e.target.checked)} />
+          </label>
+        </div>
+        {(d.allDay || d.multiDay) && (
+          <label className="grid grid-cols-[4.5em_1fr] items-center gap-2 text-[15px]">
+            終わりの日
+            <input className={inputCls} type="date" value={d.endDate} onChange={(e) => set("endDate", e.target.value)} />
+          </label>
+        )}
         {d.allDay && (
           <label className="flex items-center justify-between gap-3 text-[15px]">
             <span>家にいない（帰省・旅行など）</span>

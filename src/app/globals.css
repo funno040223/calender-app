@@ -288,6 +288,11 @@ body {
   background: color-mix(in srgb, var(--c) var(--ev-mix-block), var(--bg));
   border-left-style: dotted;
 }
+/* 1回押して選んだ予定・枠（もう1回押すと詳しく開く） */
+.app-cal .fc .fc-event.ev.ev.is-selected {
+  box-shadow: 0 0 0 2px var(--accent);
+  z-index: 5;
+}
 .app-cal .fc .fc-event.ev.is-pinned {
   background: color-mix(in srgb, var(--c) var(--ev-mix-pinned), var(--bg));
   border-left-style: solid;

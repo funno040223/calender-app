@@ -49,6 +49,8 @@ export interface CalendarViewProps {
   /** 何もないところを押したとき。true を返したら新規作成しない */
   onEmptyClick: () => boolean;
   onHoverGroup: (group: string | undefined) => void;
+  /** 1回押して選んでいる予定・枠（もう1回押すと詳しく開く） */
+  selectedId?: string;
   ref?: Ref<FullCalendar>;
 }
 
@@ -208,8 +210,8 @@ export default function CalendarView(props: CalendarViewProps) {
         });
       }
     }
-    return out;
-  }, [state, hidden]);
+    return out.map((e) => (e.id && e.id === props.selectedId ? { ...e, classNames: [...((e.classNames as string[]) ?? []), "is-selected"] } : e));
+  }, [state, hidden, props.selectedId]);
 
   const handleSelect = (arg: DateSelectArg) => {
     arg.view.calendar.unselect();
