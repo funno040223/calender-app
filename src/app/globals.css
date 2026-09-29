@@ -521,3 +521,8 @@ body {
   font-weight: 700;
   color: var(--accent);
 }
+
+/* 3日・週：30分の高さ。ピンチで変える */
+.app-cal .cal-strip .fc .fc-timegrid-slot {
+  height: var(--slot-h, 2.6em);
+}

@@ -50,6 +50,21 @@ export interface CalendarHandle {
 const STRIP_DAYS = 42;
 const STRIP_LEAD = 14;
 const STRIP_EDGE = 5;
+/** 3日・週：30分の高さ（px）。ピンチで変え、端末ごとに覚える */
+const SLOT_KEY = "task-rhythm:slot-height";
+const SLOT_DEFAULT = 34;
+const SLOT_MIN = 20;
+const SLOT_MAX = 90;
+const clampSlot = (h: number) => Math.min(SLOT_MAX, Math.max(SLOT_MIN, h));
+function readSlot(): number {
+  try {
+    const v = Number(window.localStorage.getItem(SLOT_KEY));
+    return v >= SLOT_MIN && v <= SLOT_MAX ? v : SLOT_DEFAULT;
+  } catch {
+    return SLOT_DEFAULT;
+  }
+}
+
 /** 月表示：縦に並べておく週の数と、今見ている週の前に置く週の数 */
 const MONTH_WEEKS = 26;
 const MONTH_LEAD = 9;
@@ -309,6 +324,77 @@ export default function CalendarView(props: CalendarViewProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strip, col, visible]);
+
+  // ---- ピンチで1時間あたりの高さを変える（指の間の時刻がずれないように縦の位置も合わせる） ----
+  const [slotH, setSlotH] = useState(readSlot);
+  const slotRef = useRef(slotH);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!strip || !el) return;
+    let pinch: { d0: number; h0: number; y: number; top0: number } | null = null;
+    let raf = 0;
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const apply = (h: number, focusY: number, top0: number, h0: number) => {
+      slotRef.current = h;
+      el.style.setProperty("--slot-h", `${h}px`);
+      el.scrollTop = (top0 + focusY) * (h / h0) - focusY;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => api()?.updateSize());
+    };
+    const save = () => {
+      setSlotH(slotRef.current);
+      try {
+        window.localStorage.setItem(SLOT_KEY, String(Math.round(slotRef.current)));
+      } catch {
+        // 覚えられなくても、今の画面では使える
+      }
+    };
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      const rect = el.getBoundingClientRect();
+      pinch = { d0: dist(e.touches), h0: slotRef.current, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top, top0: el.scrollTop };
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      apply(clampSlot(pinch.h0 * (dist(e.touches) / pinch.d0)), pinch.y, pinch.top0, pinch.h0);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!pinch || e.touches.length >= 2) return;
+      pinch = null;
+      save();
+    };
+    // iPhone の画面全体の拡大を止める
+    const onGesture = (e: Event) => e.preventDefault();
+    // パソコンのトラックパッドのピンチ（Ctrl＋スクロール）
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const h0 = slotRef.current;
+      apply(clampSlot(h0 * Math.exp(-e.deltaY * 0.005)), e.clientY - rect.top, el.scrollTop, h0);
+      window.clearTimeout(wheelTimer);
+      wheelTimer = window.setTimeout(save, 200);
+    };
+    let wheelTimer = 0;
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    el.addEventListener("gesturestart", onGesture);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+      el.removeEventListener("gesturestart", onGesture);
+      el.removeEventListener("wheel", onWheel);
+      cancelAnimationFrame(raf);
+      window.clearTimeout(wheelTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strip, col > 0]);
 
   const scrollEndTimer = useRef<number | undefined>(undefined);
   const handleScroll = () => {
@@ -645,7 +731,12 @@ export default function CalendarView(props: CalendarViewProps) {
     <div
       ref={wrapRef}
       className="cal-strip"
-      style={{ ["--col" as string]: `${col}px`, ["--axis" as string]: `${axis.current}px`, ["--strip-days" as string]: STRIP_DAYS }}
+      style={{
+        ["--col" as string]: `${col}px`,
+        ["--axis" as string]: `${axis.current}px`,
+        ["--strip-days" as string]: STRIP_DAYS,
+        ["--slot-h" as string]: `${slotH}px`,
+      }}
       onScroll={handleScroll}
     >
       {col > 0 && calendar}
