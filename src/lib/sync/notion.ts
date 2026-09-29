@@ -26,9 +26,10 @@ export async function registerNotion(token: string, databaseUrl: string): Promis
   if (!databaseId) throw new Error("表のアドレスを確かめてください（Notion で表を開き「リンクをコピー」したもの）。");
   const t = token.trim();
   if (t.length < 20) throw new Error("合言葉を確かめてください。");
-  await db().from("notion_sources").delete().not("user_id", "is", null);
+  const del = await db().from("notion_sources").delete().not("user_id", "is", null);
+  if (del.error) throw new Error(`登録できませんでした（${del.error.message}）`);
   const { error } = await db().from("notion_sources").insert({ token: t, database_id: databaseId });
-  if (error) throw new Error("登録できませんでした。データベースの準備（SQL の実行）が済んでいるか確かめてください。");
+  if (error) throw new Error(`登録できませんでした（${error.message}）`);
 }
 
 export async function removeNotion(): Promise<void> {
