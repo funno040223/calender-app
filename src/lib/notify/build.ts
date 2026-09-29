@@ -86,7 +86,8 @@ export function buildNotices(input: NoticeInput): Notice[] {
       at: b.start,
       title: b.title,
       body: b.kind === "habit" && cued.has(b.refId) ? "まず5分" : `${formatTime(b.start)}〜${formatTime(b.end)}${b.refId === BATH_HABIT_ID ? BATH_NOTE : ""}`,
-      url: "/",
+      // タスクの枠は、通知から開いたら「やった」にする
+      url: b.kind === "task" ? `/?done=${encodeURIComponent(`${b.refId}:${b.start}`)}` : "/",
     });
   }
 

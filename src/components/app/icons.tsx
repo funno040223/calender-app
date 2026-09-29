@@ -38,6 +38,14 @@ export function TasksIcon() {
   );
 }
 
+export function StatsIcon() {
+  return (
+    <svg {...base}>
+      <path d="M4 20.5h16M6.5 17V12M11 17V7.5M15.5 17v-6M20 17V4.5" />
+    </svg>
+  );
+}
+
 export function SettingsIcon() {
   return (
     <svg {...base}>

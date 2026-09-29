@@ -97,12 +97,36 @@ export interface WakeLog {
   date: DateKey;
   /** 「起きた」を押した時刻 */
   wokeAt?: number;
+  /** 「起きた」を押したときの、予定の起床時刻（予定どおり起きられたかを数える） */
+  plannedWake?: number;
   /** 朝ルーティンの手順をすべて終えた時刻 */
   routineDoneAt?: number;
   doneStepIds: string[];
   /** 「起きた」のあとに答えた、朝の疲れ（1 元気 〜 5 ぐったり）。行動ポイントの値を合わせる正解に使う */
   fatigue?: MorningFatigue;
 }
+
+export interface TaskBlockLog {
+  title: string;
+  start: number;
+  end: number;
+  doneAt?: number;
+}
+export interface RewardSpend {
+  id: string;
+  at: number;
+  amount: number;
+  note?: string;
+}
+/** 1回あたりの円。起床は予定の30分以内に「起きた」、習慣は「記録する」の習慣（5分だけは半分） */
+export interface RewardRates {
+  wake: number;
+  routine: number;
+  habit: number;
+  task: number;
+}
+export const DEFAULT_REWARD_RATES: RewardRates = { wake: 30, routine: 30, habit: 30, task: 100 };
+export const taskBlockKey = (refId: string, start: number) => `${refId}:${start}`;
 
 export type HabitMark = "done" | "five";
 export type ContactAnswer = "done" | "skip";
@@ -151,6 +175,15 @@ export interface MockData {
   habitLogs: Record<DateKey, Record<string, HabitMark>>;
   /** 「連絡してみる？」への答え（週の月曜の日付 → 連絡した／今週はいい）。答えた週はもう聞かない */
   contactLogs: Record<DateKey, ContactAnswer>;
+  /**
+   * 始まったタスクの枠の記録（"タスクの ID:開始の epoch ミリ秒" → 枠）。doneAt は「やった」の時刻
+   * （枠の始まりの通知から開いた、または今日の画面で押した）。60日より前は捨てる
+   */
+  taskBlockLog: Record<string, TaskBlockLog>;
+  /** ご褒美のお金を使った記録 */
+  rewardSpends: RewardSpend[];
+  /** ご褒美のお金の金額（円） */
+  rewardRates: RewardRates;
   /** 済ませたデータの移行の名前（同じ移行を2回しないため） */
   migrations: string[];
 }

@@ -7,7 +7,7 @@ import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type ContactAnswer, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
+import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, taskBlockKey, type ContactAnswer, type HabitMark, type MorningFatigue, type TaskBlockLog, type WakeLog } from "@/lib/mock/model";
 import { contactDaysFor } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
@@ -119,7 +119,7 @@ function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
         {log.wokeAt === undefined ? (
           <button
             type="button"
-            onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now() }))}
+            onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), plannedWake: day?.wake }))}
             className="w-full rounded-2xl bg-accent py-4 text-[20px] font-bold text-white shadow-sm active:opacity-80"
           >
             起きた
@@ -491,8 +491,20 @@ function countMarks(logs: Record<string, Record<string, HabitMark>>, habit: Habi
 }
 
 /** 記録する習慣：やった／5分だけ を押す。押さなければ、やっていない */
-function HabitLogCard({ today }: { today: number }) {
+function HabitLogCard({ today, now }: { today: number; now: number }) {
   const { state, update } = useApp();
+  // 始まったタスクの枠（記録に残っているものと、今の枠）
+  const taskRows = new Map<string, TaskBlockLog>();
+  for (const [k, l] of Object.entries(state.taskBlockLog)) if (l.start >= today && l.start < today + DAY_MS) taskRows.set(k, l);
+  for (const b of state.result.blocks) {
+    const k = taskBlockKey(b.refId, b.start);
+    if (b.kind === "task" && b.start >= today && b.start <= now && !taskRows.has(k)) taskRows.set(k, { title: b.title, start: b.start, end: b.end });
+  }
+  const toggleTask = (k: string, l: TaskBlockLog) =>
+    update((d) => {
+      const cur = d.taskBlockLog[k] ?? l;
+      return { ...d, taskBlockLog: { ...d.taskBlockLog, [k]: { ...cur, doneAt: cur.doneAt === undefined ? Date.now() : undefined } } };
+    });
   const key = dateKeyOf(today);
   const marks = state.habitLogs[key] ?? {};
   const tracked = new Map(state.habits.filter((h) => h.track).map((h) => [h.id, h]));
@@ -500,7 +512,7 @@ function HabitLogCard({ today }: { today: number }) {
     .filter((b) => b.kind === "habit" && tracked.has(b.refId) && b.start >= today && b.start < today + DAY_MS)
     .sort((a, b) => a.start - b.start)
     .filter((b, i, all) => all.findIndex((x) => x.refId === b.refId) === i);
-  if (rows.length === 0) return null;
+  if (rows.length === 0 && taskRows.size === 0) return null;
   const mark = (id: string, m: HabitMark) =>
     update((d) => {
       const day = { ...d.habitLogs[key] };
@@ -509,8 +521,24 @@ function HabitLogCard({ today }: { today: number }) {
       return { ...d, habitLogs: { ...d.habitLogs, [key]: day } };
     });
   return (
-    <Group title="今日の習慣">
+    <Group title="今日の記録">
       <ul className="flex flex-col py-1">
+        {[...taskRows]
+          .sort((a, b) => a[1].start - b[1].start)
+          .map(([k, l]) => (
+            <li key={k} className="flex items-center gap-2 px-4 py-2">
+              <span className="w-12 shrink-0 text-[13px] tabular-nums text-muted">{formatTime(l.start)}</span>
+              <span className="min-w-0 flex-1 truncate text-[15px]">{l.title}</span>
+              <button
+                type="button"
+                aria-pressed={l.doneAt !== undefined}
+                onClick={() => toggleTask(k, l)}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-[14px] ${l.doneAt !== undefined ? "bg-accent font-medium text-white" : "bg-surface2"}`}
+              >
+                やった
+              </button>
+            </li>
+          ))}
         {rows.map((b) => {
           const m = marks[b.refId];
           const btn = (value: HabitMark, label: string) => (
@@ -657,7 +685,21 @@ function SmokeCard({ today }: { today: number }) {
 }
 
 export default function TodayScreen() {
-  const { state, update, openTask } = useApp();
+  const { state, update, openTask, sync } = useApp();
+  // タスクの枠の始まりの通知から開いたら、その枠を「やった」にする（サーバーの内容を読んでから）
+  useEffect(() => {
+    if (sync === "loading") return;
+    const key = new URLSearchParams(window.location.search).get("done");
+    if (!key) return;
+    window.history.replaceState(null, "", "/");
+    update((d) => {
+      const cur = d.taskBlockLog[key];
+      if (cur?.doneAt !== undefined) return d;
+      const b = cur ?? d.blocks.find((x) => x.kind === "task" && taskBlockKey(x.refId, x.start) === key);
+      if (!b) return d;
+      return { ...d, taskBlockLog: { ...d.taskBlockLog, [key]: { title: b.title, start: b.start, end: b.end, doneAt: Date.now() } } };
+    });
+  }, [sync, update]);
   const now = useNow();
   const today = dayStartOf(now);
   const days = state.result.dayPlans;
@@ -686,7 +728,7 @@ export default function TodayScreen() {
         </div>
         <div className="flex flex-col gap-6">
           <ReviewCard today={today} />
-          <HabitLogCard today={today} />
+          <HabitLogCard today={today} now={now} />
           <Timeline now={now} dayEnd={dayEnd} />
           {hasNotices(state) && (
             <Group title="お知らせ">

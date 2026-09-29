@@ -10,12 +10,13 @@ import TaskForm from "@/components/tasks/TaskForm";
 import { warningCount } from "@/components/today/Notices";
 import { AppContext, type AppContextValue } from "./StoreProvider";
 import OfflineNotice from "./OfflineNotice";
-import { CalendarIcon, SettingsIcon, TasksIcon, TodayIcon } from "./icons";
+import { CalendarIcon, SettingsIcon, StatsIcon, TasksIcon, TodayIcon } from "./icons";
 
 const TABS = [
   { href: "/", label: "今日", Icon: TodayIcon },
   { href: "/calendar", label: "カレンダー", Icon: CalendarIcon },
   { href: "/tasks", label: "タスク", Icon: TasksIcon },
+  { href: "/stats", label: "記録", Icon: StatsIcon },
   { href: "/settings", label: "設定", Icon: SettingsIcon },
 ] as const;
 

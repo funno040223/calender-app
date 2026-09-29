@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type HabitMark, type MockData, CONTACT_ANSWERS, HABIT_MARKS } from "./model";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type HabitMark, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS, taskBlockKey } from "./model";
+import { DAY_MS } from "./jst";
 import {
   SAMPLE_RECOVERY_OPTIONS,
   SAMPLE_AVOID_WINDOWS,
@@ -54,6 +55,9 @@ const DATA_KEYS = [
   "smokeLogs",
   "habitLogs",
   "contactLogs",
+  "taskBlockLog",
+  "rewardSpends",
+  "rewardRates",
   "migrations",
 ] as const satisfies readonly (keyof MockData)[];
 
@@ -87,6 +91,9 @@ export function sampleData(now: number): MockData {
     smokeLogs: [],
     habitLogs: {},
     contactLogs: {},
+    taskBlockLog: {},
+    rewardSpends: [],
+    rewardRates: DEFAULT_REWARD_RATES,
     migrations: [...MIGRATIONS],
   };
 }
@@ -214,6 +221,17 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
       .filter((x): x is number => typeof x === "number" && Number.isFinite(x))
       .sort((a, b) => a - b),
     habitLogs: parseHabitLogs(d.habitLogs),
+    taskBlockLog: isRecord(d.taskBlockLog)
+      ? Object.fromEntries(
+          Object.entries(d.taskBlockLog).filter(
+            (e): e is [string, TaskBlockLog] => isRecord(e[1]) && typeof e[1].start === "number" && typeof e[1].end === "number",
+          ),
+        )
+      : {},
+    rewardSpends: arr<unknown>(d.rewardSpends, []).filter(
+      (x): x is RewardSpend => isRecord(x) && typeof x.id === "string" && typeof x.at === "number" && typeof x.amount === "number",
+    ),
+    rewardRates: { ...DEFAULT_REWARD_RATES, ...(isRecord(d.rewardRates) ? (d.rewardRates as Partial<RewardRates>) : {}) },
     contactLogs: isRecord(d.contactLogs)
       ? Object.fromEntries(Object.entries(d.contactLogs).filter((e): e is [string, ContactAnswer] => CONTACT_ANSWERS.includes(e[1] as ContactAnswer)))
       : {},
@@ -266,7 +284,14 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
       habitLastDone[h.id] = Math.max(habitLastDone[h.id] ?? 0, b.start);
     }
   }
-  data = { ...data, habitLastDone };
+  // 始まったタスクの枠を記録に残す（組み直すと過ぎた枠は消えるため。予定どおりできたかを数える）
+  const taskBlockLog = Object.fromEntries(Object.entries(data.taskBlockLog).filter(([, l]) => l.start >= now - 60 * DAY_MS));
+  for (const b of data.blocks) {
+    if (b.kind !== "task" || b.start > now) continue;
+    const key = taskBlockKey(b.refId, b.start);
+    if (!taskBlockLog[key]) taskBlockLog[key] = { title: b.title, start: b.start, end: b.end };
+  }
+  data = { ...data, habitLastDone, taskBlockLog };
   const result = plan({
     now,
     settings: data.settings,

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { buildOutlook, estimateMinutes, type OutlookStatus, type Task } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
@@ -29,13 +31,13 @@ function Outlook() {
     <Group title="見通し">
       {weeks.map((w, i) => (
         <div key={w.start} className="flex flex-col gap-1 px-4 py-2.5">
-          <div className="flex items-center gap-3">
+          <Link href="/stats" className="flex items-center gap-3">
             <span className="w-10 shrink-0 text-[15px] font-medium">{i === 0 ? "今週" : "来週"}</span>
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${STATUS[w.status].cls}`}>{STATUS[w.status].label}</span>
             <span className="ml-auto text-[13px] tabular-nums text-muted">
               タスク {formatMinutes(w.taskMinutes)}・空き {formatMinutes(w.freeMinutes)}
             </span>
-          </div>
+          </Link>
           {w.late.map((l) => (
             <button key={l.taskId} type="button" onClick={() => openTask(l.taskId)} className="ml-13 truncate text-left text-[13px] text-accent">
               {l.title}：{formatMinutes(l.shortfallMinutes)}足りない
