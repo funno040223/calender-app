@@ -624,15 +624,15 @@ function ReviewCard({ today }: { today: number }) {
   );
 }
 
-/** 予定の残りに対して、巻いた（マイナス）・かかっている（プラス）の幅（分） */
-const AHEAD = [-60, -30];
-const BEHIND = [30, 60, 120];
-const signed = (m: number) => `${m > 0 ? "+" : "−"}${formatMinutes(Math.abs(m))}`;
+/** 残り時間を − ＋ で動かす幅（分） */
+const STEP = 30;
 
-/** その日の最後の枠が終わったタスクに「終わった？」。予定の残りに対して、巻いた・予定どおり・かかっている で答える */
+/** その日の最後の枠が終わったタスクに「終わった？」。終わった／今日はやってない／残り時間を − ＋ で直して決める */
 function TaskCheckCard({ today, now }: { today: number; now: number }) {
   const { state, update } = useApp();
   const key = dateKeyOf(today);
+  /** − ＋ で動かした分（タスクの ID → 分） */
+  const [delta, setDelta] = useState<Record<string, number>>({});
   // 今日の枠（始まったもの）の最後が終わっていて、このあと今日の枠がなく、まだ答えていないタスク
   const todays = new Map<string, TaskBlockLog[]>();
   for (const [k, b] of Object.entries(state.taskBlockLog)) {
@@ -659,43 +659,43 @@ function TaskCheckCard({ today, now }: { today: number; now: number }) {
       return { ...d, taskChecks, tasks: d.tasks.map((x) => (x.id === t.id ? { ...x, remainingMinutes: next } : x)) };
     });
   const btn = "shrink-0 rounded-lg px-3 py-1.5 text-[14px] tabular-nums";
+  const round = "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-[20px] leading-none";
   return (
     <Group title="終わった？">
       <ul className="flex flex-col divide-y divide-line py-1">
         {ask.map((t) => {
           const left = leftOf(t);
+          const dm = delta[t.id] ?? 0;
+          const next = Math.max(STEP, left + dm);
+          const move = (m: number) => setDelta((p) => ({ ...p, [t.id]: Math.max(STEP - left, dm + m) }));
           return (
-            <li key={t.id} className="flex flex-col gap-2 px-4 py-3">
-              <p className="flex items-baseline gap-2">
-                <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{t.title}</span>
-                <span className="shrink-0 text-[13px] tabular-nums text-muted">予定の残り {formatMinutes(left)}</span>
-              </p>
+            <li key={t.id} className="flex flex-col gap-3 px-4 py-3">
+              <p className="truncate text-[15px] font-medium">{t.title}</p>
+              <div className="flex items-center gap-2">
+                <button type="button" aria-label="残りを30分減らす" onClick={() => move(-STEP)} className={round}>
+                  −
+                </button>
+                <div className="min-w-0 flex-1 text-center tabular-nums">
+                  <p className="text-[12px] text-muted">残り</p>
+                  <p className="text-[17px] font-semibold">
+                    {formatMinutes(next)}
+                    {dm !== 0 && <span className="ml-1 text-[12px] font-normal text-muted">（予定 {formatMinutes(left)}）</span>}
+                  </p>
+                </div>
+                <button type="button" aria-label="残りを30分増やす" onClick={() => move(STEP)} className={round}>
+                  ＋
+                </button>
+                <button type="button" onClick={() => answer(t, "adjust", next - left)} className={`${btn} bg-surface2 font-medium`}>
+                  決定
+                </button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => answer(t, "done")} className={`${btn} bg-accent font-medium text-white`}>
                   終わった
                 </button>
-                <button type="button" onClick={() => answer(t, "adjust", 0)} className={`${btn} bg-surface2`}>
-                  予定どおり
-                </button>
                 <button type="button" onClick={() => answer(t, "none")} className={`${btn} bg-surface2`}>
                   今日はやってない
                 </button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="w-16 text-[12px] text-muted">巻いた</span>
-                {AHEAD.filter((m) => left + m >= 15).map((m) => (
-                  <button key={m} type="button" onClick={() => answer(t, "adjust", m)} className={`${btn} bg-surface2`}>
-                    {signed(m)}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="w-16 text-[12px] text-muted">かかっている</span>
-                {BEHIND.map((m) => (
-                  <button key={m} type="button" onClick={() => answer(t, "adjust", m)} className={`${btn} bg-surface2`}>
-                    {signed(m)}
-                  </button>
-                ))}
               </div>
             </li>
           );
