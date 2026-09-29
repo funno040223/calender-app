@@ -14,7 +14,7 @@ import type {
   Task,
   TravelQuestion,
 } from "./types";
-import { CUE_GAP_MINUTES, CUE_SLACK_MINUTES } from "./types";
+import { CUE_GAP_MINUTES, CUE_SLACK_MINUTES, MEAL_GAP_MINUTES } from "./types";
 import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday, minuteOfDay } from "./time";
 import { intersect, lengthMinutes, merge, subtract } from "./intervals";
 import { computeDayPlans } from "./rhythm";
@@ -305,7 +305,7 @@ export function plan(input: PlanInput): PlanResult {
   };
 
   /** きっかけの場面が終わる時刻（beforeHabit はその習慣が始まる時刻）。その日にその場面がなければ undefined */
-  const cueEnd = (cue: HabitCue, d: DayPlan): number | undefined => {
+  const cueAt = (cue: HabitCue, d: DayPlan): number | undefined => {
     if (cue.type === "routine") return d.wake + s.routineMinutes * MIN;
     if (cue.type === "home") return d.homeAt === undefined ? undefined : d.homeAt + s.restAfterAwayEventMinutes * MIN;
     const b = blocks
@@ -313,13 +313,23 @@ export function plan(input: PlanInput): PlanResult {
       .sort((x, y) => x.start - y.start)[0];
     return cue.type === "beforeHabit" ? b?.start : b?.end;
   };
+  /** その日に使う場面（なければ orElse をたどる）と、その時刻 */
+  const cueOn = (cue: HabitCue | undefined, d: DayPlan): { cue: HabitCue; at: number } | undefined => {
+    for (let c = cue; c; c = c.orElse) {
+      const at = cueAt(c, d);
+      if (at !== undefined) return { cue: c, at };
+    }
+    return undefined;
+  };
+  const cueEnd = (cue: HabitCue, d: DayPlan) => cueOn(cue, d)?.at;
 
   /** 習慣の時間帯。起床・就寝からの分で決めるものもある（朝の散歩、就寝前の入浴） */
   const habitWindow = (habit: Habit, d: DayPlan): Interval => {
     if (habit.cue) {
-      const at = cueEnd(habit.cue, d);
-      if (at === undefined) return { start: d.dayStart, end: d.dayStart };
-      if (habit.cue.type === "beforeHabit") {
+      const on = cueOn(habit.cue, d);
+      if (!on) return { start: d.dayStart, end: d.dayStart };
+      const at = on.at;
+      if (on.cue.type === "beforeHabit") {
         const end = at - CUE_GAP_MINUTES * MIN;
         return { start: end - (habit.durationMinutes + CUE_SLACK_MINUTES) * MIN, end };
       }
@@ -333,8 +343,10 @@ export function plan(input: PlanInput): PlanResult {
 
   // ---- 習慣 ----
   // 飛ばせないものから置く。待ち時間に入れる子の習慣は最後
-  // きっかけのある習慣は、きっかけの習慣（食事など）を置いたあと
-  const rank = (h: Habit) => (h.duringHabitId ? 3 : h.cue ? 2 : h.skippable ? 1 : 0);
+  // 朝ルーティンのあとの習慣（朝食）は最初に置き、昼食がそのあと3時間あけて入るようにする。
+  // ほかのきっかけのある習慣は、きっかけの習慣（食事など）を置いたあと
+  const rank = (h: Habit) => (h.duringHabitId ? 3 : h.cue?.type === "routine" ? -1 : h.cue ? 2 : h.skippable ? 1 : 0);
+  const mealIds = new Set(input.habits.filter((h) => h.meal).map((h) => h.id));
   const habits = [...input.habits].sort((a, b) => rank(a) - rank(b));
   // 行動ポイントに余裕がある日だけの習慣（自炊など）は、タスクを置いたあとに置く
   const energyHabits = habits.filter((h) => h.frequency.type === "whenEnergy");
@@ -363,7 +375,7 @@ export function plan(input: PlanInput): PlanResult {
     const tryPlaceOn = (d: DayPlan): boolean => {
       const window = windowOf(d);
       // 外出の日に外にいる時間と重なる食事は、外食・お弁当として置く（家での時間は取らない）
-      if (habit.meal && outingDays.has(d.dayStart)) {
+      if (habit.meal && !habit.cue && outingDays.has(d.dayStart)) {
         const out = mergedAway.find((a) => a.start < window.end && a.end > window.start);
         if (out) {
           const st = ceilToStep(Math.max(window.start, out.start));
@@ -373,7 +385,12 @@ export function plan(input: PlanInput): PlanResult {
       }
       const finish = habit.finish;
       // 待ち時間のある作業は、2つ目の枠も空いていて、終わるまで家にいられること
+      // 食事は、ほかの食事の始まりから3時間あける
+      const meals = habit.meal
+        ? blocks.filter((b) => b.kind === "habit" && b.refId !== habit.id && mealIds.has(b.refId) && Math.abs(b.start - window.start) < DAY_MS)
+        : [];
       const ok = (st: number) => {
+        if (meals.some((b) => Math.abs(b.start - st) < MEAL_GAP_MINUTES * MIN)) return false;
         if (!finish) return true;
         const fStart = st + finish.afterStartMinutes * MIN;
         const fEnd = fStart + finish.durationMinutes * MIN;
@@ -384,7 +401,7 @@ export function plan(input: PlanInput): PlanResult {
       const alt = habit.rainAlternative && rainyDays.has(d.dayStart) ? habit.rainAlternative : undefined;
       const len = alt ? alt.durationMinutes * MIN : dur;
       // きっかけのある習慣は、15分刻みにそろえず、きっかけのちょうど5分後から（直前に置くものは、ちょうど5分前に終える）
-      const exact = habit.cue?.type === "beforeHabit" ? window.end - len : habit.cue ? window.start : undefined;
+      const exact = cueOn(habit.cue, d)?.cue.type === "beforeHabit" ? window.end - len : habit.cue ? window.start : undefined;
       const start = findStart(intersect(free, window), len, ok, exact ?? prevOf(window));
       if (start === undefined) return false;
       placeHabitBlock(
@@ -603,7 +620,10 @@ export function plan(input: PlanInput): PlanResult {
       const window = habitWindow(habit, d);
       if (window.end <= now || outingDays.has(d.dayStart) || energyOn(d) + cost > s.dailyEnergyBudget) continue;
       const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);
-      const start = findStart(intersect(free, window), dur, () => true, prev?.start);
+      // 食事の前の自炊などは、食事のちょうど5分前に終える
+      const on = cueOn(habit.cue, d);
+      const exact = on ? (on.cue.type === "beforeHabit" ? window.end - dur : window.start) : prev?.start;
+      const start = findStart(intersect(free, window), dur, () => true, exact);
       if (start === undefined) continue;
       placeHabitBlock(habit, { kind: "habit", refId: habit.id, title: habit.name, start, end: start + dur }, habit.skippable);
     }

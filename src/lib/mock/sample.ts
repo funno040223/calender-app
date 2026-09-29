@@ -54,17 +54,26 @@ export const homeExerciseHabit = (reviewFrom: string): Habit => ({
   progression: { stepMinutes: 5, maxMinutes: 20, reviewFrom },
 });
 
-/** 朝食：時間に余裕がある日だけ、散歩のあとに。散歩が入らない（出発が早い）日は置かない */
+/** 朝食：朝ルーティンのあと、時間に余裕がある日だけ。昼食は朝食から3時間あける（食事なので） */
 export const BREAKFAST_HABIT: Habit = {
   id: "habit-breakfast",
   name: "朝食",
   durationMinutes: 15,
   windowStart: 0,
   windowEnd: 24 * 60,
-  cue: { type: "habit", habitId: "habit-walk" },
+  cue: { type: "routine" },
   frequency: { type: "daily" },
   skippable: true,
+  meal: true,
 };
+
+/** 散歩は朝食のあと。朝食のない日は朝ルーティンのあと（起きてから空けない） */
+export const WALK_CUE = { type: "habit", habitId: "habit-breakfast", orElse: { type: "routine" } } as const satisfies Habit["cue"];
+/** 自炊は、その食事のちょうど前に */
+export const COOK_CUES = {
+  "habit-cook-lunch": { type: "beforeHabit", habitId: "habit-lunch" },
+  "habit-cook-dinner": { type: "beforeHabit", habitId: "habit-dinner" },
+} as const satisfies Record<string, Habit["cue"]>;
 
 /** 自己成長の時間：タスクの見通しが順調な休日だけ、仮でもカレンダーに置く */
 export const GROWTH_HABIT: Habit = {
@@ -83,7 +92,7 @@ export const SAMPLE_HABITS: Habit[] = [
     id: "habit-lunch",
     name: "昼食",
     durationMinutes: 30,
-    windowStart: 11 * 60,
+    windowStart: 12 * 60,
     windowEnd: 14 * 60 + 30,
     frequency: { type: "daily" },
     skippable: false,
@@ -109,6 +118,7 @@ export const SAMPLE_HABITS: Habit[] = [
     name: "散歩",
     durationMinutes: 20,
     ...WALK_TIMES,
+    cue: WALK_CUE,
     frequency: { type: "daily" },
     skippable: true,
     keepLast: true,
@@ -121,6 +131,7 @@ export const SAMPLE_HABITS: Habit[] = [
     durationMinutes: 30,
     windowStart: 10 * 60 + 30,
     windowEnd: 12 * 60 + 30,
+    cue: COOK_CUES["habit-cook-lunch"],
     frequency: { type: "whenEnergy" },
     skippable: true,
     energyCost: 2,
@@ -131,6 +142,7 @@ export const SAMPLE_HABITS: Habit[] = [
     durationMinutes: 45,
     windowStart: 17 * 60,
     windowEnd: 19 * 60 + 30,
+    cue: COOK_CUES["habit-cook-dinner"],
     frequency: { type: "whenEnergy" },
     skippable: true,
     energyCost: 2,

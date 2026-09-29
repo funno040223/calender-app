@@ -97,4 +97,50 @@ describe("きっかけの場面", () => {
       if (e1) expect(bt.start - e1.end).toBeLessThanOrEqual(35 * 60_000);
     });
   });
+
+  describe("朝と食事の並び", () => {
+    const breakfast: Habit = { id: "bf", name: "朝食", durationMinutes: 15, windowStart: 0, windowEnd: 1440, cue: { type: "routine" }, frequency: { type: "daily" }, skippable: true, meal: true };
+    const walk: Habit = {
+      id: "walk",
+      name: "散歩",
+      durationMinutes: 20,
+      windowStart: 0,
+      windowEnd: 150,
+      anchor: "wake",
+      cue: { type: "habit", habitId: "bf", orElse: { type: "routine" } },
+      frequency: { type: "daily" },
+      skippable: true,
+    };
+    const lunch12: Habit = { ...lunch, windowStart: 11 * 60, windowEnd: 14 * 60 + 30 };
+    const cook: Habit = { id: "cook", name: "自炊（昼）", durationMinutes: 30, windowStart: 0, windowEnd: 1440, cue: { type: "beforeHabit", habitId: "lunch" }, frequency: { type: "whenEnergy" }, skippable: true, energyCost: 2 };
+
+    it("朝ルーティン → 朝食 → 散歩の順に、あいだを空けずに置く", () => {
+      const r = plan(baseInput(now, { habits: [walk, lunch12, breakfast] }));
+      const d = r.dayPlans.find((x) => x.dayStart === day1)!;
+      const [bf] = on(r, "bf", day1);
+      const [w] = on(r, "walk", day1);
+      expect(bf.start).toBe(d.wake + 20 * 60_000);
+      expect(w.start).toBe(bf.end + 5 * 60_000);
+    });
+
+    it("朝食のない日の散歩は、朝ルーティンのあと", () => {
+      const r = plan(baseInput(now, { habits: [walk] }));
+      const d = r.dayPlans.find((x) => x.dayStart === day1)!;
+      expect(on(r, "walk", day1)[0].start).toBe(d.wake + 20 * 60_000);
+    });
+
+    it("昼食は朝食の始まりから3時間あける", () => {
+      const r = plan(baseInput(now, { habits: [lunch12, breakfast] }));
+      const [bf] = on(r, "bf", day1);
+      const [l] = on(r, "lunch", day1);
+      expect(l.start - bf.start).toBeGreaterThanOrEqual(3 * 3600_000);
+    });
+
+    it("自炊は昼食のちょうど5分前に終える", () => {
+      const r = plan(baseInput(now, { habits: [lunch12, cook] }));
+      const [c] = on(r, "cook", day1);
+      const [l] = on(r, "lunch", day1);
+      expect(c.end).toBe(l.start - 5 * 60_000);
+    });
+  });
 });

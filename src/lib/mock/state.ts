@@ -13,6 +13,8 @@ import {
   BATH,
   GROWTH_HABIT,
   BREAKFAST_HABIT,
+  COOK_CUES,
+  WALK_CUE,
   homeExerciseHabit,
   WALK_TIMES,
   buildSampleCourses,
@@ -114,6 +116,7 @@ const MIGRATIONS = [
   "2026-09-29-rain-light-only",
   "2026-09-29-breakfast",
   "2026-09-29-breakfast-after-walk",
+  "2026-09-30-morning-meals",
 ] as const;
 
 function migrate(d: MockData, now: number): MockData {
@@ -136,6 +139,16 @@ function migrate(d: MockData, now: number): MockData {
     habits = habits.map((h) =>
       h.id === BREAKFAST_HABIT.id && !h.cue && h.anchor === "wake" ? { ...h, ...BREAKFAST_HABIT, anchor: undefined, name: h.name, durationMinutes: h.durationMinutes } : h,
     );
+  // 2026-09-30：朝ルーティン → 朝食 → 散歩、昼食は12時から（朝食から3時間あける）、自炊は食事の直前に。初期値のままのものだけ
+  if (!done.has("2026-09-30-morning-meals"))
+    habits = habits.map((h) => {
+      if (h.id === "habit-lunch" && h.windowStart === 11 * 60) return { ...h, windowStart: 12 * 60 };
+      if (h.id === BREAKFAST_HABIT.id && h.cue?.type === "habit" && h.cue.habitId === "habit-walk") return { ...h, cue: BREAKFAST_HABIT.cue, meal: true };
+      if (h.id === "habit-walk" && !h.cue && h.anchor === "wake") return { ...h, cue: WALK_CUE };
+      const cook = COOK_CUES[h.id as keyof typeof COOK_CUES];
+      if (cook && !h.cue) return { ...h, cue: cook };
+      return h;
+    });
   // 散歩のあとに置いていた最初の版を、入浴の直前に移す（自分で変えたきっかけはそのまま）
   if (!done.has("2026-09-29-exercise-before-bath"))
     habits = habits.map((h) => {

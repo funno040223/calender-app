@@ -41,19 +41,20 @@ const valid = (n: number | undefined, min = 1): n is number => n !== undefined &
 
 function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const { state, update } = useApp();
+  const initialCue = !habit?.cue
+    ? "routine"
+    : habit.cue.type === "habit"
+      ? `habit:${habit.cue.habitId}`
+      : habit.cue.type === "beforeHabit"
+        ? `before:${habit.cue.habitId}`
+        : habit.cue.type;
   const [d, setD] = useState<Draft>(() => ({
     name: habit?.name ?? "",
     duration: String(habit?.durationMinutes ?? 30),
     start: minutesToHHMM(habit?.anchor || habit?.cue ? 9 * 60 : (habit?.windowStart ?? 9 * 60)),
     end: minutesToHHMM(habit?.anchor || habit?.cue ? 21 * 60 : (habit?.windowEnd ?? 21 * 60)),
     anchor: habit?.cue ? "cue" : (habit?.anchor ?? "clock"),
-    cue: !habit?.cue
-      ? "routine"
-      : habit.cue.type === "habit"
-        ? `habit:${habit.cue.habitId}`
-        : habit.cue.type === "beforeHabit"
-          ? `before:${habit.cue.habitId}`
-          : habit.cue.type,
+    cue: initialCue,
     // 就寝までは「何分前」で入力するので、符号を反転して、始まり＝より前（大きい分）にする
     offStart: String(habit?.anchor === "bed" ? -habit.windowStart : (habit?.windowStart ?? 0)),
     offEnd: String(habit?.anchor === "bed" ? -habit.windowEnd : (habit?.windowEnd ?? 120)),
@@ -82,8 +83,8 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const byCue = !during && d.anchor === "cue";
   // きっかけにできる習慣（食事）
   const cueHabits = state.habits.filter((h) => h.meal && h.id !== habit?.id);
-  // 直前に置ける習慣（入浴など、就寝から決まるもの）
-  const beforeHabits = state.habits.filter((h) => h.anchor === "bed" && !h.cue && h.id !== habit?.id);
+  // 直前に置ける習慣（入浴などの就寝から決まるものと、食事）
+  const beforeHabits = state.habits.filter((h) => (h.anchor === "bed" || (h.meal && !h.cue)) && h.id !== habit?.id);
 
   const save = () => {
     const name = d.name.trim();
@@ -115,7 +116,10 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
     };
     if (d.keep === "last") next.keepLast = true;
     if (relative) next.anchor = d.anchor as "wake" | "bed";
-    if (byCue)
+    // 選んだきっかけが前と同じなら、代わりの場面（orElse）も残す
+    const sameCue = habit?.cue && d.cue === initialCue;
+    if (byCue && sameCue) next.cue = habit.cue;
+    else if (byCue)
       next.cue = d.cue.startsWith("habit:")
         ? { type: "habit", habitId: d.cue.slice(6) }
         : d.cue.startsWith("before:")

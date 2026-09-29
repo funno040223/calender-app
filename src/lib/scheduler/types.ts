@@ -136,11 +136,18 @@ export type HabitFrequency =
  * routine: 朝ルーティンのあと、habit: 食事などの習慣のあと、home: 外出から帰って休んだあと、
  * beforeHabit: その習慣の直前（入浴の前の運動など。CUE_GAP_MINUTES 前に終える）
  */
-export type HabitCue =
+export type HabitCue = (
   | { type: "routine" }
   | { type: "habit"; habitId: string }
   | { type: "home" }
-  | { type: "beforeHabit"; habitId: string };
+  | { type: "beforeHabit"; habitId: string }
+) & {
+  /** その日にこの場面がなければ、代わりに使う場面（朝食のない日の散歩は、朝ルーティンのあと） */
+  orElse?: HabitCue;
+};
+
+/** 食事どうしの始まりは、この分数より近づけない（朝食と昼食が続かないように） */
+export const MEAL_GAP_MINUTES = 180;
 
 /** きっかけから習慣の始まりまで（分）。通知もこの時刻に送る */
 export const CUE_GAP_MINUTES = 5;
