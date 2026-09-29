@@ -229,7 +229,7 @@ body {
 .app-cal .fc .fc-day-other .fc-daygrid-day-number {
   color: var(--muted);
 }
-.app-cal .fc .fc-dayGridMonth-view .fc-day-today .fc-daygrid-day-number {
+.app-cal .fc .fc-dayGridStrip-view .fc-day-today .fc-daygrid-day-number {
   background: var(--accent);
   color: #fff;
   font-weight: 700;
@@ -493,4 +493,31 @@ body {
 .app-cal .fc .fc-event.ev.is-deadline.is-late {
   --c: var(--accent);
   font-weight: 600;
+}
+
+/* 月：週を縦に途切れずに並べ、指で上下に動かす。1週ずつ止まる。曜日の見出しは固定 */
+.app-cal .cal-month {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory;
+  scroll-padding-top: 28px;
+  -webkit-overflow-scrolling: touch;
+}
+.app-cal .cal-month .fc .fc-scroller-harness,
+.app-cal .cal-month .fc .fc-scroller {
+  overflow: visible !important;
+}
+.app-cal .cal-month .fc .fc-daygrid-body tr {
+  height: var(--row);
+  scroll-snap-align: start;
+}
+.app-cal .cal-month .fc .fc-daygrid-day-frame {
+  height: var(--row);
+  min-height: 0;
+  overflow: hidden;
+}
+.app-cal .cal-month .fc .mc-num.is-first {
+  font-weight: 700;
+  color: var(--accent);
 }

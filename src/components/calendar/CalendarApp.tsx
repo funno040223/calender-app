@@ -70,8 +70,6 @@ export default function CalendarApp() {
     }
     return false;
   };
-  /** 横にスワイプして前後の日へ */
-  const swipe = useRef<{ x: number; y: number; t: number } | null>(null);
 
   const hidden = useMemo(() => new Set(state.hiddenCalendars), [state.hiddenCalendars]);
   const events = useMemo(() => eventIndex(state), [state]);
@@ -229,27 +227,7 @@ export default function CalendarApp() {
 
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-line px-3 py-4 lg:block">{toggles}</aside>
-        <main
-          className="app-cal min-h-0 min-w-0 flex-1"
-          onTouchStart={(e) => {
-            // 3日・週は指の動きに合わせて横に動くので、月表示だけ
-            if (view !== "month") return;
-            const t = e.touches[0];
-            swipe.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
-          }}
-          onTouchEnd={(e) => {
-            const s = swipe.current;
-            swipe.current = null;
-            const t = e.changedTouches[0];
-            if (!s || !t) return;
-            const dx = t.clientX - s.x;
-            const dy = t.clientY - s.y;
-            // すばやく横に大きく動かしたときだけ（長押しのドラッグや縦のスクロールとは分ける）
-            if (Date.now() - s.t > 600 || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 2) return;
-            if (dx < 0) api()?.next();
-            else api()?.prev();
-          }}
-        >
+        <main className="app-cal min-h-0 min-w-0 flex-1">
           <CalendarView
             key={view}
             ref={calRef}

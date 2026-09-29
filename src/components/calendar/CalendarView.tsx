@@ -7,7 +7,6 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin, { type DateClickArg, type EventResizeDoneArg } from "@fullcalendar/interaction";
 import jaLocale from "@fullcalendar/core/locales/ja";
 import type {
-  DatesSetArg,
   DateSelectArg,
   DayHeaderContentArg,
   EventClickArg,
@@ -51,6 +50,25 @@ export interface CalendarHandle {
 const STRIP_DAYS = 42;
 const STRIP_LEAD = 14;
 const STRIP_EDGE = 5;
+/** 月表示：縦に並べておく週の数と、今見ている週の前に置く週の数 */
+const MONTH_WEEKS = 26;
+const MONTH_LEAD = 9;
+const MONTH_EDGE = 2;
+/** 画面の高さに入れる週の数（1週の高さ＝画面の高さ ÷ これ） */
+const MONTH_ROWS = 6;
+
+const todayFcNow = () => {
+  const n = toFc(Date.now());
+  return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+};
+
+/** その日を含む週の月曜（FullCalendar の日付） */
+const mondayOf = (dayFc: number) => dayFc - ((new Date(dayFc).getUTCDay() + 6) % 7) * DAY_MS;
+/** その日の月の1日 */
+const firstOfMonth = (dayFc: number) => {
+  const d = new Date(dayFc);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+};
 
 export interface CalendarViewProps {
   state: MockState;
@@ -133,7 +151,7 @@ function renderEventContent(arg: EventContentArg) {
   }
   const pinned = ext.type === "block" && ext.block.pinned;
   const related = ext.type === "event" && ext.relatedCount ? <RelatedBadge n={ext.relatedCount} /> : null;
-  const isMonthDot = arg.view.type === "dayGridMonth" && !arg.event.allDay;
+  const isMonthDot = arg.view.type === "dayGridStrip" && !arg.event.allDay;
   if (isMonthDot) {
     return (
       <div className="ev-dot-row">
@@ -161,7 +179,7 @@ function renderEventContent(arg: EventContentArg) {
 
 function renderDayHeader(arg: DayHeaderContentArg) {
   const wd = WEEKDAY_JA[arg.date.getUTCDay()];
-  if (arg.view.type === "dayGridMonth") return <span className="dh-wd">{wd}</span>;
+  if (arg.view.type === "dayGridStrip") return <span className="dh-wd">{wd}</span>;
   return (
     <div className="dh">
       <span className="dh-wd">{wd}</span>
@@ -171,8 +189,25 @@ function renderDayHeader(arg: DayHeaderContentArg) {
 }
 
 export default function CalendarView(props: CalendarViewProps) {
-  const { state, hidden, ref, mode, onTitle } = props;
+  const { state, hidden, ref, mode } = props;
+  // 見出しの年月は、変わったときだけ知らせる（スクロールのたびに画面全体を描き直さないため）
+  const lastTitle = useRef("");
+  const propsOnTitle = props.onTitle;
+  const onTitle = useCallback(
+    (t: { year: string; month: string }) => {
+      const k = t.year + t.month;
+      if (k === lastTitle.current) return;
+      lastTitle.current = k;
+      propsOnTitle(t);
+    },
+    [propsOnTitle],
+  );
   const strip = mode !== "month";
+  const monthMode = mode === "month";
+  const monthRef = useRef<HTMLDivElement>(null);
+  const [mAnchor, setMAnchor] = useState(() => mondayOf(firstOfMonth(todayFcNow())) - MONTH_LEAD * 7 * DAY_MS);
+  const [rowH, setRowH] = useState(0);
+  const pendingRow = useRef<number | null>(MONTH_LEAD);
   const visible = mode === "week" ? 7 : 3;
   const fcRef = useRef<FullCalendar>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -296,10 +331,81 @@ export default function CalendarView(props: CalendarViewProps) {
     el.scrollTo({ left: idx * col, behavior: "smooth" });
   };
 
+  // ---- 月：週を縦に並べ、指で上下に動かす（1週ずつ止まる） ----
+  useLayoutEffect(() => {
+    if (!monthMode) return;
+    const el = monthRef.current;
+    if (!el) return;
+    const measure = () => setRowH(Math.max(56, (el.clientHeight - 28) / MONTH_ROWS));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [monthMode]);
+
+  /** 画面の真ん中あたりの週から、見出しの月を決める */
+  const monthTitleAt = useCallback(
+    (row: number) => {
+      const d = new Date(mAnchor + (row + 2) * 7 * DAY_MS + 3 * DAY_MS);
+      onTitle({ year: `${d.getUTCFullYear()}年`, month: `${d.getUTCMonth() + 1}月` });
+    },
+    [mAnchor, onTitle],
+  );
+
+  useLayoutEffect(() => {
+    const el = monthRef.current;
+    if (!monthMode || !el || rowH === 0 || pendingRow.current === null) return;
+    const row = pendingRow.current;
+    pendingRow.current = null;
+    el.style.scrollSnapType = "none";
+    el.scrollTop = row * rowH;
+    requestAnimationFrame(() => (el.style.scrollSnapType = ""));
+    monthTitleAt(row);
+  }, [monthMode, rowH, mAnchor, monthTitleAt]);
+
+  useEffect(() => {
+    if (monthMode) api()?.gotoDate(new Date(mAnchor));
+  }, [monthMode, mAnchor]);
+
+  const monthScrollEnd = useRef<number | undefined>(undefined);
+  const handleMonthScroll = () => {
+    const el = monthRef.current;
+    if (!el || rowH === 0) return;
+    const row = Math.round(el.scrollTop / rowH);
+    monthTitleAt(row);
+    window.clearTimeout(monthScrollEnd.current);
+    monthScrollEnd.current = window.setTimeout(() => {
+      const r = Math.round(el.scrollTop / rowH);
+      if (r >= MONTH_EDGE && r <= MONTH_WEEKS - MONTH_ROWS - MONTH_EDGE) return;
+      pendingRow.current = MONTH_LEAD;
+      setMAnchor(mAnchor + (r - MONTH_LEAD) * 7 * DAY_MS);
+    }, 180);
+  };
+
+  /** その月の1日を含む週を、いちばん上に出す */
+  const scrollToMonth = (dayFc: number) => {
+    const el = monthRef.current;
+    if (!el) return;
+    const row = Math.round((mondayOf(firstOfMonth(dayFc)) - mAnchor) / (7 * DAY_MS));
+    if (row < MONTH_EDGE || row > MONTH_WEEKS - MONTH_ROWS - MONTH_EDGE) {
+      pendingRow.current = MONTH_LEAD;
+      setMAnchor(mondayOf(firstOfMonth(dayFc)) - MONTH_LEAD * 7 * DAY_MS);
+      return;
+    }
+    el.scrollTo({ top: row * rowH, behavior: "smooth" });
+  };
+  /** 見出しの月（画面の真ん中あたりの週）から、前後の月へ */
+  const shiftMonth = (by: number) => {
+    const el = monthRef.current;
+    if (!el || rowH === 0) return;
+    const d = new Date(mAnchor + (Math.round(el.scrollTop / rowH) + 2) * 7 * DAY_MS + 3 * DAY_MS);
+    scrollToMonth(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + by, 1));
+  };
+
   useImperativeHandle(ref, () => ({
-    prev: () => (strip ? wrapRef.current?.scrollBy({ left: -visible * col, behavior: "smooth" }) : api()?.prev()),
-    next: () => (strip ? wrapRef.current?.scrollBy({ left: visible * col, behavior: "smooth" }) : api()?.next()),
-    today: () => (strip ? scrollToDay(homeDay()) : api()?.today()),
+    prev: () => (strip ? wrapRef.current?.scrollBy({ left: -visible * col, behavior: "smooth" }) : shiftMonth(-1)),
+    next: () => (strip ? wrapRef.current?.scrollBy({ left: visible * col, behavior: "smooth" }) : shiftMonth(1)),
+    today: () => (strip ? scrollToDay(homeDay()) : scrollToMonth(todayFcNow())),
   }));
 
   const events = useMemo(() => {
@@ -467,11 +573,14 @@ export default function CalendarView(props: CalendarViewProps) {
       timeZone="UTC"
       now={() => toFc(Date.now())}
       firstDay={1}
-      initialView={strip ? "timeGridStrip" : "dayGridMonth"}
-      initialDate={strip ? new Date(anchor) : undefined}
-      views={{ timeGridStrip: { type: "timeGrid", duration: { days: STRIP_DAYS } } }}
+      initialView={strip ? "timeGridStrip" : "dayGridStrip"}
+      initialDate={new Date(strip ? anchor : mAnchor)}
+      views={{
+        timeGridStrip: { type: "timeGrid", duration: { days: STRIP_DAYS } },
+        dayGridStrip: { type: "dayGrid", duration: { weeks: MONTH_WEEKS } },
+      }}
       headerToolbar={false}
-      height={strip ? "auto" : "100%"}
+      height="auto"
       stickyHeaderDates
       events={events}
       eventContent={renderEventContent}
@@ -480,10 +589,12 @@ export default function CalendarView(props: CalendarViewProps) {
       dayCellContent={(arg) => {
         const num = arg.dayNumberText.replace("日", "");
         if (strip) return num;
+        // 週が途切れずに続くので、1日には月も出す
+        const label = arg.date.getUTCDate() === 1 ? `${arg.date.getUTCMonth() + 1}/1` : num;
         const n = timedCount.get(arg.date.toISOString().slice(0, 10)) ?? 0;
         return (
           <span className="mc">
-            <span className="mc-num">{num}</span>
+            <span className={`mc-num${arg.date.getUTCDate() === 1 ? " is-first" : ""}`}>{label}</span>
             {n > 0 && (
               <span className="mc-dots" aria-label={`予定${n}件`}>
                 {"•".repeat(Math.min(n, 4))}
@@ -492,9 +603,6 @@ export default function CalendarView(props: CalendarViewProps) {
             )}
           </span>
         );
-      }}
-      datesSet={(arg: DatesSetArg) => {
-        if (!strip) onTitle({ year: `${arg.view.currentStart.getUTCFullYear()}年`, month: `${arg.view.currentStart.getUTCMonth() + 1}月` });
       }}
       nowIndicator
       selectable
@@ -512,7 +620,7 @@ export default function CalendarView(props: CalendarViewProps) {
       scrollTime={scrollTime}
       scrollTimeReset={false}
       allDayText="終日"
-      dayMaxEvents
+      dayMaxEventRows={2}
       fixedWeekCount={false}
       expandRows={false}
       select={handleSelect}
@@ -526,7 +634,13 @@ export default function CalendarView(props: CalendarViewProps) {
     />
   );
 
-  if (!strip) return calendar;
+  if (monthMode) {
+    return (
+      <div ref={monthRef} className="cal-month" style={{ ["--row" as string]: `${rowH}px` }} onScroll={handleMonthScroll}>
+        {rowH > 0 && calendar}
+      </div>
+    );
+  }
   return (
     <div
       ref={wrapRef}
