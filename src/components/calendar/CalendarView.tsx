@@ -37,6 +37,13 @@ type Extended = (
   group?: string;
 };
 
+/** 止めていた横のスクロールを戻す。戻したときに横の位置が0に戻ってしまうことがあるので、止めたときの位置に戻す */
+function releaseX(el: HTMLElement, left: number) {
+  if (el.style.overflowX !== "hidden") return;
+  el.style.overflowX = "";
+  el.scrollLeft = left;
+}
+
 /** 3日・週は、横に長く並べた日を指で動かす（1日ずつ止まる）。月はふつうの月表示 */
 export type CalendarMode = "day3" | "week" | "month";
 
@@ -450,7 +457,8 @@ export default function CalendarView(props: CalendarViewProps) {
 
   // ---- 上下に動かしている間は、左右に動かさない（iPhone は向きを固定しないので、指が少し斜めだと横にずれる） ----
   /** "y" のあいだは横のスクロールを止めている。touching は指が画面に触れているか、scrolledAt は最後に動いた時刻 */
-  const axisLock = useRef<{ axis?: "x" | "y"; touching: boolean; scrolledAt: number }>({ touching: false, scrolledAt: 0 });
+  // left は止めたときの横の位置。iPhone は横のスクロールを止めたり戻したりすると、横の位置を0（並べた最初の日）に戻すことがあるので、そのたびに戻す
+  const axisLock = useRef<{ axis?: "x" | "y"; touching: boolean; scrolledAt: number; left: number }>({ touching: false, scrolledAt: 0, left: 0 });
   useEffect(() => {
     const el = wrapRef.current;
     if (!strip || !el) return;
@@ -473,7 +481,11 @@ export default function CalendarView(props: CalendarViewProps) {
       const dy = Math.abs(e.touches[0].clientY - start.y);
       if (Math.max(dx, dy) < 8) return;
       axisLock.current.axis = dy > dx ? "y" : "x";
-      el.style.overflowX = axisLock.current.axis === "y" ? "hidden" : "";
+      if (axisLock.current.axis === "y") {
+        if (el.style.overflowX !== "hidden") axisLock.current.left = el.scrollLeft;
+        el.style.overflowX = "hidden";
+        el.scrollLeft = axisLock.current.left;
+      } else releaseX(el, axisLock.current.left);
     };
     const onEnd = (e: TouchEvent) => {
       if (e.touches.length > 0) return;
@@ -506,8 +518,8 @@ export default function CalendarView(props: CalendarViewProps) {
   const settle = () => {
     const el = wrapRef.current;
     if (!el || col === 0 || axisLock.current.touching) return;
+    releaseX(el, axisLock.current.left);
     axisLock.current.axis = undefined;
-    el.style.overflowX = "";
     // 止まる仕組みが効かずに日の途中で止まったら、近いほうの日の境目まで動かす
     const off = el.scrollLeft / col;
     if (Math.abs(off - Math.round(off)) * col > 1) {
@@ -525,6 +537,8 @@ export default function CalendarView(props: CalendarViewProps) {
   const handleScroll = () => {
     const el = wrapRef.current;
     if (!el || col === 0) return;
+    // 上下に動かしている間は、横の位置を止めたときのままにする
+    if (axisLock.current.axis === "y" && el.scrollLeft !== axisLock.current.left) el.scrollLeft = axisLock.current.left;
     setTitleFor(anchor + Math.round(el.scrollLeft / col) * DAY_MS);
     axisLock.current.scrolledAt = Date.now();
     window.clearTimeout(scrollEndTimer.current);
