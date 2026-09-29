@@ -113,6 +113,8 @@ export interface NotionConfig {
   stageProp?: string;
   /** 段階 → 取り込まない（落選・辞退など）。書いていない段階はタスクにする */
   ignoreStages: string[];
+  /** 段階ごとの目安の作業時間（分）。取り込んだタスクの所要時間になる */
+  stageMinutes?: Record<string, number>;
   fetchedAt?: number;
 }
 /** Notion から取り込んだタスクの ID の頭 */

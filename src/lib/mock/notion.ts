@@ -23,24 +23,33 @@ export function applyNotionRows(d: MockData, rows: NotionRow[], now: number, fet
   if (!cfg) return d;
   const ignore = new Set(cfg.ignoreStages);
   const done = new Set(d.doneTasks.map((t) => t.id));
-  const wanted = new Map<string, { title: string; deadline: number }>();
+  const wanted = new Map<string, { title: string; deadline: number; minutes?: number }>();
   for (const r of rows) {
     if (!r.title || !r.date || (r.stage && ignore.has(r.stage))) continue;
     const deadline = notionDeadline(r.date);
     if (deadline === undefined || deadline <= now) continue;
     const id = `${NOTION_TASK_PREFIX}${r.id}`;
     if (done.has(id)) continue;
-    wanted.set(id, { title: [r.title, r.stage].filter(Boolean).join(" "), deadline });
+    wanted.set(id, { title: [r.title, r.stage].filter(Boolean).join(" "), deadline, minutes: r.stage ? cfg.stageMinutes?.[r.stage] : undefined });
   }
   const kept: Task[] = [];
   for (const t of d.tasks) {
     if (!t.id.startsWith(NOTION_TASK_PREFIX)) kept.push(t);
     else if (wanted.has(t.id)) {
       const w = wanted.get(t.id)!;
-      kept.push({ ...t, title: w.title, deadline: w.deadline, deadlineKind: "fixed" });
+      // 所要時間は、自分で変えていなければ段階の目安に合わせる
+      const auto = t.durationMinutes === undefined || t.autoDuration;
+      const next: Task = { ...t, title: w.title, deadline: w.deadline, deadlineKind: "fixed" };
+      if (auto) {
+        delete next.durationMinutes;
+        delete next.autoDuration;
+        if (w.minutes) Object.assign(next, { durationMinutes: w.minutes, autoDuration: true });
+      }
+      kept.push(next);
       wanted.delete(t.id);
     }
   }
-  for (const [id, w] of wanted) kept.push({ id, title: w.title, priority: 2, deadline: w.deadline, deadlineKind: "fixed" });
+  for (const [id, w] of wanted)
+    kept.push({ id, title: w.title, priority: 2, deadline: w.deadline, deadlineKind: "fixed", ...(w.minutes ? { durationMinutes: w.minutes, autoDuration: true } : {}) });
   return { ...d, tasks: kept, notion: { ...cfg, fetchedAt } };
 }

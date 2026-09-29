@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useApp } from "@/components/app/StoreProvider";
 import {
   EmptyNote,
   Group,
   PrimaryButton,
+  NumberInput,
   Row,
   Segmented,
   inputCls,
@@ -187,28 +188,57 @@ export default function Notion() {
           {stage.options.map((o) => {
             const ignored = cfg.ignoreStages.includes(o);
             return (
-              <Row key={o} label={o}>
-                {/* 段階の名前が長くても選択肢が切れないように、幅を決めておく */}
-                <div className="w-40 shrink-0">
-                  <Segmented
-                    full
-                    label={`${o}を取り込むか`}
-                    value={ignored ? "ignore" : "task"}
-                    onChange={(v) =>
-                      setCfg({
-                        ignoreStages:
-                          v === "ignore"
-                            ? [...new Set([...cfg.ignoreStages, o])]
-                            : cfg.ignoreStages.filter((x) => x !== o),
-                      })
+              <Fragment key={o}>
+                <Row label={o}>
+                  {/* 段階の名前が長くても選択肢が切れないように、幅を決めておく */}
+                  <div className="w-40 shrink-0">
+                    <Segmented
+                      full
+                      label={`${o}を取り込むか`}
+                      value={ignored ? "ignore" : "task"}
+                      onChange={(v) =>
+                        setCfg({
+                          ignoreStages:
+                            v === "ignore"
+                              ? [...new Set([...cfg.ignoreStages, o])]
+                              : cfg.ignoreStages.filter((x) => x !== o),
+                        })
+                      }
+                      options={[
+                        { value: "task", label: "タスク" },
+                        { value: "ignore", label: "入れない" },
+                      ]}
+                    />
+                  </div>
+                </Row>
+                {!ignored && (
+                  <Row
+                    key={`${o}-min`}
+                    label={
+                      <span className="pl-3 text-[14px] text-muted">
+                        目安の時間
+                      </span>
                     }
-                    options={[
-                      { value: "task", label: "タスク" },
-                      { value: "ignore", label: "入れない" },
-                    ]}
-                  />
-                </div>
-              </Row>
+                  >
+                    <NumberInput
+                      label={`${o}の目安の時間`}
+                      value={cfg.stageMinutes?.[o]}
+                      allowEmpty
+                      placeholder="なし"
+                      min={5}
+                      max={600}
+                      step={15}
+                      onCommit={(v) => {
+                        const stageMinutes = { ...cfg.stageMinutes };
+                        if (v === undefined) delete stageMinutes[o];
+                        else stageMinutes[o] = v;
+                        setCfg({ stageMinutes });
+                      }}
+                    />
+                    <span className="text-[15px] text-muted">分</span>
+                  </Row>
+                )}
+              </Fragment>
             );
           })}
         </Group>

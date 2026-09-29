@@ -55,7 +55,7 @@
 - 通知（`supabase/migrations/0003_push.sql`、実行済み）：`push_subscriptions`（端末）、`push_schedule`（これから送る通知の一覧。アプリが組み直すたびに `src/lib/notify/build.ts` で作って保存。48時間分）、`push_sent`（送った記録。secret key だけが触る）。予定の15分前（外出は家を出る15分前）・習慣とタスクの枠の始まり・起床時刻に毎朝のまとめ。就寝〜起床は送らない
 - 送信：Supabase の pg_cron（ジョブ名 `push-dispatch`、1分ごと）が pg_net で `/api/push/dispatch` を呼ぶ。合言葉は Vault の `push_cron_secret`。登録の SQL は `supabase/local/0004_cron.sql`（**git に載せない**。合言葉入り）。dispatch は proxy のログイン確認を通さず、`CRON_SECRET` で確かめる
 - iCal 配信（`0004_ical_feeds.sql`、実行済み）：`/api/ical/feed/<合言葉>.ics`。DB には合言葉の SHA-256 だけ（`ical_feeds`）。アドレスは作ったときに1度だけ画面に出す。読みに来るたびに `src/lib/server/plan.ts` で組み直し、枠・自分の予定・出る回の授業を返す（Google の予定は入れない）。7日前〜14日先
-- Notion（`0005_notion_sources.sql`、**ユーザーの実行待ち**）：選考の表の締切をタスクに取り込む（一方向）。合言葉と表の ID は `notion_sources`（合言葉の列は画面から読めない。`/api/notion/schema`・`/api/notion/sync` が本人を確かめて secret key で読む）。列の選び方は app_state の `notion`、行→タスクは `src/lib/mock/notion.ts`（ID は `notion-<行>`）、取り込みは AppShell で開いたときと30分ごと
+- Notion（`0005_notion_sources.sql`、**ユーザーの実行待ち**）：選考の表の締切をタスクに取り込む（一方向）。合言葉と表の ID は `notion_sources`（合言葉の列は画面から読めない。`/api/notion/schema`・`/api/notion/sync` が本人を確かめて secret key で読む）。列の選び方は app_state の `notion`、行→タスクは `src/lib/mock/notion.ts`（ID は `notion-<行>`。段階ごとの目安の時間 `stageMinutes` を所要時間に入れ `autoDuration`、自分で変えたら上書きしない）、取り込みは AppShell で開いたときと30分ごと
 - 毎時5分に pg_cron（`push-replan`）が `/api/push/replan` を呼び、app_state と iCal から組み直して push_schedule だけを書き換える（app_state は書かない）。組み直しの処理は `src/lib/mock/state.ts`（画面とサーバーで共通。store.ts は画面用）。iCal を1つでも取り込めなかった回は、アプリが作った一覧を残す
 
 ## 状況（2026-09-30 時点）

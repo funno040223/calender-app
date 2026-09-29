@@ -124,9 +124,10 @@ export default function TaskForm({
       }
       next.durationRange = { min: Math.round(min), max: Math.round(max) };
     }
-    // 所要時間を変えたら、前に計算した残り時間は使わない
+    // 所要時間を変えたら、前に計算した残り時間は使わない。取り込みの目安（autoDuration）も外して、自分の値を優先する
     if (task && (task.durationMinutes !== next.durationMinutes || JSON.stringify(task.durationRange) !== JSON.stringify(next.durationRange))) {
       delete next.remainingMinutes;
+      delete next.autoDuration;
     }
     if (d.tagId) next.tagId = d.tagId;
     if (d.relatedEventId) next.relatedEventId = d.relatedEventId;
