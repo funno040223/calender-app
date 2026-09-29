@@ -486,6 +486,8 @@ export function plan(input: PlanInput): PlanResult {
     return related !== undefined ? Math.min(related, task.deadline ?? Infinity) : task.deadline;
   };
   const byDeadlineThenPriority = (a: Task, b: Task): number => {
+    // 「ほかを後に回す」を選んだタスクは、締切の順より先に置く
+    if (!!a.first !== !!b.first) return a.first ? -1 : 1;
     const da = deadlineOf(a) ?? Infinity;
     const db = deadlineOf(b) ?? Infinity;
     if (da !== db) return da - db;
@@ -506,10 +508,10 @@ export function plan(input: PlanInput): PlanResult {
     const deadline = Math.min(ownDeadline ?? horizonEnd, horizonEnd);
     const justBefore = task.timing === "justBefore" && !beyondHorizon;
     const prevStarts = new Set(movable.filter((b) => b.kind === "task" && b.refId === task.id).map((b) => b.start));
-    const hardAvoid = [
-      ...avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, true),
-      ...evenings.filter((e) => e.level === "low" || tag.mode === "focus"),
-    ];
+    // 「時間帯の外にも入れる」を選んだタスクは、「入れない」時間帯と体力が少ない夜にも置く
+    const hardAvoid = task.stretch
+      ? []
+      : [...avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, true), ...evenings.filter((e) => e.level === "low" || tag.mode === "focus")];
     const softAvoid = avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, false);
     const restMinutes = tag.restAfterMinutes ?? s.breakMinutes;
     // まずは1日の余白を守って置く。締切に間に合わないときだけ余白を削る
@@ -546,7 +548,7 @@ export function plan(input: PlanInput): PlanResult {
           if (st < iv.start || st >= slotEnd) continue;
           const avail = (slotEnd - st) / MIN;
           let len = avail >= need ? need : floorMinutesToStep(avail);
-          const evening = eveningOf(d0, st);
+          const evening = task.stretch ? undefined : eveningOf(d0, st);
           if (evening) len = Math.min(len, floorMinutesToStep(NORMAL_EVENING_TASK_MINUTES - (eveningUsed.get(evening.dayStart) ?? 0)));
           if (len < minLen || len <= 0) continue;
           const end = st + len * MIN;

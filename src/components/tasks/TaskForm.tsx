@@ -6,7 +6,7 @@ import { TAGS, type MockState } from "@/lib/mock/store";
 import { DAY_MS, dayStartOf, formatDate, formatMinutes, formatTime, fromInputDateTime, newId, toInputDate, toInputDateTime } from "@/lib/mock/jst";
 import { allEventRefs, blocksOfTask, formatEventWhen } from "@/lib/mock/related";
 import Sheet from "@/components/ui/Sheet";
-import { DangerButton, PrimaryButton, Segmented, inputCls, inputBase } from "@/components/ui/controls";
+import { DangerButton, PrimaryButton, Segmented, Switch, inputCls, inputBase } from "@/components/ui/controls";
 
 type DurationMode = "fixed" | "range" | "unknown";
 
@@ -23,6 +23,8 @@ interface Draft {
   tagId: string;
   relatedEventId: string;
   timing: TaskTiming;
+  first: boolean;
+  stretch: boolean;
 }
 
 function toDraft(t: Task | undefined, now: number): Draft {
@@ -43,6 +45,8 @@ function toDraft(t: Task | undefined, now: number): Draft {
     tagId: t?.tagId ?? "",
     relatedEventId: t?.relatedEventId ?? "",
     timing: t?.timing ?? "soon",
+    first: !!t?.first,
+    stretch: !!t?.stretch,
   };
 }
 
@@ -124,6 +128,10 @@ export default function TaskForm({
     if (d.tagId) next.tagId = d.tagId;
     if (d.relatedEventId) next.relatedEventId = d.relatedEventId;
     if (d.timing === "justBefore") next.timing = "justBefore";
+    delete next.first;
+    delete next.stretch;
+    if (d.first) next.first = true;
+    if (d.stretch) next.stretch = true;
     onSave(next);
   };
 
@@ -266,6 +274,24 @@ export default function TaskForm({
             ]}
           />
         </div>
+
+        {/* 締切に足りないときに選んだもの。選んだあとで外せるように、選んでいるときだけ出す */}
+        {(task?.first || task?.stretch) && (
+          <div className="flex flex-col gap-2">
+            {task.first && (
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-[16px]">ほかを後に回す</span>
+                <Switch label="ほかを後に回す" checked={d.first} onChange={(v) => set("first", v)} />
+              </label>
+            )}
+            {task.stretch && (
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-[16px]">時間帯の外にも入れる</span>
+                <Switch label="時間帯の外にも入れる" checked={d.stretch} onChange={(v) => set("stretch", v)} />
+              </label>
+            )}
+          </div>
+        )}
 
         {error && <p className="text-[14px] text-accent">{error}</p>}
         <PrimaryButton>{task ? "保存" : "追加"}</PrimaryButton>

@@ -815,7 +815,27 @@ export default function TodayScreen() {
           <Timeline now={now} dayEnd={dayEnd} />
           {hasNotices(state) && (
             <Group title="お知らせ">
-              <Notices state={state} onRegisterPlace={registerPlace} onOpenTask={openTask} />
+              <Notices
+                state={state}
+                onRegisterPlace={registerPlace}
+                onOpenTask={openTask}
+                onFixShortfall={(id, fix) =>
+                  update((d) => ({
+                    ...d,
+                    tasks: d.tasks.map((t) =>
+                      t.id !== id
+                        ? t
+                        : fix === "first"
+                          ? { ...t, first: true }
+                          : fix === "stretch"
+                            ? { ...t, stretch: true }
+                            : t.deadline !== undefined
+                              ? { ...t, deadline: t.deadline + DAY_MS }
+                              : t,
+                    ),
+                  }))
+                }
+              />
             </Group>
           )}
           {day && <Gaps now={now} day={day} />}

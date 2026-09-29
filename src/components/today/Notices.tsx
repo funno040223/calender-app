@@ -60,15 +60,20 @@ function TravelQuestionRow({
   );
 }
 
+export type ShortfallFix = "first" | "stretch" | "later";
+
 /** 足りない時間・わからない移動時間・お休みにした習慣 */
 export default function Notices({
   state,
   onRegisterPlace,
   onOpenTask,
+  onFixShortfall,
 }: {
   state: MockState;
   onRegisterPlace: (location: string, minutes: number) => void;
   onOpenTask: (id: string) => void;
+  /** 足りないときの選択肢：ほかを後に回す／時間帯の外にも入れる／締切を1日延ばす */
+  onFixShortfall?: (taskId: string, fix: ShortfallFix) => void;
 }) {
   const { result } = state;
   const events = eventIndex(state);
@@ -79,17 +84,40 @@ export default function Notices({
   }
   return (
     <ul className="flex flex-col divide-y divide-line">
-      {result.shortfalls.map((s) => (
-        <li key={s.taskId}>
-          <button type="button" onClick={() => onOpenTask(s.taskId)} className="flex w-full gap-3 px-4 py-3 text-left text-[14px] active:bg-surface2">
-            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
-            <span>
-              「{s.title}」は{formatDeadline(s.deadline)}に<strong>{formatMinutes(s.shortfallMinutes)}</strong>
-              足りません。予定を減らすか、締切や所要時間を見直してください。
-            </span>
-          </button>
-        </li>
-      ))}
+      {result.shortfalls.map((s) => {
+        const task = state.tasks.find((t) => t.id === s.taskId);
+        const fixes: { fix: ShortfallFix; label: string; on: boolean }[] = [
+          { fix: "first", label: "ほかを後に回す", on: !!task?.first },
+          { fix: "stretch", label: "時間帯の外にも入れる", on: !!task?.stretch },
+          ...(task?.deadline !== undefined ? [{ fix: "later" as const, label: "締切を1日延ばす", on: false }] : []),
+        ];
+        return (
+          <li key={s.taskId} className="flex flex-col gap-2 px-4 py-3">
+            <button type="button" onClick={() => onOpenTask(s.taskId)} className="flex w-full gap-3 text-left text-[14px]">
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
+              <span>
+                「{s.title}」は{formatDeadline(s.deadline)}に<strong>{formatMinutes(s.shortfallMinutes)}</strong>足りません
+              </span>
+            </button>
+            {onFixShortfall && task && (
+              <div className="flex flex-wrap gap-2 pl-5">
+                {fixes
+                  .filter((f) => !f.on)
+                  .map((f) => (
+                    <button
+                      key={f.fix}
+                      type="button"
+                      onClick={() => onFixShortfall(s.taskId, f.fix)}
+                      className="rounded-lg bg-surface2 px-3 py-1.5 text-[13px]"
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+              </div>
+            )}
+          </li>
+        );
+      })}
       {result.travelQuestions.map((q) => {
         const ev = events.get(q.eventId)?.event;
         return (

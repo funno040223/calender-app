@@ -230,6 +230,10 @@ export interface Task {
   relatedEventId?: string;
   /** 未指定なら soon */
   timing?: TaskTiming;
+  /** 締切に足りないときに選んだ「ほかを後に回す」：締切の順より先に置く */
+  first?: boolean;
+  /** 締切に足りないときに選んだ「時間帯の外にも入れる」：「入れない」時間帯と、体力が少ない夜にも置く（睡眠は削らない） */
+  stretch?: boolean;
 }
 
 export type BlockKind = "task" | "habit" | "routine";
