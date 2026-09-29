@@ -1,8 +1,8 @@
 // 電波がなくても画面を開けるようにする。データは localStorage の控えから出るので、ここでは画面の部品だけを持つ
 // 中身を変えたら VERSION を上げる（古い控えを消すため）
-const VERSION = "v3";
+const VERSION = "v4";
 // 電波がなくても移れるように、開いたときにまとめて控える画面
-const SHELL = ["/", "/calendar", "/tasks", "/settings", "/settings/basic", "/settings/routine", "/settings/habits", "/settings/places", "/settings/timetable", "/settings/avoid", "/settings/treats", "/settings/calendars", "/settings/notifications"];
+const SHELL = ["/", "/calendar", "/tasks", "/settings", "/settings/basic", "/settings/routine", "/settings/habits", "/settings/places", "/settings/timetable", "/settings/avoid", "/settings/treats", "/settings/calendars", "/settings/notifications", "/settings/feed"];
 const PAGES = `pages-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 

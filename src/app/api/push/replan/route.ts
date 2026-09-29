@@ -1,17 +1,14 @@
-import type { CalendarEvent } from "@/lib/scheduler";
-import { fetchIcsText } from "@/lib/ical/fetch";
-import { parseIcs } from "@/lib/ical/import";
 import { buildNotices } from "@/lib/notify/build";
-import { fromStoredV2, planEvents, replan } from "@/lib/mock/state";
+import { planEvents } from "@/lib/mock/state";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { planOnServer } from "@/lib/server/plan";
 import { authorized } from "@/lib/push/cron";
-
-const DAY_MS = 24 * 60 * 60_000;
 
 /**
  * Supabase の pg_cron から毎時呼ばれ、アプリを開いていなくても通知の一覧を新しくする。
  * app_state と取り込み元の iCal から組み直し、push_schedule だけを書き換える
  * （app_state は書かない。画面で編集した内容を上書きしないため）。
+ * 取り込めない予定があるときは、アプリが作った一覧を残す
  */
 export async function POST(request: Request) {
   if (!authorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -23,34 +20,12 @@ export async function POST(request: Request) {
 
   const results: { planned: boolean; notices?: number; reason?: string }[] = [];
   for (const row of rows ?? []) {
-    const data = fromStoredV2(row.data, now);
-    if (!data) {
-      results.push({ planned: false, reason: "data" });
+    const p = await planOnServer(db, row.user_id, row.data, now);
+    if (!p.ok) {
+      results.push({ planned: false, reason: p.reason });
       continue;
     }
-
-    const { data: sources } = await db.from("ical_sources").select("id, url").eq("user_id", row.user_id);
-    const events: CalendarEvent[] = [];
-    let failed = false;
-    for (const s of sources ?? []) {
-      try {
-        events.push(...parseIcs(await fetchIcsText(s.url), { from: now - DAY_MS, to: now + 16 * DAY_MS }, 540, `ical-${s.id}`));
-        await db.from("ical_sources").update({ last_fetched_at: new Date().toISOString(), last_error: null }).eq("id", s.id);
-      } catch (e) {
-        failed = true;
-        await db
-          .from("ical_sources")
-          .update({ last_error: e instanceof Error ? e.message : "取り込みに失敗しました。" })
-          .eq("id", s.id);
-      }
-    }
-    // 取り込めない予定があるまま組み直すと、通知がずれる。アプリが作った一覧を残す
-    if (failed || !sources?.length) {
-      results.push({ planned: false, reason: failed ? "ical" : "no-sources" });
-      continue;
-    }
-
-    const state = replan(data, events, now);
+    const { state } = p;
     const items = buildNotices({
       now,
       result: state.result,

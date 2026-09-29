@@ -11,10 +11,12 @@ import Treats from "./Treats";
 import RoutineSteps from "./RoutineSteps";
 import BasicSettings from "./BasicSettings";
 import Notifications from "./Notifications";
+import Feed from "./Feed";
 
 const BODY: Record<SectionId, () => React.ReactNode> = {
   calendars: CalendarSources,
   notifications: Notifications,
+  feed: Feed,
   timetable: Timetable,
   places: Places,
   habits: Habits,

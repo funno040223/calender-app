@@ -7,8 +7,9 @@ import { NextResponse, type NextRequest } from "next/server";
  * - ログインしていなければ、ページはログイン画面へ、API は 401 を返す
  */
 export async function proxy(request: NextRequest) {
-  // 定期実行からの呼び出しはログインしていない。中で CRON_SECRET を確かめる
-  if (request.nextUrl.pathname === "/api/push/dispatch" || request.nextUrl.pathname === "/api/push/replan") {
+  // 定期実行とカレンダーアプリからの呼び出しはログインしていない。中で CRON_SECRET・配信の合言葉を確かめる
+  const path = request.nextUrl.pathname;
+  if (path === "/api/push/dispatch" || path === "/api/push/replan" || path.startsWith("/api/ical/feed/")) {
     return NextResponse.next();
   }
   let response = NextResponse.next({ request });
