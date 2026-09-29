@@ -58,6 +58,13 @@ describe("家で食べる", () => {
     expect(on(r)).toHaveLength(1);
     expect(on(r)[0].start).toBeGreaterThanOrEqual(jst(2026, 10, 1, 20));
   });
+
+  it("遅らせるのは時間帯の終わりから2時間まで。昼食を夜に置くことはない", () => {
+    const lunch = { id: "lunch", name: "昼食", durationMinutes: 30, windowStart: 12 * 60, windowEnd: 14 * 60 + 30, frequency: { type: "daily" as const }, skippable: false, meal: true };
+    const events = [{ id: "e", title: "インターン", start: jst(2026, 10, 1, 11), end: jst(2026, 10, 1, 19) }];
+    const r = plan(baseInput(now, { settings, events, habits: [lunch], mealAtHomeDays: { lunch: [jst(2026, 10, 1)] } }));
+    expect(r.blocks.filter((b) => b.refId === "lunch" && b.start < jst(2026, 10, 2))).toHaveLength(0);
+  });
 });
 
 describe("タスクの置き方", () => {

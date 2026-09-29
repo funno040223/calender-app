@@ -155,6 +155,8 @@ export type HabitCue = (
 
 /** 食事どうしの始まりは、この分数より近づけない（朝食と昼食が続かないように） */
 export const MEAL_GAP_MINUTES = 180;
+/** 「家で食べる」にした食事を、時間帯の終わりから遅らせてよい分数 */
+export const MEAL_LATE_MINUTES = 120;
 
 /** きっかけから習慣の始まりまで（分）。通知もこの時刻に送る */
 export const CUE_GAP_MINUTES = 5;
@@ -343,7 +345,7 @@ export interface PlanInput {
   rainyDays?: number[];
   /** 「今日は飛ばす」にした習慣（習慣の ID → その日の 0:00）。その日には置かない */
   skipHabitDays?: Record<string, number[]>;
-  /** 「家で食べる」にした食事（習慣の ID → その日の 0:00）。時間帯に入らなければ、寝る準備の前まで遅らせて置く */
+  /** 「家で食べる」にした食事（習慣の ID → その日の 0:00）。時間帯に入らなければ、時間帯の終わりから2時間まで遅らせて置く */
   mealAtHomeDays?: Record<string, number[]>;
 }
 

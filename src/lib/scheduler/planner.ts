@@ -15,7 +15,7 @@ import type {
   Task,
   TravelQuestion,
 } from "./types";
-import { CUE_GAP_MINUTES, CUE_SLACK_MINUTES, MEAL_GAP_MINUTES } from "./types";
+import { CUE_GAP_MINUTES, CUE_SLACK_MINUTES, MEAL_GAP_MINUTES, MEAL_LATE_MINUTES } from "./types";
 import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday, minuteOfDay } from "./time";
 import { intersect, lengthMinutes, merge, subtract } from "./intervals";
 import { computeDayPlans } from "./rhythm";
@@ -422,9 +422,10 @@ export function plan(input: PlanInput): PlanResult {
       // 食事は家にいない時間（旅行・帰省など）にも置かない
       const room = habit.meal ? subtract(intersect(free, window), mergedAway) : intersect(free, window);
       let start = findStart(room, len, ok, exact ?? prevOf(window));
-      // 「家で食べる」にした食事は、時間帯に入らなければ寝る準備の前まで遅らせて置く
+      // 「家で食べる」にした食事は、時間帯に入らなければ、時間帯の終わりから2時間まで遅らせて置く（寝る準備より前）。
+      // 昼食が夜になるような、ありえない時刻には置かない
       if (start === undefined && habit.meal && input.mealAtHomeDays?.[habit.id]?.includes(d.dayStart)) {
-        const later = { start: window.start, end: d.bed - s.windDownMinutes * MIN };
+        const later = { start: window.start, end: Math.min(window.end + MEAL_LATE_MINUTES * MIN, d.bed - s.windDownMinutes * MIN) };
         start = findStart(subtract(intersect(free, later), mergedAway), len, ok);
       }
       if (start === undefined) return false;

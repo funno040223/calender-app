@@ -661,7 +661,9 @@ function MealCard({ today }: { today: number }) {
           return (
             <li key={m.id} className="flex items-center gap-2 px-4 py-2">
               <span className="min-w-0 flex-1 truncate text-[15px]">{m.name}</span>
-              <span className="w-12 shrink-0 text-right text-[13px] tabular-nums text-muted">{b ? formatTime(b.start) : out.has(m.id) ? "" : "—"}</span>
+              <span className="w-14 shrink-0 text-right text-[13px] tabular-nums text-muted">
+                {b ? formatTime(b.start) : out.has(m.id) ? "" : home.has(m.id) ? "入らない" : "—"}
+              </span>
               <button type="button" aria-pressed={home.has(m.id)} onClick={() => choose(m.id, "home")} className={btn(home.has(m.id))}>
                 家で
               </button>
