@@ -182,3 +182,37 @@ describe("タスクの枠の最短", () => {
     expect(lens("r")).toEqual([30]);
   });
 });
+
+describe("タスクの置き方の見直し（2026-10-01）", () => {
+  const focus = { id: "f", name: "集中", mode: "focus" as const, defaultMinutes: 120, minChunkMinutes: 60, maxChunkMinutes: 120, restAfterMinutes: 20 };
+  const task = (deadline: number) => ({ id: "t", title: "ES", priority: 2 as const, tagId: "f", durationMinutes: 120, deadline });
+
+  it("夕方に出かける日は、身支度を出発の直前に置き、午前中から集中の作業を置ける", () => {
+    const party: CalendarEvent = { id: "p", title: "飲み会", start: jst(2026, 10, 1, 18, 45), end: jst(2026, 10, 1, 21), location: "大学" };
+    const r = plan(baseInput(jst(2026, 10, 1, 7), { events: [party], places: SAMPLE_PLACES, tags: [focus], tasks: [task(jst(2026, 10, 2))] }));
+    expect(r.blocks.find((b) => b.refId === "prep")).toMatchObject({ end: party.start - 10 * MIN });
+    const t = r.blocks.filter((b) => b.refId === "t");
+    expect(t.length).toBeGreaterThan(0);
+    expect(t[0].start).toBeLessThan(jst(2026, 10, 1, 13));
+  });
+
+  it("予定の多い日は、体力を答えるまで、最後の予定のあとに集中の作業を置かない", () => {
+    const evs: CalendarEvent[] = [
+      { id: "a", title: "面談", start: jst(2026, 10, 1, 9, 30), end: jst(2026, 10, 1, 12) },
+      { id: "b", title: "面談", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 16) },
+      { id: "c", title: "懇親会", start: jst(2026, 10, 1, 16, 30), end: jst(2026, 10, 1, 20) },
+    ];
+    const r = plan(baseInput(jst(2026, 10, 1, 7), { events: evs, tags: [focus], tasks: [task(jst(2026, 10, 3))] }));
+    expect(r.dayPlans[0].eveningFrom).toBe(jst(2026, 10, 1, 20));
+    expect(r.blocks.some((b) => b.refId === "t" && b.start >= jst(2026, 10, 1, 20) && b.start < jst(2026, 10, 2, 2))).toBe(false);
+    const answered = plan(baseInput(jst(2026, 10, 1, 7), { events: evs, tags: [focus], tasks: [task(jst(2026, 10, 2))], eveningEnergy: { [jst(2026, 10, 1)]: "high" } }));
+    expect(answered.blocks.some((b) => b.refId === "t" && b.start >= jst(2026, 10, 1, 20))).toBe(true);
+  });
+
+  it("行動ポイントが上限に近い日は避けて、軽い日へ回す", () => {
+    const heavy: CalendarEvent = { id: "h", title: "重い予定", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 14), energyCost: 5 };
+    const r = plan(baseInput(jst(2026, 10, 1, 7), { events: [heavy], tags: [focus], tasks: [task(jst(2026, 10, 4))] }));
+    const t = r.blocks.filter((b) => b.refId === "t");
+    expect(t.every((b) => b.start >= jst(2026, 10, 2))).toBe(true);
+  });
+});

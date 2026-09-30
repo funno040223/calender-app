@@ -29,6 +29,9 @@ const FALLBACK_TAG: Omit<Tag, "id" | "name"> = {
   maxChunkMinutes: 120,
 };
 
+/** 予定の多い日に、これより後に最後の予定が終わったら、そこからを夜とする（0:00 からの分） */
+const EVENING_FROM_MINUTE = 17 * 60;
+
 /** タスクの枠の最短（分） */
 const MIN_TASK_BLOCK_MINUTES = 30;
 
@@ -73,7 +76,13 @@ const PENALTY = {
   overDailyCap: 2,
   /** 行動ポイントの上限を超える（超えた1ポイントごと） */
   overEnergyPerPoint: 1.5,
+  /** 行動ポイントが上限の6割を超える（超えた1ポイントごと）。上限に近い日を避けて、軽い日へならす（自炊など、あとで置く習慣の分を見込む） */
+  nearEnergyPerPoint: 1,
+  /** その日のタスクが1日の作業の目安の3分の2を超える（超えた1時間ごと）。同じ日に詰めず、ほかの日へならす */
+  nearDailyCapPerHour: 0.3,
 };
+/** この割合より上の行動ポイントは、少しずつ避ける */
+const NEAR_ENERGY_RATIO = 0.6;
 
 /** days には、最終日の夜が日付をまたぐ分として範囲の翌日も含めて渡す */
 function avoidIntervalsFor(task: Task, windows: AvoidWindow[], days: DayPlan[], tz: number, hard: boolean): Interval[] {
@@ -152,7 +161,18 @@ export function plan(input: PlanInput): PlanResult {
   const keptOn = (habitId: string, d: DayPlan) => kept.some((b) => b.kind === "habit" && b.refId === habitId && wakingDayOf(b.start) === d.dayStart);
   const dayIndex = (d: DayPlan) => Math.max(0, Math.round((d.dayStart - firstDay) / DAY_MS));
   /** 朝ルーティン（人に会う日は身支度も）が終わる時刻 */
-  const morningEnd = (d: DayPlan) => d.wake + (s.routineMinutes + (d.prep ? s.prepMinutes : 0)) * MIN;
+  /** 身支度を始める時刻：家を出る（人に会う予定が始まる）直前。朝ルーティンの終わりより前にはしない */
+  const prepStartOf = (d: DayPlan): number | undefined => {
+    if (!d.prep) return undefined;
+    const goal = d.leave ?? d.firstEvent?.start;
+    const routineEnd = d.wake + s.routineMinutes * MIN;
+    return goal === undefined || wakeShifts.has(d.dayStart) ? routineEnd : Math.max(routineEnd, goal - s.prepMinutes * MIN);
+  };
+  /** 朝の準備が終わる時刻（身支度が朝ルーティンに続く日は身支度まで） */
+  const morningEnd = (d: DayPlan) => {
+    const routineEnd = d.wake + s.routineMinutes * MIN;
+    return prepStartOf(d) === routineEnd ? routineEnd + s.prepMinutes * MIN : routineEnd;
+  };
 
   // 始まった枠と固定した枠は残す。朝ルーティンは毎回計算し直す
   // 当日の終了済み習慣も残す。再計算で食事を再び置いたり、食事間隔を忘れたりしない。
@@ -239,10 +259,18 @@ export function plan(input: PlanInput): PlanResult {
   const routineBlocks: Block[] = sleep.filter((r) => r.end > firstDay && r.start < horizonEnd).map((r) => ({ kind: "routine", refId: "sleep:" + r.id, title: r.mode === "sleep" ? "睡眠（予定）" : "睡眠（記録）", start: r.start, end: r.end }));
   for (const d of days) {
     const cap = wakeShifts.has(d.dayStart) ? Infinity : d.leave ?? d.firstEvent?.start ?? Infinity;
-    // 身支度は、人に会う予定がある日だけ
+    // 身支度は、人に会う予定がある日だけ。出発が遅い日は、朝ルーティンとは分けて出発の直前に置く
+    const prepStart = prepStartOf(d);
+    const together = prepStart !== undefined && prepStart === d.wake + s.routineMinutes * MIN;
     const end = Math.min(morningEnd(d), cap);
     if (end > d.wake && end > now && !busy.some((v) => overlaps(v, { start: d.wake, end }))) {
-      routineBlocks.push({ kind: "routine", refId: "routine", title: d.prep ? "朝ルーティン・身支度" : "朝ルーティン", start: d.wake, end });
+      routineBlocks.push({ kind: "routine", refId: "routine", title: together ? "朝ルーティン・身支度" : "朝ルーティン", start: d.wake, end });
+    }
+    if (prepStart !== undefined && !together) {
+      const prepEnd = Math.min(prepStart + s.prepMinutes * MIN, cap);
+      if (prepEnd > prepStart && prepEnd > now && !busy.some((v) => overlaps(v, { start: prepStart, end: prepEnd }))) {
+        routineBlocks.push({ kind: "routine", refId: "prep", title: "身支度", start: prepStart, end: prepEnd });
+      }
     }
   }
 
@@ -304,6 +332,19 @@ export function plan(input: PlanInput): PlanResult {
       .map((d) => d.dayStart),
   );
   const dayIdx = (dayStart: number) => Math.round((dayStart - firstDay) / DAY_MS);
+
+  // 予定の多い日（外出の日・予定が3つ以上・合わせて4時間以上）で、最後の予定が夕方以降に終わる日は、そこからを夜とする
+  for (const d of days) {
+    const timed = input.events.filter((ev) => !ev.allDay && ev.start < d.bed && ev.end > d.wake);
+    const hours = timed.reduce((sum, ev) => sum + (Math.min(ev.end, d.bed) - Math.max(ev.start, d.wake)), 0) / (60 * MIN);
+    if (!(outingDays.has(d.dayStart) || timed.length >= 3 || hours >= 4)) continue;
+    const ends = timed.map((ev) => {
+      const t = resolveTravel(ev, places, s);
+      return ev.end + (t.atHome ? 0 : t.minutes * MIN);
+    });
+    const last = Math.max(d.homeAt ?? 0, ...ends);
+    if (last >= d.dayStart + EVENING_FROM_MINUTE * MIN && last < d.bed) d.eveningFrom = last;
+  }
 
   /**
    * 前回から minDays〜maxDays 日の間隔で置く（洗濯など）。
@@ -524,7 +565,8 @@ export function plan(input: PlanInput): PlanResult {
   // ---- タスク ----
   const avoidWindows = input.avoidWindows ?? [];
   const focusZonesOf = (d: DayPlan) => ({
-    afterWakeEnd: (d.leave ?? morningEnd(d)) + s.avoidFocusAfterWakeMinutes * MIN,
+    // 起きてすぐ（朝の準備のあと1時間）。出発が遅い日も、午前中は集中の作業に使える
+    afterWakeEnd: morningEnd(d) + s.avoidFocusAfterWakeMinutes * MIN,
     beforeBedStart: d.bed - (s.windDownMinutes + s.avoidFocusBeforeBedMinutes) * MIN,
   });
   const dayLoad = new Map<number, number>();
@@ -541,9 +583,12 @@ export function plan(input: PlanInput): PlanResult {
     intersect(free, { start: d.wake, end: d.bed }).reduce((sum, i) => sum + lengthMinutes(i), 0);
 
   // 帰宅時に答えた体力：少ない夜はタスクを入れず、ふつうの夜は事務系だけを少し
+  // 予定の多い日の夜は、答えるまで「ふつう」として扱う（集中の作業は入れず、事務を少しだけ）
   const evenings = days.flatMap((d) => {
-    const level = input.eveningEnergy?.[d.dayStart];
-    return level && level !== "high" && d.homeAt !== undefined ? [{ dayStart: d.dayStart, start: d.homeAt, end: d.bed, level }] : [];
+    const answered = input.eveningEnergy?.[d.dayStart];
+    const from = answered ? (d.homeAt ?? d.eveningFrom) : d.eveningFrom;
+    const level = answered ?? (d.eveningFrom !== undefined ? "normal" : undefined);
+    return level && level !== "high" && from !== undefined ? [{ dayStart: d.dayStart, start: from, end: d.bed, level }] : [];
   });
   const eveningUsed = new Map<number, number>();
   const eveningOf = (d: DayPlan, t: number) => evenings.find((e) => e.dayStart === d.dayStart && t >= e.start && t < e.end);
@@ -661,11 +706,16 @@ export function plan(input: PlanInput): PlanResult {
           }
           const avoided = overlapMinutes(softAvoid, st, end);
           if (avoided > 0) penalty += PENALTY.avoidWindow * Math.max(0.5, avoided / len);
-          if ((dayLoad.get(d0.dayStart) ?? 0) + len > s.dailyTaskCapMinutes) penalty += PENALTY.overDailyCap;
+          const load = (dayLoad.get(d0.dayStart) ?? 0) + len;
+          if (load > s.dailyTaskCapMinutes) penalty += PENALTY.overDailyCap;
+          const nearCap = load - Math.max(s.dailyTaskCapMinutes * (2 / 3), (dayLoad.get(d0.dayStart) ?? 0));
+          if (nearCap > 0 && load > s.dailyTaskCapMinutes * (2 / 3)) penalty += (PENALTY.nearDailyCapPerHour * nearCap) / 60;
           // 行動ポイントが上限を超える日は、超えた分だけ減点する（締切に余裕があれば軽い日へ回る）
           const chunkEnergy = (energyPerHourOf(tag) * len) / 60;
           const over = energyOn(d0) + chunkEnergy - s.dailyEnergyBudget;
           if (over > 0) penalty += PENALTY.overEnergyPerPoint * Math.min(over, chunkEnergy);
+          const near = energyOn(d0) + chunkEnergy - s.dailyEnergyBudget * NEAR_ENERGY_RATIO;
+          if (near > 0) penalty += PENALTY.nearEnergyPerPoint * Math.min(near, chunkEnergy);
 
           if (!best || penalty < best.penalty || (penalty === best.penalty && st < best.start)) {
             best = { start: st, len, penalty };

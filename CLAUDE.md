@@ -34,7 +34,7 @@
   - `parse.ts` クイック追加の文の読み取り（決まった言い方だけ。AI は第3段階）
   - `outlook.ts` 今週・来週の見通し（タスクの時間・空き時間、順調／きつい／間に合わない）。タスク画面の上に出す
   - 習慣：時間帯は時刻か起床から（anchor "wake"）か就寝まで（"bed"）、優先度3段階（skippable＋keepLast）、雨の日の代わり（rainAlternative）、頻度「順調な休日」（onTrackHoliday＝締切に足りないタスクがないときの休日だけ）
-  - 帰宅時の体力（eveningEnergy：low はタスクなし、normal は事務系60分まで）、身支度は人に会う日だけ（DayPlan.prep。外出か会議リンクか予定の needsPrep）、DayPlan.homeAt＝最後の外出から帰る時刻
+  - 帰宅時の体力（eveningEnergy：low はタスクなし、normal は事務系60分まで）、身支度は人に会う日だけ（DayPlan.prep。外出か会議リンクか予定の needsPrep）、DayPlan.homeAt＝最後の外出から帰る時刻。身支度は出発（予定の開始）の直前に置く（朝ルーティンのすぐあとに出る日だけ続けて置く。`prepStartOf`）。予定の多い日（外出の日・予定3つ以上・合わせて4時間以上）で最後の予定が17時以降に終わる日は、そこからを夜とし（`DayPlan.eveningFrom`）、体力を答えるまでは normal 扱い（集中は入れない）。行動ポイントが上限の6割、その日のタスクが1日の目安の3分の2を超える日は少しずつ避ける（`nearEnergyPerPoint`・`nearDailyCapPerHour`）
 - 取り込んだ予定に場所がないと「家にいる」扱いになる。予定を開いて「移動（片道）」を選ぶと外出として扱う（`importedTravel`、`planEvents` で上書き）
 - `src/lib/ical/` iCal の読み取り（ical.js。繰り返し・除外・変更回・終日・タイムゾーン）と書き出し、URL の許可リスト（Google・iCloud の https のみ）
 - `src/lib/mock/` 画面のデータ（`model.ts` 型、`state.ts` 読み込み・移行・組み直し（画面とサーバーで共通）、`store.ts` 画面用の保存と同期、`sample.ts` 初期データ）。データの移行は `state.ts` の MIGRATIONS で1回だけ

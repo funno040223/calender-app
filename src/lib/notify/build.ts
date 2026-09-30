@@ -140,11 +140,12 @@ export function buildNotices(input: NoticeInput): Notice[] {
       });
     }
     const answered = result.dayEnergy?.find((e) => e.dayStart === d.dayStart)?.evening;
-    if (d.homeAt !== undefined && !answered && d.homeAt < d.bed) {
+    const eveningAt = d.homeAt ?? d.eveningFrom;
+    if (eveningAt !== undefined && !answered && eveningAt < d.bed) {
       add({
         key: `home:${d.dayStart}`,
-        at: d.homeAt,
-        title: "おかえりなさい",
+        at: eveningAt,
+        title: d.homeAt !== undefined ? "おかえりなさい" : "おつかれさまです",
         body: "残りの体力は？",
         url: "/?checkin=1",
       });

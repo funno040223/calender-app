@@ -412,7 +412,8 @@ function EveningCard({ day, now }: { day: DayPlan; now: number }) {
   const [editing, setEditing] = useState(false);
   const key = dateKeyOf(day.dayStart);
   const answer = state.eveningEnergy[key];
-  if (day.homeAt === undefined || now < day.homeAt - 60 * MIN || now >= day.bed) return null;
+  const from = day.homeAt ?? day.eveningFrom;
+  if (from === undefined || now < from - 60 * MIN || now >= day.bed) return null;
   const choose = (v: EveningEnergy) => {
     // 答えたときの予測も残す（あとで行動ポイントの値を合わせるため）
     const e = state.result.dayEnergy.find((x) => x.dayStart === day.dayStart);
@@ -425,7 +426,7 @@ function EveningCard({ day, now }: { day: DayPlan; now: number }) {
   };
   const picked = EVENING_OPTIONS.find((o) => o.value === answer);
   return (
-    <Group title="おかえりなさい">
+    <Group title={day.homeAt !== undefined ? "おかえりなさい" : "おつかれさまです"}>
       <div className="flex flex-col gap-3 px-4 py-3">
         {picked && !editing ? (
           <div className="flex items-start justify-between gap-3">

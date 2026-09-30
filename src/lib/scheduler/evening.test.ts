@@ -81,11 +81,16 @@ describe("身支度・習慣の優先度・自己成長の枠", () => {
   it("身支度は、外出する予定と会議のリンクがある予定の日だけ取る", () => {
     const meet = { id: "m", title: "面談", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 14), description: "https://meet.google.com/abc-defg-hij" };
     const home = { id: "h", title: "作業", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 14) };
-    const routine = (ev: CalendarEvent) => plan(baseInput(now, { events: [ev] })).blocks.find((b) => b.kind === "routine")!;
-    expect(routine(meet).title).toBe("朝ルーティン・身支度");
-    expect(routine(meet).end - routine(meet).start).toBe(55 * 60_000);
-    expect(routine(home).title).toBe("朝ルーティン");
-    expect(routine({ ...home, needsPrep: true }).title).toBe("朝ルーティン・身支度");
+    // 出発（予定の開始）が遅い日は、身支度を朝ルーティンと分けて、予定の直前に置く
+    const prep = (ev: CalendarEvent) => plan(baseInput(now, { events: [ev] })).blocks.find((b) => b.kind === "routine" && b.refId === "prep");
+    expect(prep(meet)).toMatchObject({ title: "身支度", end: meet.start, start: meet.start - 40 * 60_000 });
+    expect(prep(home)).toBeUndefined();
+    expect(prep({ ...home, needsPrep: true })?.end).toBe(home.start);
+    // 朝ルーティンのすぐあとに出る日は、続けて置く
+    const early = { ...meet, start: jst(2026, 10, 1, 9, 55), end: jst(2026, 10, 1, 11) };
+    const r = plan(baseInput(now, { events: [early] })).blocks.find((b) => b.kind === "routine")!;
+    expect(r.title).toBe("朝ルーティン・身支度");
+    expect(r.end - r.start).toBe(55 * 60_000);
   });
 
   it("締切のために習慣を外すときは、なるべく残す習慣を最後にする", () => {
