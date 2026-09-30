@@ -36,6 +36,8 @@ export function applyNotionRows(d: MockData, rows: NotionRow[], now: number, fet
     if (done.has(notionKey(id, title))) continue;
     wanted.set(id, { title, deadline, minutes: r.stage ? cfg.stageMinutes?.[r.stage] : undefined });
   }
+  // 就職活動の締切なので、作業の種類は基本「集中」（自分で変えたらそのまま）
+  const focus = d.tags.find((t) => t.id === "tag-focus")?.id ?? d.tags.find((t) => t.mode === "focus")?.id;
   const kept: Task[] = [];
   for (const t of d.tasks) {
     if (!t.id.startsWith(NOTION_TASK_PREFIX)) kept.push(t);
@@ -43,7 +45,7 @@ export function applyNotionRows(d: MockData, rows: NotionRow[], now: number, fet
       const w = wanted.get(t.id)!;
       // 所要時間は、自分で決めていなければ（autoDuration が false でなく、範囲も入れていなければ）段階の目安に合わせる
       const auto = t.autoDuration ?? (t.durationMinutes === undefined && !t.durationRange);
-      const next: Task = { ...t, title: w.title, deadline: w.deadline, deadlineKind: "fixed" };
+      const next: Task = { ...t, title: w.title, deadline: w.deadline, deadlineKind: "fixed", ...(t.tagId === undefined && focus ? { tagId: focus } : {}) };
       // 段階が変わったら（名前に段階が入っている）別の作業なので、前の段階の残り時間は使わない
       if (t.title !== w.title) delete next.remainingMinutes;
       if (auto) {
@@ -57,7 +59,7 @@ export function applyNotionRows(d: MockData, rows: NotionRow[], now: number, fet
     }
   }
   for (const [id, w] of wanted)
-    kept.push({ id, title: w.title, priority: 2, deadline: w.deadline, deadlineKind: "fixed", ...(w.minutes ? { durationMinutes: w.minutes, autoDuration: true } : {}) });
+    kept.push({ id, title: w.title, priority: 2, deadline: w.deadline, deadlineKind: "fixed", ...(focus ? { tagId: focus } : {}), ...(w.minutes ? { durationMinutes: w.minutes, autoDuration: true } : {}) });
   // 消した記録は、表にその段階の行があるあいだだけ残す
   const dismissed = cfg.dismissed?.filter((k) => seen.has(k));
   return { ...d, tasks: kept, notion: { ...cfg, dismissed: dismissed?.length ? dismissed : undefined, fetchedAt } };

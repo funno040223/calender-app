@@ -168,15 +168,17 @@ describe("先の締切のタスクとあとから入る予定", () => {
 });
 
 describe("タスクの枠の最短", () => {
-  it("30分より短い枠を作らない（短い残りも30分にし、分けたあとに30分未満を残さない）", () => {
+  it("30分より短い枠を作らない（もとが30分以内のタスクはそのまま。長いタスクの短い残りは30分にし、分けたあとに30分未満を残さない）", () => {
     const admin = { id: "a", name: "事務", mode: "gap" as const, defaultMinutes: 30, minChunkMinutes: 15, maxChunkMinutes: 60 };
     const r = plan(baseInput(jst(2026, 10, 1, 8), { tags: [admin], tasks: [
       { id: "s", title: "短い", priority: 2, tagId: "a", durationMinutes: 15, deadline: jst(2026, 10, 3) },
       { id: "l", title: "長い", priority: 2, tagId: "a", durationMinutes: 75, deadline: jst(2026, 10, 3) },
+      { id: "r", title: "残り少し", priority: 2, tagId: "a", durationMinutes: 90, remainingMinutes: 15, deadline: jst(2026, 10, 3) },
     ] }));
     const lens = (id: string) => r.blocks.filter((b) => b.refId === id).map((b) => (b.end - b.start) / MIN);
-    expect(lens("s")).toEqual([30]);
+    expect(lens("s")).toEqual([15]);
     expect(lens("l").every((m) => m >= 30)).toBe(true);
     expect(lens("l").reduce((a, b) => a + b, 0)).toBe(75);
+    expect(lens("r")).toEqual([30]);
   });
 });

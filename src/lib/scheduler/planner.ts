@@ -590,11 +590,14 @@ export function plan(input: PlanInput): PlanResult {
     // まずは1日の余白を守って置く。締切に間に合わないときだけ余白を削る
     let keepSlack = true;
 
+    // タスクの枠は30分から。もともと30分以内のタスクは、そのままの長さで置く
+    const shortTask = estimateMinutes({ ...task, remainingMinutes: undefined }, tag) <= MIN_TASK_BLOCK_MINUTES;
+    const minBlock = shortTask ? 0 : MIN_TASK_BLOCK_MINUTES;
     while (remaining > 0) {
-      // タスクの枠は30分から。残りが30分より短ければ30分の枠にする
-      if (remaining < MIN_TASK_BLOCK_MINUTES) remaining = MIN_TASK_BLOCK_MINUTES;
-      const need = Math.min(remaining, Math.max(tag.maxChunkMinutes, MIN_TASK_BLOCK_MINUTES));
-      const minLen = Math.min(Math.max(tag.minChunkMinutes, MIN_TASK_BLOCK_MINUTES), remaining);
+      // 残りが30分より短ければ30分の枠にする
+      if (remaining < minBlock) remaining = minBlock;
+      const need = Math.min(remaining, Math.max(tag.maxChunkMinutes, minBlock));
+      const minLen = Math.min(Math.max(tag.minChunkMinutes, minBlock), remaining);
       let best: { start: number; len: number; penalty: number } | undefined;
       const freeByDay = new Map(days.map((d) => [d.dayStart, dayFreeMinutes(d)]));
 
@@ -627,7 +630,7 @@ export function plan(input: PlanInput): PlanResult {
           if (evening) len = Math.min(len, floorMinutesToStep(NORMAL_EVENING_TASK_MINUTES - (eveningUsed.get(evening.dayStart) ?? 0)));
           // 分けたあとに30分より短い残りを作らない
           const left = remaining - len;
-          if (left > 0 && left < MIN_TASK_BLOCK_MINUTES) len = remaining - MIN_TASK_BLOCK_MINUTES;
+          if (left > 0 && left < minBlock) len = remaining - minBlock;
           if (len < minLen || len <= 0) continue;
           const end = st + len * MIN;
           if (keepSlack && (freeByDay.get(d0.dayStart) ?? 0) - len - restMinutes < s.minSlackMinutesPerDay) continue;

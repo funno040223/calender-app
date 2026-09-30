@@ -75,4 +75,13 @@ describe("取り込んだタスクを消したとき", () => {
     expect(next.tasks.find((t) => t.id === "notion-a")?.title).toBe("A社 面接");
     expect(next.notion?.dismissed).toBeUndefined();
   });
+
+  it("取り込んだタスクは、作業の種類を「集中」にする（自分で変えたらそのまま）", () => {
+    const d1 = applyNotionRows(base, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now);
+    expect(d1.tasks.find((t) => t.id === "notion-a")?.tagId).toBe("tag-focus");
+    const mine = { ...d1, tasks: d1.tasks.map((t) => (t.id === "notion-a" ? { ...t, tagId: "tag-admin" } : t)) };
+    expect(applyNotionRows(mine, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now).tasks.find((t) => t.id === "notion-a")?.tagId).toBe("tag-admin");
+    const old = { ...d1, tasks: d1.tasks.map((t) => (t.id === "notion-a" ? { ...t, tagId: undefined } : t)) };
+    expect(applyNotionRows(old, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now).tasks.find((t) => t.id === "notion-a")?.tagId).toBe("tag-focus");
+  });
 });
