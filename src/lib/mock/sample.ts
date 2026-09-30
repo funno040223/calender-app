@@ -11,7 +11,7 @@ export const SAMPLE_PLACES: Place[] = [
 
 export const SAMPLE_TAGS: Tag[] = [
   { id: "tag-focus", name: "集中", mode: "focus", defaultMinutes: 90, minChunkMinutes: 60, maxChunkMinutes: 120, restAfterMinutes: 20 },
-  { id: "tag-admin", name: "事務", mode: "gap", defaultMinutes: 30, minChunkMinutes: 15, maxChunkMinutes: 60 },
+  { id: "tag-admin", name: "事務", mode: "gap", defaultMinutes: 30, minChunkMinutes: 30, maxChunkMinutes: 60 },
 ];
 
 /** 生活の中身の議論で決めた習慣。最初は少なめにして、続いたら足す */

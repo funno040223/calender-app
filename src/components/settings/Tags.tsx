@@ -30,7 +30,7 @@ export default function Tags() {
           >
             {rows.map((r) => (
               <Row key={r.label} label={r.label}>
-                <NumberInput label={`${t.name}の${r.label}`} value={r.value} onCommit={(v) => v !== undefined && r.commit(v)} min={r.label.startsWith("終わった") ? 0 : 5} max={r.max} />
+                <NumberInput label={`${t.name}の${r.label}`} value={r.value} onCommit={(v) => v !== undefined && r.commit(v)} min={r.label.startsWith("終わった") ? 0 : 30} max={r.max} />
                 <span className="text-[15px] text-muted">分</span>
               </Row>
             ))}

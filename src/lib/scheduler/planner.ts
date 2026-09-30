@@ -25,9 +25,12 @@ const FALLBACK_TASK_MINUTES = 60;
 const FALLBACK_TAG: Omit<Tag, "id" | "name"> = {
   mode: "gap",
   defaultMinutes: FALLBACK_TASK_MINUTES,
-  minChunkMinutes: 15,
+  minChunkMinutes: 30,
   maxChunkMinutes: 120,
 };
+
+/** タスクの枠の最短（分） */
+const MIN_TASK_BLOCK_MINUTES = 30;
 
 /** すきま時間の候補として返す空き時間の最短の長さ（分） */
 const MIN_GAP_MINUTES = 20;
@@ -588,8 +591,10 @@ export function plan(input: PlanInput): PlanResult {
     let keepSlack = true;
 
     while (remaining > 0) {
-      const need = Math.min(remaining, tag.maxChunkMinutes);
-      const minLen = Math.min(tag.minChunkMinutes, remaining);
+      // タスクの枠は30分から。残りが30分より短ければ30分の枠にする
+      if (remaining < MIN_TASK_BLOCK_MINUTES) remaining = MIN_TASK_BLOCK_MINUTES;
+      const need = Math.min(remaining, Math.max(tag.maxChunkMinutes, MIN_TASK_BLOCK_MINUTES));
+      const minLen = Math.min(Math.max(tag.minChunkMinutes, MIN_TASK_BLOCK_MINUTES), remaining);
       let best: { start: number; len: number; penalty: number } | undefined;
       const freeByDay = new Map(days.map((d) => [d.dayStart, dayFreeMinutes(d)]));
 
@@ -620,6 +625,9 @@ export function plan(input: PlanInput): PlanResult {
           let len = avail >= need ? need : floorMinutesToStep(avail);
           const evening = task.stretch ? undefined : eveningOf(d0, st);
           if (evening) len = Math.min(len, floorMinutesToStep(NORMAL_EVENING_TASK_MINUTES - (eveningUsed.get(evening.dayStart) ?? 0)));
+          // 分けたあとに30分より短い残りを作らない
+          const left = remaining - len;
+          if (left > 0 && left < MIN_TASK_BLOCK_MINUTES) len = remaining - MIN_TASK_BLOCK_MINUTES;
           if (len < minLen || len <= 0) continue;
           const end = st + len * MIN;
           if (keepSlack && (freeByDay.get(d0.dayStart) ?? 0) - len - restMinutes < s.minSlackMinutesPerDay) continue;
