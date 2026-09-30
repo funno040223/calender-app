@@ -188,7 +188,18 @@ const MIGRATIONS = [
   "2026-09-30-laundry-30",
   "2026-09-30-laundry-avoid-rain",
   "2026-09-30-track-more",
+  "2026-10-01-utokyo-periods",
 ] as const;
+
+/** 以前の初期値の時限（9:00 から90分）。このままなら東大の時限に置き換える */
+const OLD_SAMPLE_PERIODS = [
+  [1, 9 * 60, 10 * 60 + 30],
+  [2, 10 * 60 + 40, 12 * 60 + 10],
+  [3, 13 * 60, 14 * 60 + 30],
+  [4, 14 * 60 + 40, 16 * 60 + 10],
+  [5, 16 * 60 + 20, 17 * 60 + 50],
+  [6, 18 * 60, 19 * 60 + 30],
+];
 
 const TRACK_MORE = ["habit-walk", GROWTH_HABIT.id, "habit-tidy", "habit-laundry", "habit-cook-lunch", "habit-cook-dinner"];
 
@@ -240,7 +251,15 @@ function migrate(d: MockData, now: number): MockData {
       void _drop;
       return { ...rest, cue: exercise.cue, energyCost: exercise.energyCost };
     });
-  return { ...d, habits, migrations: [...new Set([...d.migrations, ...MIGRATIONS])] };
+  // 東大（情報理工）に合わせて、初期値のままの時限を東大の標準にする（自分で変えた時限はそのまま）
+  let periods = d.periods;
+  if (
+    !done.has("2026-10-01-utokyo-periods") &&
+    periods.length === OLD_SAMPLE_PERIODS.length &&
+    [...periods].sort((a, b) => a.number - b.number).every((p, i) => p.number === OLD_SAMPLE_PERIODS[i][0] && p.start === OLD_SAMPLE_PERIODS[i][1] && p.end === OLD_SAMPLE_PERIODS[i][2])
+  )
+    periods = SAMPLE_PERIODS;
+  return { ...d, habits, periods, migrations: [...new Set([...d.migrations, ...MIGRATIONS])] };
 }
 
 const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);

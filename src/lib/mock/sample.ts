@@ -1,6 +1,7 @@
 import type { AvoidWindow, RecoveryOption, CalendarEvent, Habit, Place, Tag, Task } from "@/lib/scheduler";
 import { dateKeyOf, type Course, type OwnEvent, type Period, type RoutineStep, type Treat } from "./model";
 import { DAY_MS, MIN, dayStartOf, weekdayOf } from "./jst";
+import { UTOKYO_PERIODS } from "./utokyo";
 
 /** 画面確認用のサンプルデータ。日付は「今日」を基準に作る */
 
@@ -197,14 +198,8 @@ export const SAMPLE_AVOID_WINDOWS: AvoidWindow[] = [
 
 const at = (day: number, h: number, mi = 0) => day + (h * 60 + mi) * MIN;
 
-export const SAMPLE_PERIODS: Period[] = [
-  { number: 1, start: 9 * 60, end: 10 * 60 + 30 },
-  { number: 2, start: 10 * 60 + 40, end: 12 * 60 + 10 },
-  { number: 3, start: 13 * 60, end: 14 * 60 + 30 },
-  { number: 4, start: 14 * 60 + 40, end: 16 * 60 + 10 },
-  { number: 5, start: 16 * 60 + 20, end: 17 * 60 + 50 },
-  { number: 6, start: 18 * 60, end: 19 * 60 + 30 },
-];
+/** 時限は東大の標準（1コマ105分） */
+export const SAMPLE_PERIODS: Period[] = UTOKYO_PERIODS;
 
 /** 時間割（本人のゼミ）。学期は今週の月曜から15週間 */
 export function buildSampleCourses(now: number): Course[] {

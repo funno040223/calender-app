@@ -7,36 +7,38 @@ import { fromStoredV2, migrateV1, sampleData, toData } from "./store";
 const course: Course = {
   id: "c1",
   name: "線形代数",
-  weekday: 1,
+  // 月曜は 10/12（スポーツの日）が大学の休講日なので、火曜で確かめる
+  weekday: 2,
   period: 1,
-  termStart: "2026-09-28",
-  termEnd: "2026-10-19",
+  termStart: "2026-09-29",
+  termEnd: "2026-10-20",
   location: "大学",
   optional: false,
-  cancelledDates: ["2026-10-05"],
+  cancelledDates: ["2026-10-06"],
   attendedDates: [],
 };
 
 describe("buildClassEvents", () => {
   it("学期の同じ曜日・時限に授業を作り、休講の日は除く", () => {
     const evs = buildClassEvents([course], SAMPLE_PERIODS);
-    expect(evs.map((e) => dateKeyOf(e.start))).toEqual(["2026-09-28", "2026-10-12", "2026-10-19"]);
-    expect(evs[0].start).toBe(jstTime(2026, 9, 28, 9, 0));
-    expect(evs[0].end).toBe(jstTime(2026, 9, 28, 10, 30));
-    expect(parseClassEventId(evs[0].id)).toEqual({ courseId: "c1", date: "2026-09-28" });
+    expect(evs.map((e) => dateKeyOf(e.start))).toEqual(["2026-09-29", "2026-10-13", "2026-10-20"]);
+    // 東大の1限は 8:30〜10:15
+    expect(evs[0].start).toBe(jstTime(2026, 9, 29, 8, 30));
+    expect(evs[0].end).toBe(jstTime(2026, 9, 29, 10, 15));
+    expect(parseClassEventId(evs[0].id)).toEqual({ courseId: "c1", date: "2026-09-29" });
   });
 
   it("時限の代わりに開始・終了の時刻でも作れる", () => {
     const evs = buildClassEvents([{ ...course, period: undefined, startMinute: 13 * 60, endMinute: 15 * 60 }], SAMPLE_PERIODS);
-    expect(evs[0].start).toBe(jstTime(2026, 9, 28, 13, 0));
-    expect(evs[0].end).toBe(jstTime(2026, 9, 28, 15, 0));
+    expect(evs[0].start).toBe(jstTime(2026, 9, 29, 13, 0));
+    expect(evs[0].end).toBe(jstTime(2026, 9, 29, 15, 0));
   });
 
   it("任意参加は、参加する回だけ組み立てに渡す", () => {
-    const evs = buildClassEvents([{ ...course, optional: true, attendedDates: ["2026-10-12"] }], SAMPLE_PERIODS);
+    const evs = buildClassEvents([{ ...course, optional: true, attendedDates: ["2026-10-13"] }], SAMPLE_PERIODS);
     expect(evs.map((e) => e.attending)).toEqual([false, true, false]);
     const forPlan = classEventsForPlan(evs);
-    expect(forPlan.map((e) => dateKeyOf(e.start))).toEqual(["2026-10-12"]);
+    expect(forPlan.map((e) => dateKeyOf(e.start))).toEqual(["2026-10-13"]);
     expect(Object.keys(forPlan[0]).sort()).toEqual(["end", "id", "location", "start", "title"]);
   });
 
@@ -105,5 +107,24 @@ describe("保存データ", () => {
     const d = sampleData(now);
     expect(fromStoredV2(JSON.parse(JSON.stringify(toData(d))), now)).toEqual(d);
     expect(fromStoredV2({ version: 1 }, now)).toBeUndefined();
+  });
+});
+
+describe("東大の暦", () => {
+  it("大学が授業をしない日（勤労感謝の日・駒場祭・冬季休業）には授業を入れず、授業をする祝日（文化の日）には入れる", async () => {
+    const { buildClassEvents } = await import("./model");
+    const { UTOKYO_PERIODS, UTOKYO_TERMS } = await import("./utokyo");
+    const a = UTOKYO_TERMS.find((t) => t.id === "2026-A")!;
+    const course = { id: "c", name: "ゼミ", period: 2, termStart: a.start, termEnd: a.end, optional: false, cancelledDates: [], attendedDates: [] };
+    const dates = (weekday: number) => buildClassEvents([{ ...course, weekday }], UTOKYO_PERIODS).map((e) => e.date);
+    expect(dates(1)).not.toContain("2026-11-23");
+    expect(dates(1)).not.toContain("2026-10-12");
+    expect(dates(5)).not.toContain("2026-11-20");
+    expect(dates(4)).not.toContain("2026-12-31");
+    expect(dates(2)).toContain("2026-11-03");
+    // 2限は 10:25〜12:10
+    const first = buildClassEvents([{ ...course, weekday: 5 }], UTOKYO_PERIODS)[0];
+    expect(first.date).toBe("2026-10-02");
+    expect((first.end - first.start) / 60000).toBe(105);
   });
 });

@@ -1,6 +1,7 @@
 import type { AvoidWindow, Block, CalendarEvent, EveningEnergy, Habit, Place, Settings, Tag, Task } from "@/lib/scheduler";
 import type { CalendarId, OwnCalendarId } from "./calendars";
 import { DAY_MS, MIN, TZ, fromInputDateTime, toInputDate, weekdayOf } from "./jst";
+import { UTOKYO_NO_CLASS_DAYS } from "./utokyo";
 
 /**
  * 保存する内容の形。サーバーを作るときは、ここの配列がそれぞれ1つの表になる
@@ -343,7 +344,8 @@ export function buildClassEvents(courses: Course[], periods: Period[]): ClassEve
     let day = from + ((c.weekday - weekdayOf(from) + 7) % 7) * DAY_MS;
     for (; day <= last; day += 7 * DAY_MS) {
       const key = dateKeyOf(day);
-      if (cancelled.has(key)) continue;
+      // 休講にした日と、大学が授業をしない日（祝日・行事・冬季休業）は入れない
+      if (cancelled.has(key) || UTOKYO_NO_CLASS_DAYS.has(key)) continue;
       out.push({
         id: classEventId(c.id, key),
         title: c.name,

@@ -25,7 +25,7 @@ export default function Feed() {
   }, [load]);
 
   const make = async () => {
-    if (feed && !window.confirm("新しいアドレスを作ると、今のアドレスは使えなくなります（登録したカレンダーから予定が消えます）。作り直しますか？")) return;
+    if (feed && !window.confirm("新しいアドレスを作ると、今のアドレスは使えなくなります（登録したカレンダーアプリには、新しいアドレスを登録し直してください）。作り直しますか？")) return;
     setBusy(true);
     setMessage("");
     try {
@@ -52,11 +52,12 @@ export default function Feed() {
 
       <Group
         title="配信のアドレス"
+        footer="配信するのは、アプリが置いた枠（朝ルーティン・習慣・タスクなど）、自分で入れた予定、出る授業です（7日前〜14日先）。取り込んだ Google の予定は入れません。"
       >
         {feed === undefined && !message && <EmptyNote>読み込み中…</EmptyNote>}
         {feed === null && !url && <EmptyNote>まだ配信していません。</EmptyNote>}
         {feed && !url && (
-          <Row label="配信中" sub={`${formatDateTime(feed.createdAt)} に作成`} detail="" />
+          <Row label="配信しています" sub={`${formatDateTime(feed.createdAt)} にアドレスを作成`} detail="" />
         )}
         {url && (
           <div className="flex flex-col gap-2 px-4 py-3">
@@ -86,7 +87,7 @@ export default function Feed() {
           disabled={busy}
           className="py-2 text-[15px] font-medium text-tint disabled:opacity-60"
           onClick={async () => {
-            if (!window.confirm("配信をやめますか？登録したカレンダーから予定が消えます。")) return;
+            if (!window.confirm("配信をやめると、このアドレスは使えなくなり、登録したカレンダーアプリに予定が届かなくなります。アプリの中の予定は消えません。やめますか？")) return;
             try {
               await deleteFeed();
               setUrl("");

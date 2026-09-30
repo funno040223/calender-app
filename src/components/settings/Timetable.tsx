@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useApp } from "@/components/app/StoreProvider";
-import { AddRow, EmptyNote, Group, Row, Segmented, Switch, TimeInput, inputCls } from "@/components/ui/controls";
+import { AddRow, EmptyNote, Group, Row, Segmented, Switch, TimeInput, inputCls, pillCls } from "@/components/ui/controls";
+import { UTOKYO_TERMS, currentSemester } from "@/lib/mock/utokyo";
 import { DAY_MS, WEEKDAY_JA, dayStartOf, formatDate, newId } from "@/lib/mock/jst";
 import { courseTimes, dateKeyOf, dayStartOfKey, formatMinuteOfDay, hhmmToMinutes, minutesToHHMM, type Course, type Period } from "@/lib/mock/model";
 import EditSheet, { Field, upsert } from "./EditSheet";
@@ -71,6 +72,8 @@ function CourseForm({ course, onClose }: { course?: Course; onClose: () => void 
   const periods = [...state.periods].sort((a, b) => a.number - b.number);
   const [d, setD] = useState<Draft>(() => {
     const today = dayStartOf(Date.now());
+    // 新しい授業の学期は、今か次の学期（S か A）
+    const semester = currentSemester(dateKeyOf(today));
     return {
       name: course?.name ?? "",
       weekday: course?.weekday ?? 1,
@@ -78,8 +81,8 @@ function CourseForm({ course, onClose }: { course?: Course; onClose: () => void 
       period: course?.period ?? periods[0]?.number ?? 1,
       start: minutesToHHMM(course?.startMinute ?? 13 * 60),
       end: minutesToHHMM(course?.endMinute ?? 15 * 60),
-      termStart: course?.termStart ?? dateKeyOf(today),
-      termEnd: course?.termEnd ?? dateKeyOf(today + 15 * 7 * DAY_MS),
+      termStart: course?.termStart ?? semester?.start ?? dateKeyOf(today),
+      termEnd: course?.termEnd ?? semester?.end ?? dateKeyOf(today + 15 * 7 * DAY_MS),
       location: course?.location ?? "",
       optional: course?.optional ?? false,
       cancelledDates: course?.cancelledDates ?? [],
@@ -165,6 +168,17 @@ function CourseForm({ course, onClose }: { course?: Course; onClose: () => void 
         )}
       </Field>
       <Field label="学期">
+        {/* 東大（情報理工）のターム。押すと授業期間が入る */}
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {UTOKYO_TERMS.filter((t) => t.end >= dateKeyOf(dayStartOf(state.plannedAt)) || (d.termStart === t.start && d.termEnd === t.end)).map((t) => {
+            const on = d.termStart === t.start && d.termEnd === t.end;
+            return (
+              <button key={t.id} type="button" aria-pressed={on} onClick={() => setD((p) => ({ ...p, termStart: t.start, termEnd: t.end }))} className={pillCls(on)}>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
           <input className={inputCls} type="date" aria-label="学期の開始日" value={d.termStart} onChange={(e) => set("termStart", e.target.value)} />
           <span className="text-muted">〜</span>
