@@ -1,8 +1,8 @@
 import { estimateMinutes, resolveTravel, type RhythmReset } from "@/lib/scheduler";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
-import type { MockData } from "./model";
+import { dateKeyOf, type MockData } from "./model";
 import { captureTaskBlocks } from "./progress";
-import { planEvents, type MockState } from "./state";
+import { planEvents, rainyDayKeys, type MockState } from "./state";
 
 export function resetConflicts(state: MockState, reset: RhythmReset) {
   if (reset.mode === "tired") return [];
@@ -36,7 +36,7 @@ export function resetRhythm(d: MockData, reset: RhythmReset, now: number): MockD
 
 /** 他の固定枠と習慣を守り、動かせるタスクだけを除いた「今」の空き時間を調べる。 */
 /**
- * 「今から何分できる？」で使える、今からの時間。自分で「今やる」と決めたので、作業のあとの休憩・帰宅後の休憩は数えない。
+ * 「今から何する？」で使える、今からの時間。自分で「今やる」と決めたので、作業のあとの休憩・帰宅後の休憩は数えない。
  * 守るのは、予定（移動を含む）・今の計画の習慣や朝ルーティン・始まった作業・睡眠・寝る準備だけ
  */
 export function workNowGap(state: MockState, now: number): { start: number; end: number } | undefined {
@@ -72,6 +72,34 @@ export function workNowChoices(state: MockState, now: number, minutes: number) {
   }).slice(0, 3);
 }
 
+/**
+ * 今からできる習慣（散歩・自己成長・家での運動など）。時刻が決まるもの（食事・就寝前の入浴・自炊）、
+ * 待ち時間のある作業、今日もう始めた・記録したものは出さない。雨の日は代わりのもの（光を浴びる）
+ */
+export function workNowHabits(state: MockState, now: number, minutes: number) {
+  if (!Number.isFinite(minutes) || minutes < 5 || minutes > 180) return [];
+  const gap = workNowGap(state, now);
+  if (!gap) return [];
+  const today = dayStartOf(now);
+  const key = dateKeyOf(now);
+  const rainy = rainyDayKeys(state).includes(key);
+  const started = (id: string) => !!state.habitLogs[key]?.[id] || state.result.blocks.some((b) => b.kind === "habit" && b.refId === id && b.start >= today && b.start <= now);
+  return state.habits.flatMap((h) => {
+    if (h.meal || h.anchor === "bed" || h.finish || h.duringHabitId || h.frequency.type === "whenEnergy" || started(h.id)) return [];
+    const alt = rainy ? h.rainAlternative : undefined;
+    const length = Math.min(minutes, alt?.durationMinutes ?? h.durationMinutes);
+    if (length < 5 || now + length * MIN > gap.end) return [];
+    return [{ habit: h, title: alt?.title ?? h.name, minutes: length, start: now, end: now + length * MIN }];
+  }).slice(0, 3);
+}
+
+/** 選んだ習慣を今から始める（今日のあとの枠は、組み直しで外れる） */
+export function startHabitNow(state: MockState, habitId: string, minutes: number, now: number): MockData {
+  const choice = workNowHabits(state, now, minutes).find((c) => c.habit.id === habitId);
+  if (!choice) return state;
+  return { ...state, blocks: [...state.blocks, { kind: "habit", refId: habitId, title: choice.title, start: choice.start, end: choice.end, pinned: true }] };
+}
+
 export function startWorkNow(state: MockState, taskId: string, minutes: number, now: number): MockData {
   const choice = workNowChoices(state, now, minutes).find((c) => c.task.id === taskId);
   if (!choice) return state;
@@ -86,7 +114,7 @@ export const defaultPauseEnd = (state: MockState, now: number) => {
   return Math.max(now + 30 * MIN, day?.bed ?? dayStartOf(now) + DAY_MS);
 };
 
-/** 「今から何分できる？」の最初の分数：今からの時間（5分刻みで切り捨て、5〜180分）。作業できる時間でなければ undefined */
+/** 「今から何する？」の最初の分数：今からの時間（5分刻みで切り捨て、5〜180分）。作業できる時間でなければ undefined */
 export function freeNowMinutes(gap: { start: number; end: number } | undefined, now: number): number | undefined {
   if (!gap) return undefined;
   const min = Math.floor((gap.end - now) / 60_000 / 5) * 5;

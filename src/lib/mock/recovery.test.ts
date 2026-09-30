@@ -4,7 +4,7 @@ import { baseInput, jst } from "@/lib/scheduler/test-helpers";
 import { buildNotices } from "@/lib/notify/build";
 import { MIN, DAY_MS } from "./jst";
 import { confirmWork, pendingWork } from "./progress";
-import { freeNowMinutes, resetRhythm, resetConflicts, startWorkNow, workNowChoices, workNowGap } from "./recovery";
+import { freeNowMinutes, resetRhythm, resetConflicts, startHabitNow, startWorkNow, workNowChoices, workNowGap, workNowHabits } from "./recovery";
 import { fromStoredV2, replan, sampleData, toData } from "./state";
 
 const now = jst(2026, 10, 1, 12);
@@ -151,5 +151,22 @@ describe("今から何分できる？の最初の分数", () => {
     expect(freeNowMinutes(gap, jst(2026, 10, 1, 23, 27))).toBeUndefined();
     expect(freeNowMinutes(undefined, jst(2026, 10, 1, 21))).toBeUndefined();
     expect(freeNowMinutes({ start: 0, end: jst(2026, 10, 2) }, jst(2026, 10, 1, 12))).toBe(180);
+  });
+});
+
+describe("今から何する？の習慣", () => {
+  it("散歩や自己成長を候補に出し、始めたら今日のあとの枠は外れる。食事・入浴・今日始めたものは出さない", () => {
+    const walk = { id: "walk", name: "散歩", durationMinutes: 20, windowStart: 16 * 60, windowEnd: 18 * 60, frequency: { type: "daily" as const }, skippable: true, rainAlternative: { title: "光を浴びる", durationMinutes: 10 } };
+    const lunch = { id: "lunch", name: "昼食", durationMinutes: 30, windowStart: 12 * 60, windowEnd: 14 * 60, frequency: { type: "daily" as const }, skippable: false, meal: true };
+    const bath = { id: "bath", name: "入浴", durationMinutes: 30, windowStart: -150, windowEnd: -75, anchor: "bed" as const, frequency: { type: "daily" as const }, skippable: false };
+    const t = jst(2026, 10, 1, 15);
+    const state = replan({ ...data(), blocks: [], tasks: [], habits: [walk, lunch, bath] }, [], t);
+    expect(workNowHabits(state, t, 30).map((c) => [c.habit.id, c.minutes])).toEqual([["walk", 20]]);
+    const next = replan(startHabitNow(state, "walk", 30, t), [], t);
+    const walks = next.blocks.filter((b) => b.refId === "walk" && b.start < jst(2026, 10, 2));
+    expect(walks).toEqual([expect.objectContaining({ start: t, end: t + 20 * MIN, pinned: true })]);
+    expect(workNowHabits(next, t + 30 * MIN, 30)).toHaveLength(0);
+    const rainy = replan({ ...state, rainyDays: ["2026-10-01"] }, [], t);
+    expect(workNowHabits(rainy, t, 30).map((c) => [c.title, c.minutes])).toEqual([["光を浴びる", 10]]);
   });
 });

@@ -795,7 +795,7 @@ export default function TodayScreen() {
         <div className="flex flex-col gap-6">
           <HabitLogCard today={today} />
           <Timeline now={now} dayEnd={dayEnd} />
-          {/* 崩れた日の立て直しと「今から何分できる？」は、ときどき使うものなので下に */}
+          {/* 崩れた日の立て直しと「今から何する？」は、ときどき使うものなので下に */}
           <RecoveryCard now={now} />
           <WorkNowCard now={now} />
         </div>
