@@ -18,7 +18,7 @@ import type {
 import { CUE_GAP_MINUTES, CUE_SLACK_MINUTES, MEAL_GAP_MINUTES, MEAL_LATE_MINUTES } from "./types";
 import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday, minuteOfDay } from "./time";
 import { intersect, lengthMinutes, merge, subtract } from "./intervals";
-import { computeDayPlans } from "./rhythm";
+import { DAY_BEGINS_AT_MINUTE, computeDayPlans } from "./rhythm";
 import { resolveTravel } from "./travel";
 
 const FALLBACK_TASK_MINUTES = 60;
@@ -131,17 +131,26 @@ export function plan(input: PlanInput): PlanResult {
   const sleep = resets.filter((r) => r.mode !== "tired");
   const pauses = resets.filter((r) => r.mode === "tired");
   const overlaps = (a: Interval, b: Interval) => a.start < b.end && a.end > b.start;
-  const days = allDays.slice(0, s.planningDays);
+  // 夜中（0時を過ぎて、まだ寝る前）は前の日の続き。前の日の就寝までも計画に入れる（今夜の枠と寝る準備の通知を消さない）
+  const prevDay = lookBack
+    ? withHistory[lookBack - 1]
+    : { ...computeDayPlans(firstDay - DAY_MS, 1, input.events, places, s)[0], bed: allDays[0].wake - s.sleepMinutes * MIN };
+  const days = [...(prevDay.bed > now ? [prevDay] : []), ...allDays.slice(0, s.planningDays)];
+  const planStart = days[0].dayStart;
   const horizonEnd = days.at(-1)!.bed;
 
   const dayOf = (t: number): DayPlan | undefined => days.find((d) => t >= d.wake && t < d.bed);
-  const dayIndex = (d: DayPlan) => Math.round((d.dayStart - firstDay) / DAY_MS);
+  /** その時刻が、どの日（起きている時間）の分か。計画の日の外なら、夜中0時〜4時は前の日の分 */
+  const wakingDayOf = (t: number) => dayOf(t)?.dayStart ?? localDayStart(t - DAY_BEGINS_AT_MINUTE * MIN, s.tzOffsetMinutes);
+  /** 残した枠のうち、その日の習慣があるか */
+  const keptOn = (habitId: string, d: DayPlan) => kept.some((b) => b.kind === "habit" && b.refId === habitId && wakingDayOf(b.start) === d.dayStart);
+  const dayIndex = (d: DayPlan) => Math.max(0, Math.round((d.dayStart - firstDay) / DAY_MS));
   /** 朝ルーティン（人に会う日は身支度も）が終わる時刻 */
   const morningEnd = (d: DayPlan) => d.wake + (s.routineMinutes + (d.prep ? s.prepMinutes : 0)) * MIN;
 
   // 始まった枠と固定した枠は残す。朝ルーティンは毎回計算し直す
   // 当日の終了済み習慣も残す。再計算で食事を再び置いたり、食事間隔を忘れたりしない。
-  const previous = input.previousBlocks.filter((b) => b.kind !== "routine" && (b.end > now || (b.kind === "habit" && b.start >= firstDay)));
+  const previous = input.previousBlocks.filter((b) => b.kind !== "routine" && (b.end > now || (b.kind === "habit" && b.start >= planStart)));
   // 消えたタスク・習慣の枠は、始まっていても固定していても残さない
   const taskIds = new Set(input.tasks.map((t) => t.id));
   const habitIds = new Set(input.habits.map((h) => h.id));
@@ -151,9 +160,8 @@ export function plan(input: PlanInput): PlanResult {
   // ---- 行動ポイント ----
   // 深夜の枠はその日の起きている時間に含めるので、日付ではなく「どの日の枠か」で数える
   const energy = new Map<number, number>();
-  const energyDayOf = (t: number) => dayOf(t)?.dayStart ?? localDayStart(t, s.tzOffsetMinutes);
   const addEnergy = (t: number, points: number) => {
-    const k = energyDayOf(t);
+    const k = wakingDayOf(t);
     energy.set(k, (energy.get(k) ?? 0) + points);
   };
   const energyOn = (d: DayPlan) => energy.get(d.dayStart) ?? 0;
@@ -178,7 +186,7 @@ export function plan(input: PlanInput): PlanResult {
     const rest = (ev.restAfterMinutes ?? (t.atHome ? 0 : s.restAfterAwayEventMinutes)) * MIN;
     // 予定が終わっても、帰りの移動と休憩が終わるまでは埋まっている
     const end = ev.end + pad + rest;
-    if (ev.start >= firstDay && ev.start < horizonEnd) {
+    if (ev.start >= planStart && ev.start < horizonEnd) {
       // 今日のうちに終わった予定も、今日の疲れには数える
       const hours = (ev.end - ev.start) / (60 * MIN);
       addEnergy(
@@ -189,7 +197,7 @@ export function plan(input: PlanInput): PlanResult {
             : s.awayEventEnergy + s.awayEventEnergyPerHour * (hours + (2 * t.minutes) / 60)),
       );
     }
-    if (!t.atHome && ev.start >= firstDay && ev.start < horizonEnd) returns.push(ev.end + pad);
+    if (!t.atHome && ev.start >= planStart && ev.start < horizonEnd) returns.push(ev.end + pad);
     if (end <= now || ev.start >= horizonEnd) continue;
     if (t.unknown && ev.location && ev.start > now) travelQuestions.push({ eventId: ev.id, location: ev.location });
     busy.push({ start: ev.start - pad, end });
@@ -197,7 +205,8 @@ export function plan(input: PlanInput): PlanResult {
   }
 
   for (const d of days) {
-    const back = returns.filter((r) => r > d.dayStart && r <= d.bed);
+    // 夜中0時を過ぎてからの帰宅は、前の日の帰宅（次の日の分にはしない）
+    const back = returns.filter((r) => r > d.wake && r <= d.bed);
     if (back.length) d.homeAt = Math.max(...back);
   }
 
@@ -306,11 +315,13 @@ export function plan(input: PlanInput): PlanResult {
       : lastDone !== undefined
         ? dayIdx(localDayStart(lastDone, s.tzOffsetMinutes))
         : -minDays;
-    for (let guard = 0; guard < days.length; guard++) {
+    // 今日から先の日だけ（夜中に前の日の続きがあっても、洗濯などは置かない）
+    const list = days.filter((d) => dayIdx(d.dayStart) >= 0);
+    for (let guard = 0; guard < list.length; guard++) {
       const from = Math.max(0, last + minDays);
       const to = last + maxDays;
-      if (from >= days.length) break;
-      const inWindow = days.filter((d) => {
+      if (from >= list.length) break;
+      const inWindow = list.filter((d) => {
         const i = dayIdx(d.dayStart);
         return i >= from && i <= to && windowOf(d).end > now;
       });
@@ -328,10 +339,10 @@ export function plan(input: PlanInput): PlanResult {
       // 最後の日が範囲の中にあるときだけ、外出の日も最後の手段にする
       const lastResort = inWindow.filter((d) => unfit(d) && dayIdx(d.dayStart) === to);
       // 休日がなければ、間隔の終わりまで待ってから（間隔の終わりが先なら今は置かない）
-      const order = holidays.length || to < days.length ? [...holidays, ...late, ...rest, ...lastResort] : [];
+      const order = holidays.length || to < list.length ? [...holidays, ...late, ...rest, ...lastResort] : [];
       const placed = order.find((d) => tryPlaceOn(d));
       if (!placed) {
-        if (to < days.length) skippedHabits.push({ habitId: habit.id, dayStart: days[Math.min(to, days.length - 1)].dayStart, reason: "no_room" });
+        if (to < list.length) skippedHabits.push({ habitId: habit.id, dayStart: list[Math.min(to, list.length - 1)].dayStart, reason: "no_room" });
         last = to;
         continue;
       }
@@ -344,7 +355,7 @@ export function plan(input: PlanInput): PlanResult {
     if (cue.type === "routine") return morningEnd(d);
     if (cue.type === "home") return d.homeAt === undefined ? undefined : d.homeAt + s.restAfterAwayEventMinutes * MIN;
     const b = blocks
-      .filter((x) => x.kind === "habit" && x.refId === cue.habitId && x.start >= d.dayStart && x.start < d.dayStart + DAY_MS)
+      .filter((x) => x.kind === "habit" && x.refId === cue.habitId && wakingDayOf(x.start) === d.dayStart)
       .sort((x, y) => x.start - y.start)[0];
     return cue.type === "beforeHabit" ? b?.start : b?.end;
   };
@@ -474,8 +485,7 @@ export function plan(input: PlanInput): PlanResult {
       continue;
     }
 
-    const hasKept = (d: DayPlan) =>
-      kept.some((b) => b.kind === "habit" && b.refId === habit.id && b.start >= d.dayStart && b.start < d.dayStart + DAY_MS);
+    const hasKept = (d: DayPlan) => keptOn(habit.id, d);
     // きっかけの場面がない日（帰宅のない日など）には置かない
     const hasCue = (d: DayPlan) => !habit.cue || cueEnd(habit.cue, d) !== undefined;
     const doneBefore = (input.habitDoneDays?.[habit.id] ?? []).filter((t) => t < days[0].dayStart);
@@ -680,7 +690,7 @@ export function plan(input: PlanInput): PlanResult {
     const dur = habit.durationMinutes * MIN;
     const cost = habit.energyCost ?? 0;
     for (const d of days) {
-      if (kept.some((b) => b.kind === "habit" && b.refId === habit.id && b.start >= d.dayStart && b.start < d.dayStart + DAY_MS)) continue;
+      if (keptOn(habit.id, d)) continue;
       const window = habitWindow(habit, d);
       if (window.end <= now || skipped(habit, d) || outingDays.has(d.dayStart) || energyOn(d) + cost > s.dailyEnergyBudget) continue;
       const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);
@@ -699,7 +709,7 @@ export function plan(input: PlanInput): PlanResult {
     for (const habit of onTrackHabits) {
       const dur = habit.durationMinutes * MIN;
       for (const d of days.filter((x) => x.holiday)) {
-        if (kept.some((b) => b.kind === "habit" && b.refId === habit.id && b.start >= d.dayStart && b.start < d.dayStart + DAY_MS)) continue;
+        if (keptOn(habit.id, d)) continue;
         const window = habitWindow(habit, d);
         if (window.end <= now || skipped(habit, d)) continue;
         const prev = movable.find((b) => b.kind === "habit" && b.refId === habit.id && b.start >= window.start && b.start < window.end);

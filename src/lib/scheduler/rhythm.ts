@@ -3,7 +3,7 @@ import { DAY_MS, MIN } from "./time";
 import { needsPrep, resolveTravel } from "./travel";
 
 /** これより前に始まる予定は、その日の「最初の予定」として扱わない */
-const DAY_BEGINS_AT_MINUTE = 4 * 60;
+export const DAY_BEGINS_AT_MINUTE = 4 * 60;
 
 type RawWake =
   | { kind: "away"; required: number; leave: number; first: CalendarEvent }
@@ -91,7 +91,8 @@ export function computeDayPlans(
   return dayStarts.map((dayStart, i) => {
     const raw = raws[i];
     const dayEnd = dayStart + DAY_MS;
-    const holiday = !events.some((ev) => !ev.play && !ev.allDay && ev.start < dayEnd && ev.end > dayStart);
+    // 前の晩から0時を少し過ぎるだけの予定では、休日でなくしない
+    const holiday = !events.some((ev) => !ev.play && !ev.allDay && ev.start < dayEnd && ev.end > dayStart + DAY_BEGINS_AT_MINUTE * MIN);
     const nextWake = i + 1 < count ? wakes[i + 1].wake : wakes[i].wake + DAY_MS;
     return {
       dayStart,

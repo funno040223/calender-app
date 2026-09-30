@@ -4,6 +4,8 @@ import type { Block, CalendarEvent, Habit, PlanResult } from "./types";
 import { baseInput, jst } from "./test-helpers";
 import { DAY_MS, MIN, localDayStart } from "./time";
 import { BREAKFAST_HABIT, SAMPLE_HABITS, SAMPLE_PLACES, homeExerciseHabit, BATH } from "../mock/sample";
+import { buildNotices } from "../notify/build";
+import { DEFAULT_SETTINGS } from "./types";
 
 const habit = (id: string) => SAMPLE_HABITS.find((h) => h.id === id)!;
 const laundry = habit("habit-laundry");
@@ -94,5 +96,35 @@ describe("週に何回かの習慣の記録（state.ts）", () => {
     const base = { ...sampleData(jst(2026, 10, 8, 8)), habits: [BATH, exercise], events: [], courses: [], tasks: [], habitLogs };
     const r = replan(base, [], jst(2026, 10, 8, 8));
     expect(r.result.blocks.filter((b) => b.refId === exercise.id && b.start < jst(2026, 10, 12))).toHaveLength(0);
+  });
+});
+
+describe("夜中（0時を過ぎて、まだ寝る前）", () => {
+  it("前の日の就寝までを計画に入れ、寝る準備の通知も残す", () => {
+    const now = jst(2026, 10, 2, 0, 10);
+    const r = plan(baseInput(now));
+    expect(r.dayPlans[0].dayStart).toBe(jst(2026, 10, 1));
+    expect(r.dayPlans[0].bed).toBe(jst(2026, 10, 2, 2));
+    expect(r.freeGaps.some((g) => g.start < jst(2026, 10, 2, 1))).toBe(true);
+    const notices = buildNotices({ now, result: r, events: [], places: [], settings: DEFAULT_SETTINGS });
+    expect(notices.some((n) => n.key === `bedprep:${jst(2026, 10, 1)}`)).toBe(true);
+  });
+
+  it("0時を過ぎてから始めた入浴は前の晩の分。次の晩にも入浴を置く", () => {
+    const late: CalendarEvent = { id: "late", title: "打ち合わせ", start: jst(2026, 10, 1, 23), end: jst(2026, 10, 2, 0) };
+    const first = plan(baseInput(jst(2026, 10, 1, 20), { habits: [BATH], events: [late] }));
+    const [bath] = first.blocks.filter((b) => b.refId === BATH.id && b.start >= jst(2026, 10, 1, 12) && b.start < jst(2026, 10, 2, 9));
+    expect(bath.start).toBeGreaterThanOrEqual(jst(2026, 10, 2));
+    const mid = plan(baseInput(bath.start + 10 * MIN, { habits: [BATH], events: [late], previousBlocks: first.blocks }));
+    const noon = plan(baseInput(jst(2026, 10, 2, 12), { habits: [BATH], events: [late], previousBlocks: mid.blocks }));
+    expect(noon.blocks.filter((b) => b.refId === BATH.id && b.start >= jst(2026, 10, 2, 12) && b.start < jst(2026, 10, 3, 9))).toHaveLength(1);
+  });
+
+  it("0時過ぎの帰宅は前の日の帰宅。次の日の休日も変えない", () => {
+    const cafe: CalendarEvent = { id: "c", title: "バイト", start: jst(2026, 10, 1, 20), end: jst(2026, 10, 2, 0, 30), location: "カフェ" };
+    const r = plan(baseInput(jst(2026, 10, 1, 8), { events: [cafe], places: SAMPLE_PLACES }));
+    expect(r.dayPlans[0].homeAt).toBe(jst(2026, 10, 2, 0, 50));
+    expect(r.dayPlans[1].homeAt).toBeUndefined();
+    expect(r.dayPlans[1].holiday).toBe(true);
   });
 });

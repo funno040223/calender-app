@@ -61,4 +61,8 @@ export function startWorkNow(state: MockState, taskId: string, minutes: number, 
   };
 }
 
-export const defaultPauseEnd = (state: MockState, now: number) => Math.max(now + 30 * MIN, state.result.dayPlans.find((d) => d.dayStart === dayStartOf(now))?.bed ?? dayStartOf(now) + DAY_MS);
+// 夜中（0時を過ぎて、まだ寝る前）は、今夜の就寝まで
+export const defaultPauseEnd = (state: MockState, now: number) => {
+  const day = state.result.dayPlans.find((d) => now >= d.wake && now < d.bed) ?? state.result.dayPlans.find((d) => d.dayStart === dayStartOf(now));
+  return Math.max(now + 30 * MIN, day?.bed ?? dayStartOf(now) + DAY_MS);
+};
