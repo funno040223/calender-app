@@ -785,6 +785,7 @@ export default function TodayScreen() {
           )}
           {day && <EveningCard day={day} now={now} />}
           {day && <SleepCard day={day} today={today} now={now} />}
+          <WorkNowCard now={now} />
           <EnergyCard today={today} />
           <MealCard today={today} now={now} />
           <MorningCard day={day} now={now} />
@@ -795,9 +796,8 @@ export default function TodayScreen() {
         <div className="flex flex-col gap-6">
           <HabitLogCard today={today} />
           <Timeline now={now} dayEnd={dayEnd} />
-          {/* 崩れた日の立て直しと「今から何する？」は、ときどき使うものなので下に */}
+          {/* 崩れた日の立て直しは、ときどき使うものなので下に */}
           <RecoveryCard now={now} />
-          <WorkNowCard now={now} />
         </div>
       </div>
       {/* 取り消しは目立たせず、いちばん下に */}
