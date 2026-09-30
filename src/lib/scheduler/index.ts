@@ -1,5 +1,5 @@
 export * from "./types";
-export { plan, estimateMinutes, FAR_TASK_DAYS } from "./planner";
+export { plan, estimateMinutes, TASK_LEAD_DAYS } from "./planner";
 export { computeDayPlans } from "./rhythm";
 export { resolveTravel } from "./travel";
 export { parseQuickAdd } from "./parse";

@@ -88,8 +88,8 @@ function avoidIntervalsFor(task: Task, windows: AvoidWindow[], days: DayPlan[], 
   return out;
 }
 
-/** 締切がこの日数より先のタスクは、まだ置かない */
-export const FAR_TASK_DAYS = 28;
+/** タスクは締切のこの日数前から置く（配置期間より先の締切のタスクも、期間の後ろの日に入る） */
+export const TASK_LEAD_DAYS = 14;
 
 function fitsIn(free: Interval[], start: number, end: number): boolean {
   return free.some((i) => start >= i.start && end <= i.end);
@@ -569,8 +569,9 @@ export function plan(input: PlanInput): PlanResult {
     let remaining = Math.max(0, estimateMinutes(task, tag) - keptMs / MIN);
 
     const ownDeadline = deadlineOf(task);
-    // 締切が配置期間（14日）より先でも、4週間以内なら期間の中に置く（締切のないタスクと同じ扱い。間に合わない警告は出さない）
-    if (ownDeadline !== undefined && ownDeadline > now + FAR_TASK_DAYS * DAY_MS) continue;
+    // 締切の2週間前から置く。配置期間（14日）より先の締切は、締切のないタスクと同じく期間の中に置き、間に合わない警告は出さない
+    const earliest = ownDeadline === undefined ? undefined : ownDeadline - TASK_LEAD_DAYS * DAY_MS;
+    if (earliest !== undefined && earliest >= horizonEnd) continue;
     const beyondHorizon = ownDeadline === undefined || ownDeadline > horizonEnd;
     const deadline = Math.min(ownDeadline ?? horizonEnd, horizonEnd);
     const justBefore = task.timing === "justBefore" && !beyondHorizon;
@@ -580,6 +581,7 @@ export function plan(input: PlanInput): PlanResult {
       ? []
       : [...avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, true), ...evenings.filter((e) => e.level === "low" || tag.mode === "focus")];
     hardAvoid.push(...pauses);
+    if (earliest !== undefined && earliest > now) hardAvoid.push({ start: now, end: earliest });
     const softAvoid = avoidIntervalsFor(task, avoidWindows, allDays, s.tzOffsetMinutes, false);
     const restMinutes = tag.restAfterMinutes ?? s.breakMinutes;
     // まずは1日の余白を守って置く。締切に間に合わないときだけ余白を削る

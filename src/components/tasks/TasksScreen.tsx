@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { FAR_TASK_DAYS, buildOutlook, estimateMinutes, type OutlookStatus, type Task, type WeekOutlook } from "@/lib/scheduler";
+import { TASK_LEAD_DAYS, buildOutlook, estimateMinutes, type OutlookStatus, type Task, type WeekOutlook } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { completeTask } from "@/lib/mock/state";
@@ -136,8 +136,8 @@ export default function TasksScreen() {
               {rel ? `${rel.event.title} ${formatEventWhen(rel.event)}` : "関連する予定が見つかりません"}
             </p>
           )}
-          {/* 締切が4週間より先のタスクは、まだ予定に入れない */}
-          {t.deadline !== undefined && t.deadline > state.plannedAt + FAR_TASK_DAYS * DAY_MS && placed === 0 ? (
+          {/* 締切の2週間前になるまでは、予定に入れない */}
+          {t.deadline !== undefined && t.deadline - TASK_LEAD_DAYS * DAY_MS > state.plannedAt && placed === 0 ? (
             <p className="mt-1 text-[12px] text-muted">まだ先</p>
           ) : (
             <div className="mt-1.5 flex items-center gap-2">

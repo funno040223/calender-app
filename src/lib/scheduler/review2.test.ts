@@ -146,9 +146,11 @@ describe("タスクを消したとき", () => {
 describe("先の締切のタスクとあとから入る予定", () => {
   const task = (id: string, days: number) => ({ id, title: id, priority: 2 as const, durationMinutes: 120, deadline: jst(2026, 10, 1) + days * DAY_MS });
 
-  it("締切が2週間より先でも4週間以内なら置く（警告は出さない）。4週間より先はまだ置かない", () => {
+  it("締切の2週間前から置く。配置期間より先の締切でも期間の後ろの日に入り（警告なし）、4週間より先はまだ置かない", () => {
     const r = plan(baseInput(jst(2026, 10, 1, 8), { tasks: [task("t20", 20), task("t40", 40)] }));
-    expect(r.blocks.filter((b) => b.refId === "t20").reduce((s, b) => s + (b.end - b.start) / MIN, 0)).toBe(120);
+    const t20 = r.blocks.filter((b) => b.refId === "t20");
+    expect(t20.reduce((s, b) => s + (b.end - b.start) / MIN, 0)).toBe(120);
+    expect(Math.min(...t20.map((b) => b.start))).toBeGreaterThanOrEqual(jst(2026, 10, 1) + 6 * DAY_MS);
     expect(r.blocks.some((b) => b.refId === "t40")).toBe(false);
     expect(r.shortfalls).toHaveLength(0);
   });
