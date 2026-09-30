@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadRemote, saveRemote } from "@/lib/sync/remote";
+import { currentUserId, loadRemote, saveRemote } from "@/lib/sync/remote";
 import { syncImports, type SyncResult } from "@/lib/sync/ical";
 import { saveSchedule } from "@/lib/sync/push";
 import { closeGoneTaskNotices } from "@/lib/notify/close";
@@ -26,6 +26,24 @@ export function clearLocalData() {
   }
 }
 const V1_STORAGE_KEY = "task-rhythm:mock:v1";
+/** 控えが誰のデータか（ログインした人の ID）。別の人がログインしたら控えを使わない */
+const OWNER_KEY = `${STORAGE_KEY}:owner`;
+
+function readOwner(): string | undefined {
+  try {
+    return window.localStorage.getItem(OWNER_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeOwner(id: string) {
+  try {
+    window.localStorage.setItem(OWNER_KEY, id);
+  } catch {
+    // 保存できない環境では何もしない
+  }
+}
 
 function loadData(now: number): MockData | undefined {
   try {
@@ -173,6 +191,23 @@ export function useMockStore() {
   const pull = useCallback(async (initial: boolean) => {
     pulling.current = true;
     try {
+      if (initial) {
+        // 別の人の控え（ログインが切れたあとに違うアカウントで入ったなど）は使わず、見本のデータから始める。
+        // サーバーにまだ行がないと控えをそのまま送るので、ほかの人のデータがこのアカウントに入らないように
+        const uid = await currentUserId();
+        const owner = readOwner();
+        if (uid && owner && owner !== uid) {
+          clearLocalData();
+          const now = Date.now();
+          const fresh = replan(sampleData(now), [], now);
+          stateRef.current = fresh;
+          undoData.current = undefined;
+          setCanUndo(false);
+          setState(fresh);
+        }
+        // 前からある端末（まだ記録していない）は、今ログインしている人の控えとみなす
+        if (uid) writeOwner(uid);
+      }
       const row = await loadRemote();
       const newer = row && (initial ? row.updatedAt >= readEditedAt() : row.updatedAt > remoteAt.current);
       const remote = row && newer ? fromStoredV2(row.data, Date.now()) : undefined;

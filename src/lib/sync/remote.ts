@@ -15,6 +15,12 @@ async function userId(): Promise<string | undefined> {
   return data.user?.id;
 }
 
+/** この端末でログインしている人の ID（通信せずに、保存してあるログインから読む） */
+export async function currentUserId(): Promise<string | undefined> {
+  const { data } = await db().auth.getSession();
+  return data.session?.user.id;
+}
+
 /** 行がなければ null。通信できなければ例外 */
 export async function loadRemote(): Promise<RemoteRow | null> {
   const { data, error } = await db().from("app_state").select("data, updated_at").maybeSingle();

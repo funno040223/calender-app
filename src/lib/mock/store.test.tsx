@@ -2,13 +2,13 @@
 import React from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, render, renderHook, screen } from "@testing-library/react";
-import { loadRemote, saveRemote, type RemoteRow } from "@/lib/sync/remote";
+import { currentUserId, loadRemote, saveRemote, type RemoteRow } from "@/lib/sync/remote";
 import { syncImports } from "@/lib/sync/ical";
 import { sampleData } from "./state";
 import { useMockStore } from "./store";
 import AppShell from "@/components/app/AppShell";
 
-vi.mock("@/lib/sync/remote", () => ({ loadRemote: vi.fn(), saveRemote: vi.fn() }));
+vi.mock("@/lib/sync/remote", () => ({ loadRemote: vi.fn(), saveRemote: vi.fn(), currentUserId: vi.fn() }));
 vi.mock("@/lib/sync/ical", () => ({ syncImports: vi.fn() }));
 vi.mock("@/lib/sync/push", () => ({ saveSchedule: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
@@ -24,6 +24,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.mocked(loadRemote).mockResolvedValue({ data: sampleData(now), updatedAt: now });
   vi.mocked(saveRemote).mockResolvedValue(now);
+  vi.mocked(currentUserId).mockResolvedValue("me");
   vi.mocked(syncImports).mockResolvedValue({ sources: [], events: [], fetchedAt: now });
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
@@ -116,4 +117,28 @@ it("サーバーを読み直している間は、通知の一覧を置かない"
   await act(async () => { resolvePull({ data: sampleData(now), updatedAt: now }); });
   await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
   expect(saveSchedule).toHaveBeenCalled();
+});
+
+it("別の人の控えが残っている端末で新しいアカウントに入っても、その控えを送らず見本のデータから始める", async () => {
+  const other = { ...sampleData(now), tasks: [{ id: "secret", title: "前の人の予定", priority: 2 as const }] };
+  localStorage.setItem("task-rhythm:mock:v2", JSON.stringify(other));
+  localStorage.setItem("task-rhythm:mock:v2:owner", "someone-else");
+  vi.mocked(loadRemote).mockResolvedValue(null);
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  const sent = vi.mocked(saveRemote).mock.calls.at(-1)?.[0] as { tasks: { id: string }[] };
+  expect(sent.tasks.some((t) => t.id === "secret")).toBe(false);
+  expect(result.current.state.tasks.some((t) => t.id === "secret")).toBe(false);
+  expect(localStorage.getItem("task-rhythm:mock:v2:owner")).toBe("me");
+});
+
+it("同じ人の控えなら、サーバーにまだ行がなければ控えを送る（前からの動き）", async () => {
+  const mine = { ...sampleData(now), tasks: [{ id: "mine", title: "自分の予定", priority: 2 as const }] };
+  localStorage.setItem("task-rhythm:mock:v2", JSON.stringify(mine));
+  localStorage.setItem("task-rhythm:mock:v2:owner", "me");
+  vi.mocked(loadRemote).mockResolvedValue(null);
+  renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  const sent = vi.mocked(saveRemote).mock.calls.at(-1)?.[0] as { tasks: { id: string }[] };
+  expect(sent.tasks.some((t) => t.id === "mine")).toBe(true);
 });
