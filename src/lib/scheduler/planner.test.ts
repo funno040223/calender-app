@@ -8,6 +8,16 @@ const report: Task = { id: "t1", title: "レポート", durationMinutes: 120, pr
 const now = jst(2026, 10, 1, 6);
 const taskBlocks = (r: ReturnType<typeof plan>) => r.blocks.filter((b) => b.kind === "task");
 
+describe("昨夜の就寝", () => {
+  it("0時を過ぎて就寝の時刻を過ぎても、昨夜の就寝を残す（「おやすみ」を出し続ける）", () => {
+    const late = { ...baseInput(jst(2026, 10, 1, 2, 30)), settings: { ...baseInput(now).settings, sleepMinutes: 7 * 60 } };
+    const r = plan(late);
+    // 起床 9:00 − 7時間 = 2:00 に寝る予定。2:30 には前の日の計画は外れるが、就寝は残る
+    expect(r.dayPlans.some((d) => d.dayStart === jst(2026, 9, 30))).toBe(false);
+    expect(r.lastNight).toEqual({ dayStart: jst(2026, 9, 30), bed: jst(2026, 10, 1, 2) });
+  });
+});
+
 describe("タスクの配置（減点方式）", () => {
   it("集中系は起きてすぐを避ける", () => {
     // 9:00 起床、9:15 に朝ルーティンが終わる（予定がない日は身支度なし）→ 10:15 までは減点

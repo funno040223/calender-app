@@ -826,7 +826,7 @@ export function plan(input: PlanInput): PlanResult {
     return entry;
   });
 
-  return { rhythmResets: resets, movedBlocks: movable.filter((b) => b.start >= now && b.start < firstDay + DAY_MS && !blocks.some((x) => x.kind === b.kind && x.refId === b.refId && x.start === b.start && x.end === b.end)), dayPlans: days, blocks, skippedHabits, shortfalls, travelQuestions, freeGaps, dayEnergy };
+  return { lastNight: { dayStart: prevDay.dayStart, bed: prevDay.bed }, rhythmResets: resets, movedBlocks: movable.filter((b) => b.start >= now && b.start < firstDay + DAY_MS && !blocks.some((x) => x.kind === b.kind && x.refId === b.refId && x.start === b.start && x.end === b.end)), dayPlans: days, blocks, skippedHabits, shortfalls, travelQuestions, freeGaps, dayEnergy };
 }
 
 function chooseHabitDays(

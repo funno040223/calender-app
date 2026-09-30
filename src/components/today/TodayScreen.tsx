@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { type DayPlan, type EveningEnergy, type Habit } from "@/lib/scheduler";
+import { type DayPlan, type EveningEnergy, type Habit, type PlanResult } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
@@ -57,9 +57,10 @@ const label = "text-[12px] font-medium text-muted";
 const bigTime = "text-[30px] font-semibold leading-tight tracking-tight tabular-nums";
 const textBtn = "press shrink-0 rounded-full bg-surface2 px-3 py-1 text-[13px] font-medium";
 
-/** 寝る準備の時刻から就寝の3時間後まで（「おやすみ」を出す間） */
-function bedDayOf(days: DayPlan[], now: number): DayPlan | undefined {
-  return days.find((d) => now >= d.bed - BED_PREP_MINUTES * MIN && now < d.bed + 3 * 60 * MIN);
+/** 寝る準備の時刻から就寝の3時間後まで（「おやすみ」を出す間）。就寝を過ぎて前の日の計画が外れたら、昨夜の就寝で見る */
+function bedDayOf(result: PlanResult, now: number): { dayStart: number; bed: number } | undefined {
+  const on = (d: { bed: number }) => now >= d.bed - BED_PREP_MINUTES * MIN && now < d.bed + 3 * 60 * MIN;
+  return result.dayPlans.find(on) ?? (result.lastNight && on(result.lastNight) ? result.lastNight : undefined);
 }
 
 /** 今日の起床・就寝、最初の予定と出発、行動ポイント */
@@ -705,7 +706,7 @@ function ReviewCard({ today }: { today: number }) {
 /** 寝る準備の時刻になったら「寝る」。予定どおりに寝られたかを残す（ご褒美になる） */
 function BedCard({ now }: { now: number }) {
   const { state, patch } = useApp();
-  const day = bedDayOf(state.result.dayPlans, now);
+  const day = bedDayOf(state.result, now);
   const key = day ? dateKeyOf(day.dayStart) : "";
   const log = state.bedLogs[key];
   const record = () =>
@@ -919,7 +920,7 @@ export default function TodayScreen() {
   const wide = useWide();
   const morning = isMorning(state, day, now);
   // 寝る前は「おやすみ」だけにする（起床・就寝と「今から何する？」は出さない）
-  const bedtime = !!bedDayOf(days, now);
+  const bedtime = !!bedDayOf(state.result, now);
 
   const registerPlace = (location: string, minutes: number) =>
     update((d) => ({

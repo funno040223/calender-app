@@ -369,6 +369,11 @@ export interface PlanResult {
   freeGaps: Interval[];
   /** 日ごとの行動ポイント */
   dayEnergy: DayEnergy[];
+  /**
+   * 前の日の就寝。0時を過ぎて寝る日は、就寝の時刻を過ぎると前の日が dayPlans から外れるので、
+   * 「おやすみ」（就寝の3時間後まで）を出し続けるために残す
+   */
+  lastNight?: { dayStart: number; bed: number };
 }
 
 /** 実際の睡眠、これから取る睡眠、疲れた日の作業休止。時刻は日をまたげる */
