@@ -33,19 +33,21 @@ const SESSION_GAP_MINUTES = 60;
 const JST = 9 * 60 * 60 * 1000;
 const MIN = 60 * 1000;
 const keyOf = (t: number) => new Date(t + JST).toISOString().slice(0, 10);
+const NEWLINE = /\r?\n|\r|\u2028/;
 
 /** 時刻の文字。ISO 8601（タイムゾーンつき）はそのまま、つかない「2026/10/01 2:13」などは日本時間として読む */
 export function parseTime(s: string): number | undefined {
-  const t = s.trim();
-  if (!t) return undefined;
-  if (/(Z|[+-]\d{2}:?\d{2})$/.test(t)) {
-    const v = Date.parse(t);
-    return Number.isFinite(v) ? v : undefined;
-  }
-  const m = t.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D+?(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  const t = s.normalize("NFKC").trim();
+  const m = t.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D+?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(Z|[+-]\d{2}:?\d{2})?/i);
   if (!m) return undefined;
-  const [, y, mo, d, h, mi, sec] = m.map(Number);
-  const v = Date.UTC(y, mo - 1, d, h, mi, sec || 0) - JST;
+  const [y, mo, d, h0, mi, sec] = m.slice(1, 7).map((x) => Number(x ?? 0));
+  // 「午後2:13」「2:13 PM」のような12時間の書き方
+  const pm = /午後|pm/i.test(t);
+  const am = /午前|am/i.test(t);
+  const h = pm && h0 < 12 ? h0 + 12 : am && h0 === 12 ? 0 : h0;
+  const zone = m[7];
+  const offset = !zone ? JST : /^z$/i.test(zone) ? 0 : (zone[0] === "-" ? -1 : 1) * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(-2))) * MIN;
+  const v = Date.UTC(y, mo - 1, d, h, mi, sec) - offset;
   return Number.isFinite(v) ? v : undefined;
 }
 
@@ -73,35 +75,46 @@ function sample(start: unknown, end: unknown, value: unknown): SleepSample | und
 
 /** 送られてきた本文を記録の並びにする（読めない行は捨てる） */
 export function parseSleepBody(body: string): SleepSample[] {
+  return inspectSleepBody(body).samples;
+}
+
+/** 本文を読み、何行届いて何件読めたか・読めなかった最初の行も返す（ショートカットの作りを直すときの手がかり） */
+export function inspectSleepBody(body: string): { lines: number; samples: SleepSample[]; unread?: string } {
   let lines: string[] | undefined;
   let rows: unknown[] | undefined;
   try {
     const j: unknown = JSON.parse(body);
-    if (typeof j === "string") lines = j.split(/\r?\n/);
+    if (typeof j === "string") lines = j.split(NEWLINE);
     else if (Array.isArray(j)) rows = j;
     else if (j && typeof j === "object") {
       const o = j as Record<string, unknown>;
-      if (typeof o.lines === "string") lines = o.lines.split(/\r?\n/);
+      if (typeof o.lines === "string") lines = o.lines.split(NEWLINE);
       else if (Array.isArray(o.lines)) lines = o.lines.filter((x): x is string => typeof x === "string");
       else if (Array.isArray(o.samples)) rows = o.samples;
     }
   } catch {
-    lines = body.split(/\r?\n/);
+    lines = body.split(NEWLINE);
   }
   const out: SleepSample[] = [];
+  let unread: string | undefined;
+  let count = rows?.length ?? 0;
   for (const r of rows ?? []) {
     if (!r || typeof r !== "object") continue;
     const o = r as Record<string, unknown>;
     const x = sample(o.start, o.end, o.value);
     if (x) out.push(x);
+    else unread ??= JSON.stringify(r).slice(0, 120);
   }
   for (const line of lines ?? []) {
-    const parts = line.split(/\s*[|\t]\s*/);
-    if (parts.length < 3) continue;
-    const x = sample(parts[0], parts[1], parts.slice(2).join(" "));
+    if (!line.trim()) continue;
+    count++;
+    // 区切りは「|」（全角の「｜」・タブも読む）
+    const parts = line.split(/\s*[|｜\t]\s*/);
+    const x = parts.length >= 3 ? sample(parts[0], parts[1], parts.slice(2).join(" ")) : undefined;
     if (x) out.push(x);
+    else unread ??= line.slice(0, 120);
   }
-  return out.slice(0, MAX_SAMPLES);
+  return { lines: count, samples: out.slice(0, MAX_SAMPLES), ...(unread !== undefined ? { unread } : {}) };
 }
 
 /** 眠っていた記録を夜ごとにまとめる。起きた日ごとに、いちばん長く眠った1回を残す */

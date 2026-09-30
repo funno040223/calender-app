@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSleepBody, parseTime, sleepKind, summarizeSleep } from "./sleep";
+import { inspectSleepBody, parseSleepBody, parseTime, sleepKind, summarizeSleep } from "./sleep";
 
 const jst = (d: number, h: number, mi = 0) => Date.UTC(2026, 9, d, h - 9, mi);
 
@@ -9,6 +9,11 @@ describe("ヘルスケアの睡眠を読む", () => {
     expect(parseTime("2026/10/01 2:13")).toBe(jst(1, 2, 13));
     expect(parseTime("2026年10月1日 2:13")).toBe(jst(1, 2, 13));
     expect(parseTime("きのう")).toBeUndefined();
+    expect(parseTime("2026/10/01 午後2:13")).toBe(jst(1, 14, 13));
+    expect(parseTime("2026-10-01 02:13:00 +0900")).toBe(jst(1, 2, 13));
+    expect(parseTime("2026-09-30T17:13:00Z")).toBe(jst(1, 2, 13));
+    // 時刻がない日付だけは読まない
+    expect(parseTime("2026-10-01")).toBeUndefined();
   });
 
   it("値は日本語・英語・数字のどれでも分ける", () => {
@@ -49,5 +54,15 @@ describe("夜ごとにまとめる", () => {
       { start: jst(1, 14), end: jst(1, 14, 40), kind: "asleep" as const },
     ];
     expect(summarizeSleep(samples).map((n) => n.minutes)).toEqual([420]);
+  });
+});
+
+describe("読めなかったときの手がかり", () => {
+  it("何行届いて何件読めたかと、読めなかった最初の行を返す。全角の区切りも読む", () => {
+    const body = JSON.stringify({ lines: "2026-10-01｜2026-10-01｜コア\n2026-10-01T02:10:00+09:00｜2026-10-01T09:00:00+09:00｜コア" });
+    const r = inspectSleepBody(body);
+    expect(r.lines).toBe(2);
+    expect(r.samples).toHaveLength(1);
+    expect(r.unread).toBe("2026-10-01｜2026-10-01｜コア");
   });
 });

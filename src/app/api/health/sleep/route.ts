@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { HEALTH_TOKEN, parseSleepBody, summarizeSleep } from "@/lib/health/sleep";
+import { HEALTH_TOKEN, inspectSleepBody, summarizeSleep } from "@/lib/health/sleep";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** 本文の大きさの上限（2日ぶんの睡眠の記録なら十分） */
@@ -24,7 +24,8 @@ export async function POST(request: Request) {
   const { data: owner } = await db.from("health_tokens").select("user_id").eq("token_hash", hash).maybeSingle();
   if (!owner) return json({ error: "合言葉がちがいます。" }, 401);
 
-  const nights = summarizeSleep(parseSleepBody(body));
+  const read = inspectSleepBody(body);
+  const nights = summarizeSleep(read.samples);
   if (nights.length) {
     const now = new Date().toISOString();
     const { error } = await db.from("health_sleep").upsert(
@@ -39,6 +40,13 @@ export async function POST(request: Request) {
     );
     if (error) return json({ error: "保存できませんでした。" }, 500);
   }
-  // ショートカットの画面に出ても分かるように、受け取った夜を返す
-  return json({ ok: true, nights: nights.map((n) => ({ night: n.night, minutes: n.minutes })) });
+  // ショートカットの画面に出ても分かるように、受け取った夜と、読めた数・読めなかった最初の行を返す
+  const kinds = { asleep: 0, awake: 0, inBed: 0 };
+  for (const x of read.samples) kinds[x.kind]++;
+  return json({
+    ok: true,
+    nights: nights.map((n) => ({ night: n.night, minutes: n.minutes })),
+    read: { lines: read.lines, samples: read.samples.length, ...kinds },
+    ...(read.unread !== undefined ? { unread: read.unread } : {}),
+  });
 }
