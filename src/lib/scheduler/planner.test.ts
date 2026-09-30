@@ -204,9 +204,9 @@ describe("生活の中身から決めた配置", () => {
     it("回してから90分後に干す枠を置き、待ち時間に片付けを入れる", () => {
       const r = plan(baseInput(now, { habits: [laundry, tidy] }));
       const hb = habitBlocks(r);
-      // 2週間で2回
+      // 月曜始まりの週ごとに1回（10/1〜4、10/5〜11、10/12〜14）
       const starts = hb.filter((b) => b.title === "洗濯を回す");
-      expect(starts).toHaveLength(2);
+      expect(starts).toHaveLength(3);
       for (const st of starts) {
         const hang = hb.find((b) => b.title === "洗濯物を干す" && b.start === st.start + 90 * 60_000);
         expect(hang).toBeDefined();
@@ -266,11 +266,11 @@ describe("行動ポイント", () => {
       energyCost: 1,
     };
     const settings = { ...baseInput(now).settings, planningDays: 7 };
-    // 10/1〜10/6 は重く、10/7 だけ軽い
-    const events = [1, 2, 3, 4, 5, 6].map((d) => heavyOn(d, 8));
-    const r = plan(baseInput(now, { settings, events, habits: [laundry] }));
+    // 10/5（月）〜10/10 は重く、10/11 だけ軽い
+    const events = [5, 6, 7, 8, 9, 10].map((d) => heavyOn(d, 8));
+    const r = plan(baseInput(jst(2026, 10, 5, 6), { settings, events, habits: [laundry] }));
     const b = r.blocks.find((x) => x.refId === "laundry")!;
-    expect(b.start).toBeGreaterThanOrEqual(jst(2026, 10, 7));
+    expect(b.start).toBeGreaterThanOrEqual(jst(2026, 10, 11));
   });
 
   it("上限を超える日は、締切に余裕があるタスクを軽い日へ回す", () => {

@@ -92,6 +92,7 @@ const DATA_KEYS = [
   "blocks",
   "wakeLogs",
   "habitLastDone",
+  "habitDoneDays",
   "hiddenCalendars",
   "eveningEnergy",
   "rainyDays",
@@ -140,6 +141,7 @@ export function sampleData(now: number): MockData {
     blocks: [],
     wakeLogs: [],
     habitLastDone: {},
+    habitDoneDays: {},
     hiddenCalendars: [],
     eveningEnergy: {},
     rainyDays: [],
@@ -288,6 +290,11 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
       d.habitLastDone && typeof d.habitLastDone === "object" && !Array.isArray(d.habitLastDone)
         ? (d.habitLastDone as Record<string, number>)
         : {},
+    habitDoneDays: isRecord(d.habitDoneDays)
+      ? Object.fromEntries(
+          Object.entries(d.habitDoneDays).map(([id, v]) => [id, Array.isArray(v) ? v.filter((t): t is number => typeof t === "number") : []]),
+        )
+      : {},
     hiddenCalendars: arr(d.hiddenCalendars, []),
     eveningEnergy:
       d.eveningEnergy && typeof d.eveningEnergy === "object" && !Array.isArray(d.eveningEnergy)
@@ -423,12 +430,32 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
       habitLastDone[h.id] = Math.max(habitLastDone[h.id] ?? 0, b.start);
     }
   }
-  data = captureTaskBlocks({ ...data, habitLastDone }, now);
-  const planTags = planTagsOf(data);
   // 「今日は飛ばす」にした習慣：その日には置かず、もう始まっている枠も外す
   const skipDays = byHabit(data.habitSkips);
   const isSkipped = (b: MockData["blocks"][number]) =>
     b.kind === "habit" && (skipDays[b.refId] ?? []).some((day) => b.start >= day && b.start < day + DAY_MS);
+  // 週に何回かの習慣は、今週やった日を数える（「記録する」の習慣は記録、ほかは始まった枠）
+  const today = dayStartOfKey(dateKeyOf(now))!;
+  const habitDoneDays: Record<string, number[]> = {};
+  const doneForPlan: Record<string, number[]> = {};
+  for (const h of data.habits) {
+    if (h.frequency.type !== "weekly") continue;
+    const recent = Array.from({ length: 14 }, (_, i) => today - (i + 1) * DAY_MS);
+    if (h.track) {
+      doneForPlan[h.id] = recent.filter((day) => data.habitLogs[dateKeyOf(day)]?.[h.id]);
+      continue;
+    }
+    const days = new Set((data.habitDoneDays[h.id] ?? []).filter((t) => t >= recent.at(-1)!));
+    for (const b of data.blocks) {
+      if (b.kind === "habit" && b.refId === h.id && b.start <= now && !isSkipped(b) && (b.title === h.name || b.title === h.rainAlternative?.title)) {
+        days.add(dayStartOfKey(dateKeyOf(b.start))!);
+      }
+    }
+    habitDoneDays[h.id] = [...days].sort((a, b) => a - b);
+    doneForPlan[h.id] = habitDoneDays[h.id].filter((t) => t < today);
+  }
+  data = captureTaskBlocks({ ...data, habitLastDone, habitDoneDays }, now);
+  const planTags = planTagsOf(data);
   const result = plan({
     now,
     rhythmResets: data.rhythmResets,
@@ -441,6 +468,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     avoidWindows: data.avoidWindows,
     recoveryOptions: SAMPLE_RECOVERY_OPTIONS,
     habitLastDone,
+    habitDoneDays: doneForPlan,
     previousBlocks: data.blocks.filter((b) => !isSkipped(b)),
     eveningEnergy: Object.fromEntries(
       Object.entries(data.eveningEnergy).flatMap(([k, v]) => {

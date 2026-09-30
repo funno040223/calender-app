@@ -339,6 +339,8 @@ export interface PlanInput {
   recoveryOptions?: RecoveryOption[];
   /** 間隔で置く習慣（洗濯など）を最後にした時刻 */
   habitLastDone?: Record<string, number>;
+  /** 週に何回かの習慣を、今日より前にやった日（その日の 0:00） */
+  habitDoneDays?: Record<string, number[]>;
   /** 前回の配置。始まった枠と固定した枠はそのまま残す */
   previousBlocks: Block[];
   /** 帰宅時に答えた残りの体力（日の 0:00 → 答え）。帰宅から就寝までのタスクの入れ方が変わる */

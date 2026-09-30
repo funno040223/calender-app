@@ -208,6 +208,8 @@ export interface MockData {
   wakeLogs: WakeLog[];
   /** 間隔で置く習慣（洗濯など）を最後にした時刻。習慣の ID → epoch ミリ秒 */
   habitLastDone: Record<string, number>;
+  /** 週に何回かの習慣（「記録する」でないもの）の枠が始まった日。習慣の ID → その日の 0:00（直近14日） */
+  habitDoneDays: Record<string, number[]>;
   /** 表示だけの設定（DB では settings に入れる） */
   hiddenCalendars: CalendarId[];
   /** 帰宅したときに答えた残りの体力（日付 → 答え）。今夜の組み方に使い、記録としても残す */

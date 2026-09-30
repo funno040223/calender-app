@@ -73,7 +73,8 @@ describe("きっかけの場面", () => {
       skippable: true,
       energyCost: 0.5,
     };
-    const week = (r: ReturnType<typeof plan>) => r.blocks.filter((b) => b.refId === "ex" && b.start < jst(2026, 10, 8));
+    // 週は月曜始まり（10/5〜10/11）
+    const week = (r: ReturnType<typeof plan>) => r.blocks.filter((b) => b.refId === "ex" && b.start >= jst(2026, 10, 5) && b.start < jst(2026, 10, 12));
 
     it("週3回、入浴の5分前に終わるように置く", () => {
       const r = plan(baseInput(now, { habits: [ex, bath] }));
