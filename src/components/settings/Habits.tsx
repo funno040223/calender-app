@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { Habit } from "@/lib/scheduler";
+import type { Habit, HabitCue } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { AddRow, EmptyNote, Group, Row, Segmented, Switch, inputCls, inputBase } from "@/components/ui/controls";
 import { formatMinutes, newId } from "@/lib/mock/jst";
 import { formatMinuteOfDay, hhmmToMinutes, minutesToHHMM, spanFrom } from "@/lib/mock/model";
 import EditSheet, { Field, upsert } from "./EditSheet";
-import { habitProgress } from "@/lib/mock/stats";
+import { habitProgress, keepMarkValues } from "@/lib/mock/stats";
 
 interface Draft {
   name: string;
@@ -99,9 +99,10 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
     const span = during || byCue
       ? { start: 0, end: 24 * 60 }
       : d.anchor === "wake"
-        ? { start: Math.round(s!), end: Math.round(e!) }
+        ? { start: Math.round(Math.min(s!, e!)), end: Math.round(Math.max(s!, e!)) }
         : d.anchor === "bed"
-          ? { start: -Math.round(s!), end: -Math.round(e!) }
+          ? // 「就寝の 0〜120 分前」のように、どちらの順に入れても、より前の分から
+            { start: -Math.round(Math.max(s!, e!)), end: -Math.round(Math.min(s!, e!)) }
           : spanFrom(s!, e!);
     if (relative && (Math.abs(span.start) > 24 * 60 || Math.abs(span.end) > 24 * 60)) return setError("時間帯は24時間以内で入力してください");
     if (!during && span.end - span.start < duration) return setError("時間帯が所要時間より短くなっています");
@@ -166,22 +167,30 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
     } else if (d.parentId) {
       next.duringHabitId = d.parentId;
     }
-    update((data) => ({
-      ...data,
-      // 2つ目の作業をやめたら、待ち時間に入れていた習慣は親から外す
-      habits: upsert(data.habits, next).map((h) =>
-        !next.finish && h.duringHabitId === next.id ? { ...h, duringHabitId: undefined } : h,
-      ),
-    }));
+    update((data) => {
+      const old = data.habits.find((h) => h.id === next.id);
+      return {
+        ...data,
+        habitLogs: old ? keepMarkValues(data.habitLogs, old, next.durationMinutes) : data.habitLogs,
+        // 2つ目の作業をやめたら、待ち時間に入れていた習慣は親から外す
+        habits: upsert(data.habits, next).map((h) =>
+          !next.finish && h.duringHabitId === next.id ? { ...h, duringHabitId: undefined } : h,
+        ),
+      };
+    });
     onClose();
   };
 
   const remove = () => {
     update((data) => ({
       ...data,
+      // 消したあとも、たまったご褒美が減らないように
+      habitLogs: habit ? keepMarkValues(data.habitLogs, habit, Infinity) : data.habitLogs,
       habits: data.habits
         .filter((h) => h.id !== habit?.id)
-        .map((h) => (h.duringHabitId === habit?.id ? { ...h, duringHabitId: undefined } : h)),
+        .map((h) => (h.duringHabitId === habit?.id ? { ...h, duringHabitId: undefined } : h))
+        // この習慣をきっかけにしていた習慣は、次の場面か、朝ルーティンのあとにする（置かれなくならないように）
+        .map((h) => (habit && refersTo(h.cue, habit.id) ? { ...h, cue: withoutCue(h.cue, habit.id) ?? { type: "routine" } } : h)),
     }));
     onClose();
   };
@@ -440,4 +449,17 @@ export default function Habits() {
       {editing && <HabitForm key={editing.habit?.id ?? "new"} habit={editing.habit} onClose={() => setEditing(null)} />}
     </>
   );
+}
+
+const refersTo = (cue: HabitCue | undefined, id: string): boolean =>
+  !!cue && (("habitId" in cue && cue.habitId === id) || refersTo(cue.orElse, id));
+
+/** 消した習慣を指すきっかけを、場面の並びから外す */
+function withoutCue(cue: HabitCue | undefined, id: string): HabitCue | undefined {
+  if (!cue) return undefined;
+  const rest = withoutCue(cue.orElse, id);
+  if ("habitId" in cue && cue.habitId === id) return rest;
+  const self = { ...cue };
+  delete self.orElse;
+  return rest ? { ...self, orElse: rest } : self;
 }

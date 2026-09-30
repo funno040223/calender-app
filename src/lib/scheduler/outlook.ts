@@ -40,7 +40,8 @@ export function buildOutlook(input: {
     const freeMinutes = result.freeGaps.reduce((sum, g) => sum + overlap(g, from, end), 0) / MIN;
     const daysLeft = result.dayPlans.filter((d) => d.dayStart >= start && d.dayStart < end && d.bed > now).length;
     const late = result.shortfalls
-      .filter((s) => s.deadline >= start && s.deadline < end)
+      // 日付だけの締切（翌日 0:00）は、その前の日の週に数える
+      .filter((s) => s.deadline - 1 >= start && s.deadline - 1 < end)
       .map((s) => ({ taskId: s.taskId, title: s.title, shortfallMinutes: s.shortfallMinutes }));
     const status: OutlookStatus = late.length ? "late" : freeMinutes < input.minSlackMinutesPerDay * daysLeft ? "tight" : "ok";
     return { start, end, taskMinutes: Math.round(taskMinutes), freeMinutes: Math.round(freeMinutes), status, late };

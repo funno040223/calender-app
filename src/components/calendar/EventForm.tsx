@@ -5,6 +5,7 @@ import type { OwnEvent } from "@/lib/mock/store";
 import { OWN_CALENDARS, type OwnCalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, dayStartOf, fromInputDateTime, newId, toInputDate, toInputDateTime } from "@/lib/mock/jst";
 import Sheet from "@/components/ui/Sheet";
+import { DangerButton } from "@/components/ui/controls";
 
 interface Draft {
   calendarId: OwnCalendarId;
@@ -71,7 +72,20 @@ export default function EventForm({
 
   const toggleAllDay = (allDay: boolean) => {
     if (allDay) setD({ ...d, allDay, endDate: d.endDate < d.date ? d.date : d.endDate });
-    else setD({ ...d, allDay, startTime: d.startTime || "09:00", endTime: d.endTime || "10:00", endDate: d.date, multiDay: false });
+    // 終日の予定の時刻は 0:00 なので、そのままだと 0:00〜0:00 の24時間になる
+    else {
+      const fromAllDay = d.allDay && d.startTime === "00:00" && d.endTime === "00:00";
+      setD({ ...d, allDay, startTime: fromAllDay || !d.startTime ? "09:00" : d.startTime, endTime: fromAllDay || !d.endTime ? "10:00" : d.endTime, endDate: d.date, multiDay: false });
+    }
+  };
+
+  /** 日付を変えたら、何日かにわたる予定は終わりの日も同じ日数ずらす */
+  const setDate = (v: string) => {
+    const before = fromInputDateTime(d.date);
+    const after = fromInputDateTime(v);
+    const end = fromInputDateTime(d.endDate);
+    if (!(d.allDay || d.multiDay) || before === undefined || after === undefined || end === undefined) return set("date", v);
+    setD({ ...d, date: v, endDate: toInputDate(end + (after - before)) });
   };
 
   /** 始まりの時刻を変えたら、長さを保って終わりも動かす */
@@ -159,7 +173,7 @@ export default function EventForm({
           </div>
         )}
         <div className="grid grid-cols-[1fr_auto] items-center gap-3 text-[15px]">
-          <input className={inputCls} type="date" aria-label="日付" value={d.date} onChange={(e) => set("date", e.target.value)} />
+          <input className={inputCls} type="date" aria-label="日付" value={d.date} onChange={(e) => setDate(e.target.value)} />
           <label className="flex items-center gap-2">
             終日
             <input type="checkbox" className="ios-switch" checked={d.allDay} onChange={(e) => toggleAllDay(e.target.checked)} />
@@ -214,13 +228,9 @@ export default function EventForm({
           {isNew ? "追加" : "保存"}
         </button>
         {!isNew && (
-          <button
-            type="button"
-            onClick={() => onDelete(initial.id)}
-            className="rounded-xl py-2.5 text-[16px] text-accent hover:bg-surface2"
-          >
+          <DangerButton confirm={`「${initial.title}」を削除しますか？`} onClick={() => onDelete(initial.id)}>
             予定を削除
-          </button>
+          </DangerButton>
         )}
       </form>
     </Sheet>

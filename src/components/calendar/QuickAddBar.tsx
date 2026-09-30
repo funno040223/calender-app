@@ -30,8 +30,8 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
   const [chip, setChip] = useState<DeadlineChip | undefined>();
   const [tagId, setTagId] = useState<string | undefined>();
 
-  // 入力中の読み取り結果を出すための基準時刻（追加するときは取り直す）
-  const [previewNow] = useState(() => Date.now());
+  // 入力中の読み取り結果を出すための基準時刻（追加するときは取り直す）。開いたまま日付が変わっても、入力を始めたときに取り直す
+  const [previewNow, setPreviewNow] = useState(() => Date.now());
 
   const build = (now: number): Omit<Task, "id"> | undefined => {
     if (!text.trim()) return undefined;
@@ -67,6 +67,7 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onFocus={() => setPreviewNow(Date.now())}
           placeholder="タスクを追加（例：レポート 明日まで 2時間 重要）"
           aria-label="タスクを追加"
           enterKeyHint="done"

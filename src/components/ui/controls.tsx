@@ -211,14 +211,17 @@ export function NumberInput({
     }
     const n = Number(t);
     if (!Number.isFinite(n)) return setText(shown);
-    const clamped = Math.min(max ?? Infinity, Math.max(min, Math.round(n)));
+    // 刻みが1より小さい欄（行動ポイントの 0.5 など）は、その刻みで丸める
+    const unit = step !== undefined && step > 0 && step < 1 ? step : 1;
+    const rounded = Math.round(Math.round(n / unit) * unit * 1000) / 1000;
+    const clamped = Math.min(max ?? Infinity, Math.max(min, rounded));
     setText(String(clamped));
     if (clamped !== value) onCommit(clamped);
   };
   return (
     <input
       type="number"
-      inputMode="numeric"
+      inputMode={step !== undefined && step < 1 ? "decimal" : "numeric"}
       min={min}
       max={max}
       step={step}

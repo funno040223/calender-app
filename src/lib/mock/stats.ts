@@ -11,6 +11,17 @@ type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" 
 export const markValue = (m: HabitMark | undefined, habit: Pick<Habit, "durationMinutes">) =>
   m === "done" || (m === "five" && habit.durationMinutes <= 5) ? 1 : m === "five" ? 0.5 : 0;
 
+/**
+ * 習慣の時間を変えるときに、これまでの記録の値を残す。5分以下の習慣の「5分」は1回ぶんなので、
+ * 5分より長くするなら「やった」に書き換える（ご褒美と回数がさかのぼって減らないように）
+ */
+export function keepMarkValues(logs: Data["habitLogs"], habit: Pick<Habit, "id" | "durationMinutes">, nextMinutes: number): Data["habitLogs"] {
+  if (habit.durationMinutes > 5 || nextMinutes <= 5) return logs;
+  return Object.fromEntries(
+    Object.entries(logs).map(([day, marks]) => [day, marks[habit.id] === "five" ? { ...marks, [habit.id]: "done" as const } : marks]),
+  );
+}
+
 const wakeOk = (l: MockData["wakeLogs"][number]) =>
   l.wokeAt !== undefined && l.plannedWake !== undefined && l.wokeAt <= l.plannedWake + WAKE_GRACE_MINUTES * MIN;
 
@@ -74,7 +85,12 @@ export function rewardEarned(data: Data, from = -Infinity, to = Infinity): numbe
   for (const [key, marks] of Object.entries(data.habitLogs)) {
     const day = dayStartOfKey(key);
     if (day === undefined || !inRange(day)) continue;
-    for (const h of data.habits) yen += markValue(marks[h.id], h) * r.habit;
+    // 「記録する」の習慣だけ。消した習慣の記録も、たまった分として残す
+    for (const [id, m] of Object.entries(marks)) {
+      const h = data.habits.find((x) => x.id === id);
+      if (h && !h.track) continue;
+      yen += markValue(m, h ?? { durationMinutes: Infinity }) * r.habit;
+    }
   }
   for (const b of Object.values(data.taskBlockLog)) if (inRange(b.doneAt)) yen += r.task;
   return Math.round(yen);

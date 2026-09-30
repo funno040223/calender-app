@@ -10,6 +10,7 @@ import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId }
 import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type ContactAnswer, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
 import { contactDaysFor, rainyDayKeys } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
+import { keepMarkValues } from "@/lib/mock/stats";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import ProgressCard from "./ProgressCard";
 import RecoveryCard from "./RecoveryCard";
@@ -599,6 +600,7 @@ function ReviewCard({ today }: { today: number }) {
   const finish = (grow: boolean) =>
     update((d) => ({
       ...d,
+      habitLogs: grow ? keepMarkValues(d.habitLogs, habit, Math.min(p.maxMinutes, habit.durationMinutes + p.stepMinutes)) : d.habitLogs,
       habits: d.habits.map((h) =>
         h.id === habit.id
           ? {

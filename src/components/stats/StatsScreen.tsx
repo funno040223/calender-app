@@ -270,7 +270,8 @@ function OutlookDetail() {
           const from = Math.max(d, from0);
           const task = state.result.blocks.filter((b) => b.kind === "task").reduce((s, b) => s + overlap(b, from, to), 0) / MIN;
           const free = state.result.freeGaps.reduce((s, g) => s + overlap(g, from, to), 0) / MIN;
-          const due = state.tasks.filter((t) => t.deadline !== undefined && t.deadline >= d && t.deadline < to);
+          // 日付だけの締切（翌日 0:00）は、その前の日に出す
+          const due = state.tasks.filter((t) => t.deadline !== undefined && t.deadline - 1 >= d && t.deadline - 1 < to);
           const past = to <= from0;
           return (
             <li key={d} className={`flex flex-col gap-1 px-4 py-1.5 ${past ? "opacity-40" : ""}`}>
@@ -283,7 +284,7 @@ function OutlookDetail() {
                 const late = w.late.find((l) => l.taskId === t.id);
                 return (
                   <button key={t.id} type="button" onClick={() => openTask(t.id)} className={`ml-19 truncate text-left text-[13px] ${late ? "text-accent" : ""}`}>
-                    〆 {formatTime(t.deadline!)} {t.title}
+                    〆 {t.deadline! - dayStartOf(t.deadline!) ? `${formatTime(t.deadline!)} ` : ""}{t.title}
                     {late ? ` ・${formatMinutes(late.shortfallMinutes)}足りない` : ""}
                   </button>
                 );

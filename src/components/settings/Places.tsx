@@ -23,7 +23,7 @@ function PlaceForm({ place, onClose }: { place?: Place; onClose: () => void }) {
   const save = () => {
     const n = Number(minutes);
     if (!name.trim()) return setError("名前を入力してください");
-    if (!Number.isFinite(n) || n < 0) return setError("移動時間は0以上で入力してください");
+    if (!minutes.trim() || !Number.isFinite(n) || n < 0) return setError("移動時間は0以上で入力してください");
     const next: Place = { id: place?.id ?? newId("place"), name: name.trim(), keywords: splitKeywords(keywords), travelMinutes: Math.round(n) };
     update((d) => ({ ...d, places: upsert(d.places, next) }));
     onClose();

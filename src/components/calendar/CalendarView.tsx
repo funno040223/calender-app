@@ -231,17 +231,13 @@ export default function CalendarView(props: CalendarViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const api = () => fcRef.current?.getApi();
 
-  /** 日本時間の 0:00（FullCalendar の日付）を、その日の番号にする */
-  const todayFc = useMemo(() => {
-    const now = toFc(Date.now());
-    return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  }, []);
-  /** 最初に見る日：3日は今日、週はその週の月曜 */
+  /** 最初に見る日：3日は今日、週はその週の月曜（開いたまま日付が変わっても、押したときの今日） */
   const homeDay = useCallback(() => {
+    const todayFc = todayFcNow();
     if (mode !== "week") return todayFc;
     const wd = new Date(todayFc).getUTCDay();
     return todayFc - ((wd + 6) % 7) * DAY_MS;
-  }, [mode, todayFc]);
+  }, [mode]);
   const [anchor, setAnchor] = useState(() => {
     if (props.initialDay === undefined) return homeDay() - STRIP_LEAD * DAY_MS;
     const f = toFc(props.initialDay);
@@ -658,7 +654,8 @@ export default function CalendarView(props: CalendarViewProps) {
       if (!hidden.has("task")) {
         for (const t of state.tasks) {
           if (t.deadline === undefined) continue;
-          const f = toFc(t.deadline);
+          // 日付だけの締切は翌日 0:00 で持っているので、その前の日に出す
+          const f = toFc(t.deadline - 1);
           const day = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate()));
           out.push({
             id: `deadline:${t.id}`,

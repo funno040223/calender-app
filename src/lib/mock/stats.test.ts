@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
 import { DEFAULT_REWARD_RATES } from "./model";
-import { dailyGrid, dailyReward, habitProgress, periodStats, rewardBalance, rewardEarned } from "./stats";
+import { dailyGrid, dailyReward, habitProgress, keepMarkValues, periodStats, rewardBalance, rewardEarned } from "./stats";
 
 const ex = { id: "ex", name: "運動", durationMinutes: 5, windowStart: 0, windowEnd: 1440, frequency: { type: "weekly" as const, times: 3 }, skippable: true, track: true };
 const walk = { id: "walk", name: "散歩", durationMinutes: 20, windowStart: 0, windowEnd: 150, frequency: { type: "daily" as const }, skippable: true, track: true };
@@ -38,6 +38,13 @@ describe("ご褒美のお金", () => {
     expect(rewardEarned(data)).toBe(235);
     expect(rewardBalance(data)).toBe(135);
     expect(rewardEarned(data, jst(2026, 10, 2), jst(2026, 10, 3))).toBe(30);
+  });
+
+  it("習慣の時間を延ばしても消しても、たまった分は減らない。「記録する」でない習慣は数えない", () => {
+    const grown = { ...data, habits: [{ ...ex, durationMinutes: 10 }, walk], habitLogs: keepMarkValues(data.habitLogs, ex, 10) };
+    expect(rewardEarned(grown)).toBe(235);
+    expect(rewardEarned({ ...data, habits: [walk], habitLogs: keepMarkValues(data.habitLogs, ex, Infinity) })).toBe(235);
+    expect(rewardEarned({ ...data, habits: [ex, { ...walk, track: false }] })).toBe(235 - 45);
   });
 });
 
