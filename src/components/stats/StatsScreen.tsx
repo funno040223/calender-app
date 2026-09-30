@@ -105,7 +105,7 @@ function Adherence() {
               </span>
             ))}
           </div>
-          <span className="text-right">前</span>
+          <span />
         </div>
         {ROWS.map((r) => {
           const c = r.get(cur);
@@ -129,8 +129,8 @@ function Adherence() {
                   {fmtN(c.done)}/{c.total}
                 </span>
                 {p.total > 0 && (
-                  <span className="block text-[11px] text-muted">
-                    {fmtN(p.done)}/{p.total}
+                  <span className="block whitespace-nowrap text-[11px] text-muted">
+                    前 {fmtN(p.done)}/{p.total}
                   </span>
                 )}
               </span>

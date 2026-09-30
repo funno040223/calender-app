@@ -16,7 +16,7 @@ import type {
   TravelQuestion,
 } from "./types";
 import { CUE_GAP_MINUTES, CUE_SLACK_MINUTES, MEAL_GAP_MINUTES, MEAL_LATE_MINUTES } from "./types";
-import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday, minuteOfDay } from "./time";
+import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday } from "./time";
 import { intersect, lengthMinutes, merge, subtract } from "./intervals";
 import { DAY_BEGINS_AT_MINUTE, computeDayPlans } from "./rhythm";
 import { resolveTravel } from "./travel";
@@ -739,7 +739,8 @@ export function plan(input: PlanInput): PlanResult {
           g.start < d.bed &&
           g.end > from &&
           g.end - startIn(g) >= opt.durationMinutes * MIN &&
-          (opt.latestStartMinuteOfDay === undefined || minuteOfDay(startIn(g), s.tzOffsetMinutes) <= opt.latestStartMinuteOfDay),
+          // 夜中0時を過ぎたら、その日の 24:00 以降として比べる（0:00 の昼寝を出さない）
+          (opt.latestStartMinuteOfDay === undefined || (startIn(g) - d.dayStart) / MIN <= opt.latestStartMinuteOfDay),
       );
       if (gap) {
         const start = startIn(gap);

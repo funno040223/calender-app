@@ -158,7 +158,7 @@ function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
             <p className="min-w-0 flex-1 text-[15px]">
               {formatTime(log.wokeAt)}に起きました
               {day && Math.abs(lateBy) >= 5 && (
-                <span className="text-muted">（予定より{formatMinutes(Math.abs(lateBy))}{lateBy > 0 ? "遅く" : "早く"}）</span>
+                <span className="block text-[13px] text-muted">予定より{formatMinutes(Math.abs(lateBy))}{lateBy > 0 ? "遅く" : "早く"}</span>
               )}
             </p>
             <button
@@ -639,11 +639,19 @@ function ReviewCard({ today }: { today: number }) {
 }
 
 /** 今日の食事：家で食べるか、外で食べるかを選ぶ（選ばなければ、予定の空きから自動で決まる） */
-function MealCard({ today }: { today: number }) {
+function MealCard({ today, now }: { today: number; now: number }) {
   const { state, update } = useApp();
   const key = dateKeyOf(today);
   // 朝食（朝ルーティンのあと）→ 昼食 → 夕食 の順
-  const meals = state.habits.filter((h) => h.meal).sort((a, b) => (a.cue ? -1 : a.windowStart) - (b.cue ? -1 : b.windowStart));
+  const sorted = state.habits.filter((h) => h.meal).sort((a, b) => (a.cue ? -1 : a.windowStart) - (b.cue ? -1 : b.windowStart));
+  const blockOf = (id: string) => state.result.blocks.find((x) => x.kind === "habit" && x.refId === id && x.start >= today && x.start < today + DAY_MS);
+  // 終わった食事は出さない（置いた枠が終わった、置いていなければ時間帯が過ぎた。朝食は次の食事の時間帯まで）
+  const meals = sorted.filter((m, i) => {
+    const b = blockOf(m.id);
+    if (b) return b.end > now;
+    const end = m.cue ? (sorted[i + 1]?.windowStart ?? 12 * 60) : m.windowEnd;
+    return now < today + end * MIN;
+  });
   if (meals.length === 0) return null;
   const home = new Set(state.mealsAtHome[key] ?? []);
   const out = new Set(state.habitSkips[key] ?? []);
@@ -663,7 +671,7 @@ function MealCard({ today }: { today: number }) {
     <Group title="今日の食事">
       <ul className="flex flex-col py-1">
         {meals.map((m) => {
-          const b = state.result.blocks.find((x) => x.kind === "habit" && x.refId === m.id && x.start >= today && x.start < today + DAY_MS);
+          const b = blockOf(m.id);
           return (
             <li key={m.id} className="flex items-center gap-2 px-4 py-2">
               <span className="min-w-0 flex-1 truncate text-[15px]">{m.name}</span>
@@ -780,7 +788,7 @@ export default function TodayScreen() {
           {day && <EveningCard day={day} now={now} />}
           {day && <SleepCard day={day} today={today} now={now} />}
           <EnergyCard today={today} />
-          <MealCard today={today} />
+          <MealCard today={today} now={now} />
           <MorningCard day={day} now={now} />
           <TreatCard today={today} />
           <ContactCard today={today} now={now} />

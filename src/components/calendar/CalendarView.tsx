@@ -828,12 +828,11 @@ export default function CalendarView(props: CalendarViewProps) {
         return (
           <span className="mc">
             <span className={`mc-num${arg.date.getUTCDate() === 1 ? " is-first" : ""}`}>{label}</span>
-            {n > 0 && (
-              <span className="mc-dots" aria-label={`予定${n}件`}>
-                {"•".repeat(Math.min(n, 4))}
-                {n > 4 ? "+" : ""}
-              </span>
-            )}
+            {/* 点がない日も同じ高さを取り、日付の位置をそろえる */}
+            <span className="mc-dots" aria-label={n > 0 ? `予定${n}件` : undefined} aria-hidden={n > 0 ? undefined : true}>
+              {"•".repeat(Math.min(n, 4))}
+              {n > 4 ? "+" : ""}
+            </span>
           </span>
         );
       }}

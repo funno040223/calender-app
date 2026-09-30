@@ -34,8 +34,8 @@ export default function RecoveryCard({ now }: { now: number }) {
   ].filter((c, i, all) => c.end > now && all.findIndex((x) => x.title === c.title && x.start === c.start) === i);
   return <Group title="今から立て直す">
     <div className="flex flex-col gap-3 px-4 py-3">
-      <div className="flex flex-wrap gap-2">{([['sleep', '今から寝る'], ['woke', '起きたところ'], ['tired', '起きているが疲れている']] as const).map(([value, label]) =>
-        <button key={value} onClick={() => choose(value)} className={`rounded-lg px-3 py-2 text-[14px] ${mode === value ? "bg-accent text-white" : "bg-surface2"}`}>{label}</button>)}</div>
+      <div className="grid grid-cols-3 gap-2">{([['sleep', '今から寝る'], ['woke', '起きたところ'], ['tired', '疲れている']] as const).map(([value, label]) =>
+        <button key={value} onClick={() => choose(value)} className={`whitespace-nowrap rounded-lg px-1 py-2 text-[14px] ${mode === value ? "bg-accent text-white" : "bg-surface2"}`}>{label}</button>)}</div>
       {mode && <>
         {mode !== "tired" && <label className="text-[14px]">{mode === "woke" ? "寝た時刻" : "寝る時刻"}<input aria-label="寝た時刻" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className="mt-1 w-full min-w-0 rounded-lg border border-line bg-surface p-2" /></label>}
         <label className="text-[14px]">{mode === "tired" ? "自動で作業を入れない時間の終わり" : mode === "woke" ? "起きた時刻" : "起きる予定時刻"}<input aria-label="立て直しの終了時刻" type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className="mt-1 w-full min-w-0 rounded-lg border border-line bg-surface p-2" /></label>

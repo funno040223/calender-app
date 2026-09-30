@@ -229,7 +229,22 @@ body {
 .app-cal .fc .fc-day-other .fc-daygrid-day-number {
   color: var(--muted);
 }
-.app-cal .fc .fc-dayGridStrip-view .fc-day-today .fc-daygrid-day-number {
+/* 月表示は日付と点を縦に並べるので、丸は日付の数字だけにかける */
+.app-cal .fc .fc-dayGridStrip-view .fc-daygrid-day-number {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+}
+.app-cal .fc .fc-dayGridStrip-view .mc-num {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+.app-cal .fc .fc-dayGridStrip-view .fc-day-today .mc-num {
   background: var(--accent);
   color: #fff;
   font-weight: 700;
@@ -530,10 +545,11 @@ body {
 .app-cal .fc .mc {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   line-height: 1.1;
 }
 .app-cal .fc .mc-dots {
+  height: 11px;
   font-size: 10px;
   letter-spacing: -1px;
   color: var(--muted);
@@ -571,6 +587,9 @@ body {
 .app-cal .cal-month .fc .mc-num.is-first {
   font-weight: 700;
   color: var(--accent);
+}
+.app-cal .cal-month .fc .fc-day-today .mc-num.is-first {
+  color: #fff;
 }
 
 /* 3日・週：30分の高さ。ピンチで変える */
