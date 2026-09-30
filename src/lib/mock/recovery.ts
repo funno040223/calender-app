@@ -2,7 +2,7 @@ import { estimateMinutes, resolveTravel, type RhythmReset } from "@/lib/schedule
 import { DAY_MS, MIN, dayStartOf } from "./jst";
 import type { MockData } from "./model";
 import { captureTaskBlocks } from "./progress";
-import { planEvents, replan, type MockState } from "./state";
+import { planEvents, type MockState } from "./state";
 
 export function resetConflicts(state: MockState, reset: RhythmReset) {
   if (reset.mode === "tired") return [];
@@ -35,19 +35,38 @@ export function resetRhythm(d: MockData, reset: RhythmReset, now: number): MockD
 }
 
 /** 他の固定枠と習慣を守り、動かせるタスクだけを除いた「今」の空き時間を調べる。 */
+/**
+ * 「今から何分できる？」で使える、今からの時間。自分で「今やる」と決めたので、作業のあとの休憩・帰宅後の休憩は数えない。
+ * 守るのは、予定（移動を含む）・今の計画の習慣や朝ルーティン・始まった作業・睡眠・寝る準備だけ
+ */
+export function workNowGap(state: MockState, now: number): { start: number; end: number } | undefined {
+  const r = state.result;
+  const day = r.dayPlans.find((d) => now >= d.wake && now < d.bed);
+  if (!day) return undefined;
+  const hard = [
+    ...planEvents(state, state.classEvents, state.googleEvents)
+      .filter((e) => !e.allDay)
+      .map((e) => {
+        const t = resolveTravel(e, state.places, state.settings);
+        const pad = t.atHome ? 0 : t.minutes * MIN;
+        return { start: e.start - pad, end: e.end + pad };
+      }),
+    ...r.blocks.filter((b) => b.kind !== "task" || b.pinned || b.start < now),
+    ...(r.rhythmResets ?? []).filter((x) => x.mode !== "tired"),
+  ];
+  if (hard.some((h) => h.start <= now && h.end > now)) return undefined;
+  const end = Math.min(day.bed - state.settings.windDownMinutes * MIN, ...hard.filter((h) => h.start > now).map((h) => h.start));
+  return end > now ? { start: now, end } : undefined;
+}
+
 export function workNowChoices(state: MockState, now: number, minutes: number) {
   if (!Number.isFinite(minutes) || minutes < 5 || minutes > 180) return [];
-  const locked = state.blocks.filter((b) => b.kind === "task" && (b.pinned || b.start < now) && b.end > now);
-  const base = replan({ ...state, tasks: [], blocks: state.blocks.filter((b) => b.kind !== "task"),
-    events: [...state.events, ...locked.map((b) => ({ id: `busy:${b.refId}:${b.start}`, title: b.title, start: b.start, end: b.end, atHome: true as const }))],
-  }, state.googleEvents, now);
-  const gap = base.result.freeGaps.find((g) => g.start <= now && g.end > now);
+  const gap = workNowGap(state, now);
   if (!gap) return [];
   return [...state.tasks].sort((a, b) => (a.deadline ?? Infinity) - (b.deadline ?? Infinity) || b.priority - a.priority).flatMap((task) => {
     const tag = state.tags.find((t) => t.id === task.tagId);
     const length = Math.min(minutes, estimateMinutes(task, tag));
-    const rest = tag?.restAfterMinutes ?? state.settings.breakMinutes;
-    if (length < 5 || now + (length + rest) * MIN > gap.end) return [];
+    if (length < 5 || now + length * MIN > gap.end) return [];
     if (task.deadline !== undefined && task.deadline > now + state.settings.planningDays * DAY_MS) return [];
     return [{ task, minutes: length, start: now, end: now + length * MIN }];
   }).slice(0, 3);
@@ -67,11 +86,9 @@ export const defaultPauseEnd = (state: MockState, now: number) => {
   return Math.max(now + 30 * MIN, day?.bed ?? dayStartOf(now) + DAY_MS);
 };
 
-/** 今いる空き時間の残り（分、5分刻みで切り捨て、5〜180分）。空き時間でなければ undefined */
-export function freeNowMinutes(gaps: { start: number; end: number }[], now: number): number | undefined {
-  const g = gaps.find((x) => x.start <= now && now < x.end);
-  if (!g) return undefined;
-  const min = Math.floor((g.end - now) / 60_000 / 5) * 5;
+/** 「今から何分できる？」の最初の分数：今からの時間（5分刻みで切り捨て、5〜180分）。作業できる時間でなければ undefined */
+export function freeNowMinutes(gap: { start: number; end: number } | undefined, now: number): number | undefined {
+  if (!gap) return undefined;
+  const min = Math.floor((gap.end - now) / 60_000 / 5) * 5;
   return min >= 5 ? Math.min(180, min) : undefined;
 }
-

@@ -5,12 +5,12 @@ import { useApp } from "@/components/app/StoreProvider";
 import { Group } from "@/components/ui/controls";
 import { formatMinutes } from "@/lib/mock/jst";
 import { replan } from "@/lib/mock/state";
-import { freeNowMinutes, startWorkNow, workNowChoices } from "@/lib/mock/recovery";
+import { freeNowMinutes, startWorkNow, workNowChoices, workNowGap } from "@/lib/mock/recovery";
 
 export default function WorkNowCard({ now }: { now: number }) {
   const { state, update } = useApp();
-  // 空にして打ち直せるように、入力は文字のまま持つ。最初は今の空き時間の長さ（5分刻み、空きでなければ30分）
-  const [text, setText] = useState(() => String(freeNowMinutes(state.result.freeGaps, now) ?? 30));
+  // 空にして打ち直せるように、入力は文字のまま持つ。最初は次の予定・習慣までの時間（5分刻み、なければ30分）
+  const [text, setText] = useState(() => String(freeNowMinutes(workNowGap(state, now), now) ?? 30));
   const minutes = text.trim() ? Number(text) : 0;
   const [show, setShow] = useState(false);
   const choices = show ? workNowChoices(state, now, minutes) : [];

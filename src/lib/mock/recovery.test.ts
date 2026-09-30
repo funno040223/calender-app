@@ -4,7 +4,7 @@ import { baseInput, jst } from "@/lib/scheduler/test-helpers";
 import { buildNotices } from "@/lib/notify/build";
 import { MIN, DAY_MS } from "./jst";
 import { confirmWork, pendingWork } from "./progress";
-import { resetRhythm, resetConflicts, startWorkNow, workNowChoices } from "./recovery";
+import { freeNowMinutes, resetRhythm, resetConflicts, startWorkNow, workNowChoices, workNowGap } from "./recovery";
 import { fromStoredV2, replan, sampleData, toData } from "./state";
 
 const now = jst(2026, 10, 1, 12);
@@ -92,10 +92,21 @@ describe("生活リズムの立て直し", () => {
     expect(next.blocks.filter((b) => b.kind === "task" && b.start < r.end)).toEqual([expect.objectContaining({ start: now, end: now + 30 * MIN, pinned: true })]);
     expect(estimateMinutes(next.tasks[0], undefined)).toBe(180);
   });
-  it("選んだ時間と休憩が固定予定に重なるなら追加しない", () => {
+  it("選んだ時間が固定予定に重なるなら追加しない（自分で選んだので、作業のあとの休憩は数えない）", () => {
     const state = replan({ ...data(), blocks: [], events: [{ id: "meeting", title: "約束", start: now + 35 * MIN, end: now + 60 * MIN, atHome: true }] }, [], now);
-    expect(workNowChoices(state, now, 30)).toHaveLength(0);
-    expect(startWorkNow(state, task.id, 30, now)).toBe(state);
+    expect(workNowChoices(state, now, 30)[0].minutes).toBe(30);
+    expect(workNowChoices(state, now, 40)).toHaveLength(0);
+    expect(startWorkNow(state, task.id, 40, now)).toBe(state);
+  });
+  it("帰宅後の休憩の間でも、今から作業できる。最初の分数は次の予定・習慣まで", () => {
+    const home = { id: "out", title: "外出", start: now - 90 * MIN, end: now - 10 * MIN, location: "大学" };
+    const bath = { id: "bath", name: "入浴", durationMinutes: 30, windowStart: 13 * 60, windowEnd: 14 * 60, frequency: { type: "daily" as const }, skippable: false };
+    const state = replan({ ...data(), blocks: [], events: [home], habits: [bath] }, [], now);
+    const gap = workNowGap(state, now)!;
+    expect(gap.start).toBe(now);
+    expect(gap.end).toBe(jst(2026, 10, 1, 13));
+    expect(freeNowMinutes(gap, now)).toBe(60);
+    expect(workNowChoices(state, now, 60)[0].minutes).toBe(60);
   });
   it("5分だけ追加しても予定の総量を15分単位に水増ししない", () => {
     const state = replan(resetRhythm(data(), { id: "rest", mode: "tired", start: now, end: now + 60 * MIN }, now), [], now);
@@ -134,12 +145,11 @@ describe("配置の予測しやすさ", () => {
 });
 
 describe("今から何分できる？の最初の分数", () => {
-  it("今いる空き時間の残りを5分刻みで。空き時間でなければなし", async () => {
-    const { freeNowMinutes } = await import("./recovery");
-    const gaps = [{ start: jst(2026, 10, 1, 22, 30), end: jst(2026, 10, 1, 23, 30) }];
-    expect(freeNowMinutes(gaps, jst(2026, 10, 1, 22, 33))).toBe(55);
-    expect(freeNowMinutes(gaps, jst(2026, 10, 1, 23, 27))).toBeUndefined();
-    expect(freeNowMinutes(gaps, jst(2026, 10, 1, 21))).toBeUndefined();
-    expect(freeNowMinutes([{ start: 0, end: jst(2026, 10, 2) }], jst(2026, 10, 1, 12))).toBe(180);
+  it("今からの時間を5分刻みで。作業できる時間でなければなし", () => {
+    const gap = { start: jst(2026, 10, 1, 22, 33), end: jst(2026, 10, 1, 23, 30) };
+    expect(freeNowMinutes(gap, jst(2026, 10, 1, 22, 33))).toBe(55);
+    expect(freeNowMinutes(gap, jst(2026, 10, 1, 23, 27))).toBeUndefined();
+    expect(freeNowMinutes(undefined, jst(2026, 10, 1, 21))).toBeUndefined();
+    expect(freeNowMinutes({ start: 0, end: jst(2026, 10, 2) }, jst(2026, 10, 1, 12))).toBe(180);
   });
 });
