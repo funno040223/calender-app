@@ -7,7 +7,8 @@ import { formatMinuteOfDay } from "@/lib/mock/model";
 import { formatMinutes } from "@/lib/mock/jst";
 import { SECTIONS, type SectionId } from "./sections";
 import { signOut } from "@/lib/sync/remote";
-import type { SyncStatus } from "@/lib/mock/store";
+import { clearLocalData, type SyncStatus } from "@/lib/mock/store";
+import { unsubscribePush } from "@/lib/sync/push";
 
 const SYNC_LABEL: Record<SyncStatus, string> = {
   loading: "サーバーから読み込み中…",
@@ -61,7 +62,10 @@ export default function SettingsScreen() {
           <DangerButton
             confirm="ログアウトします。次に開くときは、もう一度ログインが必要です。よろしいですか？"
             onClick={async () => {
+              // この端末には通知を送らないようにし、端末の控えも消す
+              await unsubscribePush().catch(() => undefined);
               await signOut();
+              clearLocalData();
               router.replace("/login");
               router.refresh();
             }}

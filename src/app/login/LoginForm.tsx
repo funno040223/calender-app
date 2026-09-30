@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { appPath } from "@/lib/appPath";
 
 /** 自分専用のアプリなので、ログインだけ。アカウントは Supabase のダッシュボードで作る */
 export default function LoginForm() {
@@ -24,8 +25,7 @@ export default function LoginForm() {
       return;
     }
     // 外部のサイトへは戻さない（同じアプリの中の場所だけ）
-    const next = params.get("next");
-    router.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
+    router.replace(appPath(params.get("next")));
     router.refresh();
   }
 

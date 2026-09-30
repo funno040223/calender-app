@@ -176,3 +176,26 @@ describe("取り込み元の URL の確認", () => {
     expect(normalizeIcsUrl("not a url")).toBeUndefined();
   });
 });
+
+describe("後ろの回を前へ移した繰り返しの予定", () => {
+  const moved = GOOGLE_LIKE.replace(
+    "END:VCALENDAR",
+    [
+      "BEGIN:VEVENT",
+      "DTSTART;TZID=Asia/Tokyo:20261009T100000",
+      "DTEND;TZID=Asia/Tokyo:20261009T113000",
+      "RECURRENCE-ID;TZID=Asia/Tokyo:20261029T130000",
+      "UID:weekly-seminar@google.com",
+      "SUMMARY:ゼミ（前倒し）",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n"),
+  );
+
+  it("元の日時が範囲より後でも、移した先が範囲の中なら取り込む（1回だけ）", () => {
+    const two = parseIcs(moved, { from: jst(2026, 10, 1), to: jst(2026, 10, 15) }).filter((e) => e.title === "ゼミ（前倒し）");
+    expect(two.map((e) => e.start)).toEqual([jst(2026, 10, 9, 10)]);
+    const all = parseIcs(moved, october).filter((e) => e.title === "ゼミ（前倒し）");
+    expect(all).toHaveLength(1);
+  });
+});

@@ -1,6 +1,6 @@
 // 電波がなくても画面を開けるようにする。データは localStorage の控えから出るので、ここでは画面の部品だけを持つ
 // 中身を変えたら VERSION を上げる（古い控えを消すため）
-const VERSION = "v11";
+const VERSION = "v12";
 // 電波がなくても移れるように、開いたときにまとめて控える画面
 const SHELL = ["/", "/calendar", "/tasks", "/stats", "/settings", "/settings/basic", "/settings/routine", "/settings/habits", "/settings/places", "/settings/timetable", "/settings/avoid", "/settings/treats", "/settings/calendars", "/settings/notifications", "/settings/feed", "/settings/tags", "/settings/colors", "/settings/weather", "/settings/notion"];
 const PAGES = `pages-${VERSION}`;
@@ -107,7 +107,8 @@ self.addEventListener("push", (event) => {
       tag: data.tag,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
-      data: { url: typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/" },
+      // 同じアプリの中の場所だけ（src/lib/appPath.ts と同じ確かめ方）
+      data: { url: typeof data.url === "string" && /^\/(?![/\\])[^\s\\]*$/.test(data.url) ? data.url : "/" },
     }),
   );
 });

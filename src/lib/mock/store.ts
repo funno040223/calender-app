@@ -14,6 +14,16 @@ export type { OwnEvent } from "./model";
 export { TAGS, fromStoredV2, migrateV1, planEvents, sampleData, toData, type MockState } from "./state";
 
 const STORAGE_KEY = "task-rhythm:mock:v2";
+const KEY_PREFIX = "task-rhythm:";
+
+/** ログアウトしたときに、この端末の控えを消す（次に開いた人に見えないように） */
+export function clearLocalData() {
+  try {
+    for (const k of Object.keys(window.localStorage)) if (k.startsWith(KEY_PREFIX)) window.localStorage.removeItem(k);
+  } catch {
+    // 消せない環境では何もしない
+  }
+}
 const V1_STORAGE_KEY = "task-rhythm:mock:v1";
 
 function loadData(now: number): MockData | undefined {

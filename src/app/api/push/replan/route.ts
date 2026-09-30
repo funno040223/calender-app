@@ -20,26 +20,32 @@ export async function POST(request: Request) {
 
   const results: { planned: boolean; notices?: number; reason?: string }[] = [];
   for (const row of rows ?? []) {
-    const p = await planOnServer(db, row.user_id, row.data, now);
-    if (!p.ok) {
-      results.push({ planned: false, reason: p.reason });
-      continue;
+    // 1人のデータが壊れていても、ほかの人の組み直しは続ける
+    try {
+      const p = await planOnServer(db, row.user_id, row.data, now);
+      if (!p.ok) {
+        results.push({ planned: false, reason: p.reason });
+        continue;
+      }
+      const { state } = p;
+      const items = buildNotices({
+        now,
+        result: state.result,
+        events: planEvents(state, state.classEvents, state.googleEvents),
+        places: state.places,
+        settings: state.settings,
+        habits: state.habits,
+        travelAsks: travelAsks(state, now),
+        contactDays: contactDaysFor(state, now).map((c) => c.dayStart),
+      });
+      const { error: e } = await db
+        .from("push_schedule")
+        .upsert({ user_id: row.user_id, items, updated_at: new Date().toISOString() });
+      results.push(e ? { planned: false, reason: "save" } : { planned: true, notices: items.length });
+    } catch (e) {
+      console.warn("組み直しに失敗しました", e instanceof Error ? e.message : e);
+      results.push({ planned: false, reason: "error" });
     }
-    const { state } = p;
-    const items = buildNotices({
-      now,
-      result: state.result,
-      events: planEvents(state, state.classEvents, state.googleEvents),
-      places: state.places,
-      settings: state.settings,
-      habits: state.habits,
-      travelAsks: travelAsks(state, now),
-      contactDays: contactDaysFor(state, now).map((c) => c.dayStart),
-    });
-    const { error: e } = await db
-      .from("push_schedule")
-      .upsert({ user_id: row.user_id, items, updated_at: new Date().toISOString() });
-    results.push(e ? { planned: false, reason: "save" } : { planned: true, notices: items.length });
   }
   return Response.json({ results });
 }

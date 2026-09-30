@@ -80,6 +80,14 @@ export function parseIcs(text: string, range: IcsRange, tzOffsetMinutes = 540, i
       const e = toEvent(d.item, d.startDate, d.endDate, `${idPrefix}-${ev.uid}-${toMs(t, tzOffsetMinutes)}`, tzOffsetMinutes);
       if (overlaps(e)) out.push(e);
     }
+    // 範囲より後の回を、範囲の中へ移したもの（元の日時が範囲より後）も入れる
+    for (const ex of exceptions) {
+      if (ex.uid !== ev.uid || !ex.recurrenceId || isCancelled(ex)) continue;
+      const original = toMs(ex.recurrenceId, tzOffsetMinutes);
+      if (original < range.to) continue;
+      const e = toEvent(ex, ex.startDate, ex.endDate, `${idPrefix}-${ev.uid}-${original}`, tzOffsetMinutes);
+      if (overlaps(e)) out.push(e);
+    }
   }
   return out.sort((a, b) => a.start - b.start);
 }
