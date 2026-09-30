@@ -2,6 +2,7 @@ import { captureTaskBlocks } from "./progress";
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, resolveTravel, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
 import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
+import { UTOKYO_TERMS } from "./utokyo";
 import {
   SAMPLE_RECOVERY_OPTIONS,
   SAMPLE_AVOID_WINDOWS,
@@ -11,6 +12,7 @@ import {
   SAMPLE_ROUTINE_STEPS,
   SAMPLE_TAGS,
   SAMPLE_TREATS,
+  MONDAY_CLASS,
   BATH,
   GROWTH_HABIT,
   BREAKFAST_HABIT,
@@ -189,7 +191,12 @@ const MIGRATIONS = [
   "2026-09-30-laundry-avoid-rain",
   "2026-09-30-track-more",
   "2026-10-01-utokyo-periods",
+  "2026-10-01-personal-setup",
 ] as const;
+
+/** 以前の初期値のままの朝ルーティン・楽しみ（このままなら 2026-10-01 に聞いた中身に置き換える） */
+const OLD_ROUTINE_IDS = "step-curtain,step-water,step-wash-face,step-stretch,step-check-plan";
+const OLD_TREAT_IDS = "treat-bread,treat-coffee-good,treat-sweets,treat-game,treat-video,treat-manga,treat-brew,treat-snack,treat-music";
 
 /** 以前の初期値の時限（9:00 から90分）。このままなら東大の時限に置き換える */
 const OLD_SAMPLE_PERIODS = [
@@ -259,7 +266,21 @@ function migrate(d: MockData, now: number): MockData {
     [...periods].sort((a, b) => a.number - b.number).every((p, i) => p.number === OLD_SAMPLE_PERIODS[i][0] && p.start === OLD_SAMPLE_PERIODS[i][1] && p.end === OLD_SAMPLE_PERIODS[i][2])
   )
     periods = SAMPLE_PERIODS;
-  return { ...d, habits, periods, migrations: [...new Set([...d.migrations, ...MIGRATIONS])] };
+  // 2026-10-01 に聞いた生活に合わせる（初期値のままのものだけ）：朝ルーティン・楽しみ・本郷キャンパス・月曜3・4限の授業・起床のご褒美
+  let { routineSteps, treats, places, courses, settings, rewardRates } = d;
+  if (!done.has("2026-10-01-personal-setup")) {
+    if (routineSteps.map((s) => s.id).join() === OLD_ROUTINE_IDS) {
+      routineSteps = SAMPLE_ROUTINE_STEPS;
+      if (settings.routineMinutes === 15) settings = { ...settings, routineMinutes: 10 };
+    }
+    if (treats.map((t) => t.id).join() === OLD_TREAT_IDS) treats = SAMPLE_TREATS;
+    places = places.map((p) => (p.id === "place-univ" && p.name === "大学" ? { ...p, ...SAMPLE_PLACES[0], travelMinutes: p.travelMinutes } : p));
+    const a = UTOKYO_TERMS.find((t) => t.id === "2026-A");
+    if (courses.length === 0 && a) courses = [{ ...MONDAY_CLASS, termStart: a.start, termEnd: a.end }];
+    // 起きるのを後押しする（起床のご褒美を 30円 → 50円。自分で変えた額はそのまま）
+    if (rewardRates.wake === 30) rewardRates = { ...rewardRates, wake: 50 };
+  }
+  return { ...d, habits, periods, routineSteps, treats, places, courses, settings, rewardRates, migrations: [...new Set([...d.migrations, ...MIGRATIONS])] };
 }
 
 const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);

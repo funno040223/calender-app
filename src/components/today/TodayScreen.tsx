@@ -209,6 +209,7 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
   const log: WakeLog = state.wakeLogs.find((l) => l.date === key) ?? { date: key, doneStepIds: [] };
   const streak = wakeStreak(state.wakeLogs, today);
   const steps = state.routineSteps;
+  const treat = treatFor(today, state.treats);
 
   const setLog = (fn: (l: WakeLog) => WakeLog) =>
     patch((d) => {
@@ -259,13 +260,17 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
     <Card title="朝ルーティン" right={streakBadge}>
       <div className="flex flex-col gap-3 px-4 pt-2 pb-3.5">
         {log.wokeAt === undefined ? (
-          <button
-            type="button"
-            onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), plannedWake: day?.wake }))}
-            className={`${btnPrimary} h-14 w-full rounded-2xl text-[18px] font-bold`}
-          >
-            起きた
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), plannedWake: day?.wake }))}
+              className={`${btnPrimary} h-14 w-full rounded-2xl text-[18px] font-bold`}
+            >
+              起きた
+            </button>
+            {/* 起き上がるきっかけに、今日の楽しみを見せる */}
+            {treat && <p className="text-center text-[13px] text-muted">今日の楽しみ：{treat.name}</p>}
+          </>
         ) : (
           <>
             <div className="flex items-center gap-3">

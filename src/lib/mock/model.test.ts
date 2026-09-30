@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DAY_MS, jstTime } from "./jst";
 import { buildClassEvents, classEventsForPlan, dateKeyOf, parseClassEventId, treatFor, treatIndexFor, wakeStreak, type Course } from "./model";
-import { SAMPLE_PERIODS, SAMPLE_TREATS } from "./sample";
+import { SAMPLE_PERIODS, SAMPLE_ROUTINE_STEPS, SAMPLE_TREATS } from "./sample";
 import { fromStoredV2, migrateV1, sampleData, toData } from "./store";
 
 const course: Course = {
@@ -100,7 +100,7 @@ describe("保存データ", () => {
     expect(d.places).toEqual(v1.places);
     expect(d.hiddenCalendars).toEqual(["google"]);
     expect(d.courses.length).toBeGreaterThan(0);
-    expect(d.routineSteps.map((r) => r.title)).toEqual(["カーテンを開ける", "水を1杯飲む", "顔を洗う", "5分ストレッチ", "今日の予定を見る"]);
+    expect(d.routineSteps).toEqual(SAMPLE_ROUTINE_STEPS);
   });
 
   it("v2 は保存したまま読み戻せる", () => {

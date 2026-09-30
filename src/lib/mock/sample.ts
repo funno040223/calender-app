@@ -5,9 +5,9 @@ import { UTOKYO_PERIODS } from "./utokyo";
 
 /** 画面確認用のサンプルデータ。日付は「今日」を基準に作る */
 
+/** 東大 本郷キャンパス（家から片道10分） */
 export const SAMPLE_PLACES: Place[] = [
-  { id: "place-univ", name: "大学", keywords: ["大学", "キャンパス"], travelMinutes: 10 },
-  { id: "place-cafe", name: "カフェ", keywords: ["カフェ", "バイト先"], travelMinutes: 20 },
+  { id: "place-univ", name: "本郷キャンパス", keywords: ["本郷", "東大", "大学", "キャンパス", "研究室"], travelMinutes: 10 },
 ];
 
 export const SAMPLE_TAGS: Tag[] = [
@@ -227,25 +227,40 @@ export function buildSampleCourses(now: number): Course[] {
   ];
 }
 
+/** 好きなもの（2026-10-01 に聞いた）：カニカマ、牛乳から作る甘い飲み物、すき焼き・パスタ・ホイコーロー */
 export const SAMPLE_TREATS: Treat[] = [
-  { id: "treat-bread", name: "好きなパン屋のパン", category: "food" },
-  { id: "treat-coffee-good", name: "ちょっといいコーヒー", category: "food" },
-  { id: "treat-sweets", name: "コンビニの新作スイーツ", category: "food" },
-  { id: "treat-game", name: "ゲーム30分", category: "hobby" },
-  { id: "treat-video", name: "好きな動画を1本", category: "hobby" },
-  { id: "treat-manga", name: "漫画を1話", category: "hobby" },
-  { id: "treat-brew", name: "コーヒーを淹れる", category: "reward", condition: "朝ルーティンが終わったら" },
-  { id: "treat-snack", name: "おやつ", category: "reward", condition: "集中の枠が終わったら" },
-  { id: "treat-music", name: "好きな音楽を1曲", category: "reward", condition: "洗濯を干したら" },
+  { id: "treat-kanikama", name: "カニカマ", category: "food" },
+  { id: "treat-cocoa", name: "ココアを作る", category: "food" },
+  { id: "treat-banana-shake", name: "バナナシェイクを作る", category: "food" },
+  { id: "treat-sweet-drink", name: "好きな甘い飲み物を買う", category: "food" },
+  { id: "treat-pasta", name: "パスタ", category: "food", condition: "自炊の日に" },
+  { id: "treat-huikoro", name: "ホイコーロー", category: "food", condition: "自炊の日に" },
+  { id: "treat-sukiyaki", name: "すき焼き", category: "reward", condition: "今週が順調なら、週末に" },
 ];
 
+/**
+ * 朝ルーティン（10分）。アラームのあと布団の中で体を動かすのを起き上がる合図にし、光と水で目を覚まし、好きな飲み物を楽しみにする。
+ * 顔を洗うなどは身支度に入れる
+ */
 export const SAMPLE_ROUTINE_STEPS: RoutineStep[] = [
-  { id: "step-curtain", title: "カーテンを開ける" },
+  { id: "step-stretch-bed", title: "布団の中で大きく伸びをして起き上がる" },
+  { id: "step-curtain", title: "カーテンを開けて光を浴びる" },
   { id: "step-water", title: "水を1杯飲む" },
-  { id: "step-wash-face", title: "顔を洗う" },
-  { id: "step-stretch", title: "5分ストレッチ" },
-  { id: "step-check-plan", title: "今日の予定を見る" },
+  { id: "step-drink", title: "好きな飲み物を作る" },
 ];
+
+/** 今季（2026年度 A セメスター）の授業：月曜3・4限を続けて（名前はあとで直す） */
+export const MONDAY_CLASS: Omit<Course, "termStart" | "termEnd"> = {
+  id: "course-mon34",
+  name: "月3・4限の授業",
+  weekday: 1,
+  startMinute: 13 * 60,
+  endMinute: 16 * 60 + 40,
+  location: "本郷キャンパス",
+  optional: false,
+  cancelledDates: [],
+  attendedDates: [],
+};
 
 /** Google から取り込んだ予定（読み取り専用） */
 export function buildGoogleEvents(now: number): CalendarEvent[] {

@@ -122,7 +122,8 @@ describe("夜中（0時を過ぎて、まだ寝る前）", () => {
 
   it("0時過ぎの帰宅は前の日の帰宅。次の日の休日も変えない", () => {
     const cafe: CalendarEvent = { id: "c", title: "バイト", start: jst(2026, 10, 1, 20), end: jst(2026, 10, 2, 0, 30), location: "カフェ" };
-    const r = plan(baseInput(jst(2026, 10, 1, 8), { events: [cafe], places: SAMPLE_PLACES }));
+    const cafePlace = { id: "place-cafe", name: "カフェ", keywords: ["カフェ"], travelMinutes: 20 };
+    const r = plan(baseInput(jst(2026, 10, 1, 8), { events: [cafe], places: [...SAMPLE_PLACES, cafePlace] }));
     expect(r.dayPlans[0].homeAt).toBe(jst(2026, 10, 2, 0, 50));
     expect(r.dayPlans[1].homeAt).toBeUndefined();
     expect(r.dayPlans[1].holiday).toBe(true);

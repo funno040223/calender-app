@@ -71,3 +71,26 @@ it("散歩・自己成長・片付け・洗濯・自炊を「記録する」に�
   const off = { ...d, habits: d.habits.map((h) => (h.id === "habit-walk" ? { ...h, track: undefined } : h)) };
   expect(fromStoredV2(off, now)!.habits.find((h) => h.id === "habit-walk")?.track).toBeUndefined();
 });
+
+describe("2026-10-01 の生活に合わせた移し替え", () => {
+  it("初期値のままの朝ルーティン・楽しみ・場所を置き換え、月曜3・4限を入れ、自分で変えたものはそのまま", async () => {
+    const { fromStoredV2, sampleData } = await import("./state");
+    const old = {
+      ...sampleData(Date.now()),
+      migrations: [],
+      courses: [],
+      routineSteps: ["step-curtain", "step-water", "step-wash-face", "step-stretch", "step-check-plan"].map((id) => ({ id, title: id })),
+      treats: [{ id: "mine", name: "自分で足したもの", category: "food" as const }],
+      places: [{ id: "place-univ", name: "大学", keywords: ["大学", "キャンパス"], travelMinutes: 12 }],
+      settings: { ...sampleData(Date.now()).settings, routineMinutes: 15 },
+      rewardRates: { ...sampleData(Date.now()).rewardRates, wake: 30 },
+    };
+    const d = fromStoredV2(JSON.parse(JSON.stringify(old)), Date.now());
+    expect(d.routineSteps.map((s) => s.id)).toEqual(["step-stretch-bed", "step-curtain", "step-water", "step-drink"]);
+    expect(d.settings.routineMinutes).toBe(10);
+    expect(d.treats.map((t) => t.id)).toEqual(["mine"]);
+    expect(d.places[0]).toMatchObject({ name: "本郷キャンパス", travelMinutes: 12 });
+    expect(d.courses.map((c) => [c.name, c.weekday, c.startMinute, c.termStart, c.termEnd])).toEqual([["月3・4限の授業", 1, 13 * 60, "2026-10-02", "2027-02-04"]]);
+    expect(d.rewardRates.wake).toBe(50);
+  });
+});
