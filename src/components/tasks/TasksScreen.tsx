@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { buildOutlook, estimateMinutes, type OutlookStatus, type Task, type WeekOutlook } from "@/lib/scheduler";
+import { FAR_TASK_DAYS, buildOutlook, estimateMinutes, type OutlookStatus, type Task, type WeekOutlook } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { completeTask } from "@/lib/mock/state";
@@ -136,14 +136,19 @@ export default function TasksScreen() {
               {rel ? `${rel.event.title} ${formatEventWhen(rel.event)}` : "関連する予定が見つかりません"}
             </p>
           )}
-          <div className="mt-1.5 flex items-center gap-2">
-            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface2">
-              <div className={`h-full rounded-full ${short ? "bg-accent" : "bg-ok"}`} style={{ width: `${ratio * 100}%` }} />
+          {/* 締切が4週間より先のタスクは、まだ予定に入れない */}
+          {t.deadline !== undefined && t.deadline > state.plannedAt + FAR_TASK_DAYS * DAY_MS && placed === 0 ? (
+            <p className="mt-1 text-[12px] text-muted">まだ先</p>
+          ) : (
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface2">
+                <div className={`h-full rounded-full ${short ? "bg-accent" : "bg-ok"}`} style={{ width: `${ratio * 100}%` }} />
+              </div>
+              <span className={`shrink-0 text-[12px] tabular-nums ${short ? "text-accent" : "text-muted"}`}>
+                予定 {formatMinutes(placed)} / {formatMinutes(need)}
+              </span>
             </div>
-            <span className={`shrink-0 text-[12px] tabular-nums ${short ? "text-accent" : "text-muted"}`}>
-              {formatMinutes(placed)} / {formatMinutes(need)}
-            </span>
-          </div>
+          )}
         </button>
       </div>
     );

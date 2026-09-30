@@ -142,3 +142,25 @@ describe("タスクを消したとき", () => {
     expect(notices(s2)).toHaveLength(0);
   });
 });
+
+describe("先の締切のタスクとあとから入る予定", () => {
+  const task = (id: string, days: number) => ({ id, title: id, priority: 2 as const, durationMinutes: 120, deadline: jst(2026, 10, 1) + days * DAY_MS });
+
+  it("締切が2週間より先でも4週間以内なら置く（警告は出さない）。4週間より先はまだ置かない", () => {
+    const r = plan(baseInput(jst(2026, 10, 1, 8), { tasks: [task("t20", 20), task("t40", 40)] }));
+    expect(r.blocks.filter((b) => b.refId === "t20").reduce((s, b) => s + (b.end - b.start) / MIN, 0)).toBe(120);
+    expect(r.blocks.some((b) => b.refId === "t40")).toBe(false);
+    expect(r.shortfalls).toHaveLength(0);
+  });
+
+  it("固定したタスクの枠でも、始まる前に予定が重なったら動かす", () => {
+    const first = plan(baseInput(jst(2026, 10, 1, 8), { tasks: [task("t", 5)] }));
+    const b = first.blocks.find((x) => x.refId === "t")!;
+    const pinned = first.blocks.map((x) => (x === b ? { ...x, pinned: true } : x));
+    const ev: CalendarEvent = { id: "e", title: "面接", start: b.start, end: b.end };
+    const again = plan(baseInput(jst(2026, 10, 1, 8), { tasks: [task("t", 5)], events: [ev], previousBlocks: pinned }));
+    const moved = again.blocks.filter((x) => x.refId === "t");
+    expect(moved.every((x) => x.end <= ev.start || x.start >= ev.end)).toBe(true);
+    expect(moved.reduce((s, x) => s + (x.end - x.start) / MIN, 0)).toBe(120);
+  });
+});

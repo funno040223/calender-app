@@ -88,6 +88,9 @@ function avoidIntervalsFor(task: Task, windows: AvoidWindow[], days: DayPlan[], 
   return out;
 }
 
+/** 締切がこの日数より先のタスクは、まだ置かない */
+export const FAR_TASK_DAYS = 28;
+
 function fitsIn(free: Interval[], start: number, end: number): boolean {
   return free.some((i) => start >= i.start && end <= i.end);
 }
@@ -168,6 +171,8 @@ export function plan(input: PlanInput): PlanResult {
 
   const travelQuestions: TravelQuestion[] = [];
   const busy: Interval[] = [...sleep];
+  /** 予定そのもの（移動を含み、帰宅後の休憩は含まない） */
+  const eventSpans: Interval[] = [];
   /** 家にいない時間（移動を含む） */
   const away: Interval[] = [];
   /** 外出の予定から家に帰る時刻（終わった予定も含む。帰宅したときに体力を聞くため） */
@@ -201,6 +206,7 @@ export function plan(input: PlanInput): PlanResult {
     if (end <= now || ev.start >= horizonEnd) continue;
     if (t.unknown && ev.location && ev.start > now) travelQuestions.push({ eventId: ev.id, location: ev.location });
     busy.push({ start: ev.start - pad, end });
+    eventSpans.push({ start: ev.start - pad, end: ev.end + pad });
     if (!t.atHome) away.push({ start: ev.start - pad, end: ev.end + pad });
   }
 
@@ -211,6 +217,8 @@ export function plan(input: PlanInput): PlanResult {
   }
 
   // 直前30分の予定は、固定予定や睡眠と衝突しない限り動かさない。
+  // 固定したタスクの枠も、始まる前にあとから予定が重なったら動かす（予定を優先する）
+  kept = kept.filter((b) => !(b.kind === "task" && b.pinned && b.start > now && eventSpans.some((v) => overlaps(v, b))));
   const near = previous.filter((b) => !kept.includes(b) && exists(b) && b.start > now && b.start < now + 30 * MIN && !busy.some((v) => overlaps(v, b)) && !pauses.some((v) => overlaps(v, b)) && days.some((d) => b.start >= morningEnd(d) && b.end <= d.bed - s.windDownMinutes * MIN));
   kept = [...kept, ...near];
   // 待ち時間のある習慣（洗濯など）は、始まった枠を残すなら2つ目の枠（干すなど）も残す
@@ -561,7 +569,8 @@ export function plan(input: PlanInput): PlanResult {
     let remaining = Math.max(0, estimateMinutes(task, tag) - keptMs / MIN);
 
     const ownDeadline = deadlineOf(task);
-    if (ownDeadline !== undefined && ownDeadline > horizonEnd) continue;
+    // 締切が配置期間（14日）より先でも、4週間以内なら期間の中に置く（締切のないタスクと同じ扱い。間に合わない警告は出さない）
+    if (ownDeadline !== undefined && ownDeadline > now + FAR_TASK_DAYS * DAY_MS) continue;
     const beyondHorizon = ownDeadline === undefined || ownDeadline > horizonEnd;
     const deadline = Math.min(ownDeadline ?? horizonEnd, horizonEnd);
     const justBefore = task.timing === "justBefore" && !beyondHorizon;
