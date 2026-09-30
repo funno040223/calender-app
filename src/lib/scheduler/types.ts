@@ -243,7 +243,7 @@ export interface Task {
   relatedEventId?: string;
   /** 未指定なら soon */
   timing?: TaskTiming;
-  /** 所要時間を取り込みの目安で入れた（Notion の段階ごとの目安）。自分で所要時間を変えたら外す */
+  /** true: 所要時間を取り込みの目安で入れた（Notion の段階ごとの目安）。false: 取り込んだタスクの所要時間を自分で決めた（上書きしない） */
   autoDuration?: boolean;
   /** 締切に足りないときに選んだ「ほかを後に回す」：締切の順より先に置く */
   first?: boolean;

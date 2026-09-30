@@ -22,25 +22,31 @@ export function applyNotionRows(d: MockData, rows: NotionRow[], now: number, fet
   const cfg = d.notion;
   if (!cfg) return d;
   const ignore = new Set(cfg.ignoreStages);
-  const done = new Set(d.doneTasks.map((t) => t.id));
+  // 完了にしたのと同じ段階だけ飛ばす（次の段階に進んだら、また取り込む）。名前に段階が入っている
+  const doneKey = (id: string, title: string) => `${id}\n${title}`;
+  const done = new Set(d.doneTasks.map((t) => doneKey(t.id, t.title)));
   const wanted = new Map<string, { title: string; deadline: number; minutes?: number }>();
   for (const r of rows) {
     if (!r.title || !r.date || (r.stage && ignore.has(r.stage))) continue;
     const deadline = notionDeadline(r.date);
     if (deadline === undefined || deadline <= now) continue;
     const id = `${NOTION_TASK_PREFIX}${r.id}`;
-    if (done.has(id)) continue;
-    wanted.set(id, { title: [r.title, r.stage].filter(Boolean).join(" "), deadline, minutes: r.stage ? cfg.stageMinutes?.[r.stage] : undefined });
+    const title = [r.title, r.stage].filter(Boolean).join(" ");
+    if (done.has(doneKey(id, title))) continue;
+    wanted.set(id, { title, deadline, minutes: r.stage ? cfg.stageMinutes?.[r.stage] : undefined });
   }
   const kept: Task[] = [];
   for (const t of d.tasks) {
     if (!t.id.startsWith(NOTION_TASK_PREFIX)) kept.push(t);
     else if (wanted.has(t.id)) {
       const w = wanted.get(t.id)!;
-      // 所要時間は、自分で変えていなければ段階の目安に合わせる
-      const auto = t.durationMinutes === undefined || t.autoDuration;
+      // 所要時間は、自分で決めていなければ（autoDuration が false でなく、範囲も入れていなければ）段階の目安に合わせる
+      const auto = t.autoDuration ?? (t.durationMinutes === undefined && !t.durationRange);
       const next: Task = { ...t, title: w.title, deadline: w.deadline, deadlineKind: "fixed" };
+      // 段階が変わったら（名前に段階が入っている）別の作業なので、前の段階の残り時間は使わない
+      if (t.title !== w.title) delete next.remainingMinutes;
       if (auto) {
+        delete next.durationRange;
         delete next.durationMinutes;
         delete next.autoDuration;
         if (w.minutes) Object.assign(next, { durationMinutes: w.minutes, autoDuration: true });

@@ -5,6 +5,7 @@ import type { Task, TaskTiming } from "@/lib/scheduler";
 import type { MockState } from "@/lib/mock/store";
 import { DAY_MS, dayStartOf, formatDate, formatMinutes, formatTime, fromInputDateTime, newId, toInputDate, toInputDateTime } from "@/lib/mock/jst";
 import { allEventRefs, blocksOfTask, formatEventWhen } from "@/lib/mock/related";
+import { NOTION_TASK_PREFIX } from "@/lib/mock/model";
 import Sheet from "@/components/ui/Sheet";
 import { DangerButton, PrimaryButton, Segmented, Switch, inputCls, inputBase } from "@/components/ui/controls";
 
@@ -127,7 +128,8 @@ export default function TaskForm({
     // 所要時間を変えたら、前に計算した残り時間は使わない。取り込みの目安（autoDuration）も外して、自分の値を優先する
     if (task && (task.durationMinutes !== next.durationMinutes || JSON.stringify(task.durationRange) !== JSON.stringify(next.durationRange))) {
       delete next.remainingMinutes;
-      delete next.autoDuration;
+      if (next.id.startsWith(NOTION_TASK_PREFIX)) next.autoDuration = false;
+      else delete next.autoDuration;
     }
     if (d.tagId) next.tagId = d.tagId;
     if (d.relatedEventId) next.relatedEventId = d.relatedEventId;

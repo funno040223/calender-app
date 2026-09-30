@@ -27,6 +27,8 @@ const TABS = [
 
 /** 天気予報を取り直す間隔 */
 const WEATHER_REFRESH_MS = 3 * 60 * 60 * 1000;
+/** 天気・Notion を取れなかったときに、次に試すまで */
+const RETRY_MS = 10 * 60 * 1000;
 
 const isActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
@@ -54,11 +56,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const place = state.weatherPlace;
   const fetchedAt = state.rainForecast?.fetchedAt ?? 0;
   const weatherBusy = useRef(false);
+  // 取れなかったときに、保存のたびに取りにいかない
+  const weatherTried = useRef(0);
   useEffect(() => {
     if (store.sync === "loading" || !place) return;
     const check = () => {
-      if (weatherBusy.current || Date.now() - fetchedAt < WEATHER_REFRESH_MS) return;
+      if (weatherBusy.current || Date.now() - fetchedAt < WEATHER_REFRESH_MS || Date.now() - weatherTried.current < RETRY_MS) return;
       weatherBusy.current = true;
+      weatherTried.current = Date.now();
       fetchRainChance(place)
         .then((days) => update((d) => ({ ...d, rainForecast: { fetchedAt: Date.now(), days } }), { auto: true }))
         .catch((e) => console.warn("天気予報を取れませんでした", e instanceof Error ? e.message : e))
@@ -72,11 +77,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // Notion の選考の表：列を選んであれば、開いたときと30分ごとに締切を取り込む（読めなければ前のタスクのまま）
   const notion = state.notion;
   const notionBusy = useRef(false);
+  const notionTried = useRef(0);
   useEffect(() => {
     if (store.sync === "loading" || !notion?.dateProp) return;
     const check = () => {
-      if (notionBusy.current || Date.now() - (notion.fetchedAt ?? 0) < 30 * 60 * 1000) return;
+      if (notionBusy.current || Date.now() - (notion.fetchedAt ?? 0) < 30 * 60 * 1000 || Date.now() - notionTried.current < RETRY_MS) return;
       notionBusy.current = true;
+      notionTried.current = Date.now();
       fetchNotionRows(notion.dateProp, notion.stageProp)
         .then((r) => update((d) => applyNotionRows(d, r.rows, Date.now(), r.fetchedAt), { auto: true }))
         .catch((e) => console.warn("Notion を読めませんでした", e instanceof Error ? e.message : e))

@@ -38,4 +38,26 @@ describe("Notion の締切の取り込み", () => {
     const d3 = applyNotionRows(mine, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now);
     expect(d3.tasks.find((t) => t.id === "notion-a")?.durationMinutes).toBe(90);
   });
+
+  it("完了にした段階だけ飛ばし、次の段階に進んだら取り込む", async () => {
+    const { completeTask } = await import("./state");
+    const d1 = applyNotionRows(base, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now);
+    const done = completeTask(d1, "notion-a", now);
+    expect(applyNotionRows(done, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now).tasks.some((t) => t.id === "notion-a")).toBe(false);
+    const next = applyNotionRows(done, [{ id: "a", title: "A社", date: "2026-10-12", stage: "一次面接" }], now, now);
+    expect(next.tasks.find((t) => t.id === "notion-a")?.title).toBe("A社 一次面接");
+  });
+
+  it("範囲やわからないにした所要時間は上書きせず、段階が変わったら前の残り時間を使わない", () => {
+    const cfg = { ...base, notion: { ...base.notion, stageMinutes: { ES: 120, 面接: 60 } } };
+    const d1 = applyNotionRows(cfg, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now);
+    const ranged = { ...d1, tasks: d1.tasks.map((t) => (t.id === "notion-a" ? { ...t, durationMinutes: undefined, durationRange: { min: 30, max: 60 }, autoDuration: false } : t)) };
+    const d2 = applyNotionRows(ranged, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now);
+    expect(d2.tasks.find((t) => t.id === "notion-a")).toMatchObject({ durationRange: { min: 30, max: 60 } });
+    expect(d2.tasks.find((t) => t.id === "notion-a")?.durationMinutes).toBeUndefined();
+    const worked = { ...d1, tasks: d1.tasks.map((t) => (t.id === "notion-a" ? { ...t, remainingMinutes: 30 } : t)) };
+    const d3 = applyNotionRows(worked, [{ id: "a", title: "A社", date: "2026-10-12", stage: "面接" }], now, now);
+    expect(d3.tasks.find((t) => t.id === "notion-a")).toMatchObject({ durationMinutes: 60 });
+    expect(d3.tasks.find((t) => t.id === "notion-a")?.remainingMinutes).toBeUndefined();
+  });
 });

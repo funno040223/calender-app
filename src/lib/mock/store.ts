@@ -116,6 +116,8 @@ export function useMockStore() {
   const ready = useRef(false);
   /** サーバーから読んだ直後の変化は、保存し直さない */
   const fromRemote = useRef(false);
+  /** この端末で変えて、まだサーバーに送っていない */
+  const dirty = useRef(false);
   const remoteAt = useRef(0);
   const [imports, setImports] = useState<ImportStatus>({ state: "idle" });
   const lastImportAt = useRef(0);
@@ -144,10 +146,12 @@ export function useMockStore() {
 
   const push = useCallback(async () => {
     setSync("saving");
+    dirty.current = false;
     try {
       remoteAt.current = await saveRemote(toData(stateRef.current));
       setSync("synced");
     } catch (e) {
+      dirty.current = true;
       console.warn("サーバーへの保存に失敗しました", e instanceof Error ? e.message : e);
       setSync("offline");
     }
@@ -162,6 +166,8 @@ export function useMockStore() {
       if (remote) {
         undoData.current = undefined;
         setCanUndo(false);
+        // ほかの端末で後から保存した内容を使う（まだ送っていないこの端末の変更は捨てる）
+        dirty.current = false;
         fromRemote.current = true;
         const now = Date.now();
         setState(replan(remote, stateRef.current.googleEvents, now));
@@ -194,9 +200,12 @@ export function useMockStore() {
     if (!ready.current) return;
     if (fromRemote.current) {
       fromRemote.current = false;
-      return;
+      // 取り込みで組み直す直前の変更がまだ送られていなければ、送り直す（予約していた保存はここで消えるため）
+      if (!dirty.current) return;
+    } else {
+      dirty.current = true;
+      writeEditedAt(Date.now());
     }
-    writeEditedAt(Date.now());
     const t = window.setTimeout(() => void push(), SAVE_DELAY_MS);
     return () => window.clearTimeout(t);
   }, [state, push]);

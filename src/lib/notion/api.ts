@@ -52,6 +52,10 @@ type Page = { id: string; archived?: boolean; in_trash?: boolean; properties: Re
 export async function readRows(token: string, databaseId: string, dateProp: string, stageProp?: string): Promise<NotionRow[]> {
   const rows: NotionRow[] = [];
   let cursor: string | undefined;
+  // 選んだ列が表から消えた（名前を変えた）ときや読み切れないときは、エラーにして前のタスクを残す（全部消さない）
+  let sawDate = false;
+  let sawStage = false;
+  let complete = false;
   for (let i = 0; i < 10; i++) {
     const json = (await call(token, `/databases/${databaseId}/query`, {
       method: "POST",
@@ -63,6 +67,8 @@ export async function readRows(token: string, databaseId: string, dateProp: stri
       const title = (props.find((x) => x.type === "title")?.title ?? []).map((t) => t.plain_text).join("").trim();
       const d = p.properties[dateProp];
       const st = stageProp ? p.properties[stageProp] : undefined;
+      if (d?.type === "date") sawDate = true;
+      if (st?.type === "select" || st?.type === "status") sawStage = true;
       rows.push({
         id: p.id.replace(/-/g, ""),
         title,
@@ -70,8 +76,14 @@ export async function readRows(token: string, databaseId: string, dateProp: stri
         stage: st ? (st.type === "select" ? st.select?.name : st.type === "status" ? st.status?.name : undefined) ?? undefined : undefined,
       });
     }
-    if (!json.has_more || !json.next_cursor) break;
+    if (!json.has_more || !json.next_cursor) {
+      complete = true;
+      break;
+    }
     cursor = json.next_cursor;
   }
+  if (!complete) throw new Error("行が1000行を超えていて、読み切れません");
+  if (rows.length && !sawDate) throw new Error(`締切の列「${dateProp}」が見つかりません`);
+  if (rows.length && stageProp && !sawStage) throw new Error(`段階の列「${stageProp}」が見つかりません`);
   return rows;
 }

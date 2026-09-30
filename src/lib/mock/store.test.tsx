@@ -87,3 +87,17 @@ it("取り込み元を全件削除した場合はサンプルを追加せず空�
   expect(result.current.state.googleEvents).toEqual([]);
   expect(JSON.parse(localStorage.getItem(importedKey)!)).toEqual([]);
 });
+
+it("取り込みが終わる直前の変更も、サーバーに保存する", async () => {
+  let resolveImport!: (v: Awaited<ReturnType<typeof syncImports>>) => void;
+  vi.mocked(syncImports).mockReturnValue(new Promise((r) => { resolveImport = r; }));
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  vi.mocked(saveRemote).mockClear();
+  act(() => result.current.update((d) => ({ ...d, tasks: d.tasks.map((t, i) => (i === 0 ? { ...t, title: "取り込み中の変更" } : t)) })));
+  await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+  await act(async () => { resolveImport({ sources: [], events: [], fetchedAt: now }); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(saveRemote).toHaveBeenCalled();
+  expect(vi.mocked(saveRemote).mock.calls.at(-1)![0].tasks[0].title).toBe("取り込み中の変更");
+});
