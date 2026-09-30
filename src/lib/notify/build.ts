@@ -167,7 +167,8 @@ export function buildNotices(input: NoticeInput): Notice[] {
       key: `bedprep:${d.dayStart}`,
       at: d.bed - BED_PREP_MINUTES * MIN,
       title: "寝る準備の時間です",
-      body: `Apple Watch をつける・スマホは充電場所へ。就寝 ${formatTime(d.bed)}`,
+      // 起床の時刻も出して、アラームをその時刻に合わせられるようにする（睡眠アラームはショートカットで時刻を変えられない）
+      body: `Apple Watch をつける・スマホは充電場所へ。就寝 ${formatTime(d.bed)}・起床 ${formatTime(days[days.indexOf(d) + 1]?.wake ?? d.bed + settings.sleepMinutes * MIN)}`,
       url: "/",
     });
   }

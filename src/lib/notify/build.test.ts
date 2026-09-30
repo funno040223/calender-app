@@ -97,6 +97,8 @@ describe("buildNotices", () => {
       ["smoke", jst(2026, 10, 2, 22)],
       ["bedprep", jst(2026, 10, 3, 0, 30)],
     ]);
+    // 起床の時刻も出す（アラームを合わせるため）
+    expect(got.find((n) => n.key.startsWith("bedprep:"))?.body).toMatch(/就寝 1:00・起床 8:00$/);
   });
 
   it("外出した日は帰宅の時刻に体力を聞き、答えたあとは聞かない", () => {
