@@ -17,6 +17,7 @@ import CalendarColors from "./CalendarColors";
 import Weather from "./Weather";
 import Notion from "./Notion";
 import Rewards from "./Rewards";
+import Health from "./Health";
 
 const BODY: Record<SectionId, () => React.ReactNode> = {
   calendars: CalendarSources,
@@ -27,6 +28,7 @@ const BODY: Record<SectionId, () => React.ReactNode> = {
   weather: Weather,
   notion: Notion,
   rewards: Rewards,
+  health: Health,
   timetable: Timetable,
   places: Places,
   habits: Habits,

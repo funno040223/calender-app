@@ -10,6 +10,8 @@ import { DAY_MS, dayStartOf, formatDate, formatTime, newId } from "@/lib/mock/js
 import { CALENDARS } from "@/lib/mock/calendars";
 import { fetchRainChance } from "@/lib/weather/openMeteo";
 import { fetchNotionRows } from "@/lib/sync/notion";
+import { loadSleepNights } from "@/lib/sync/health";
+import { dateKeyOf } from "@/lib/mock/model";
 import { applyNotionRows, deleteTask as removeTask } from "@/lib/mock/notion";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
@@ -138,6 +140,34 @@ export default function AppShell({ children }: { children: ReactNode }) {
     const t = window.setInterval(check, 10 * 60 * 1000);
     return () => window.clearInterval(t);
   }, [store.sync, notion, update]);
+
+  // ヘルスケアの睡眠：ショートカットが送った夜ごとのまとめを、開いたとき・戻ってきたとき（10分ごとまで）に読む。60日ぶん残す
+  const healthTried = useRef(0);
+  useEffect(() => {
+    if (store.sync === "loading") return;
+    const check = () => {
+      if (Date.now() - healthTried.current < 10 * 60 * 1000) return;
+      healthTried.current = Date.now();
+      const from = dateKeyOf(Date.now() - 60 * 24 * 60 * 60 * 1000);
+      loadSleepNights(dateKeyOf(Date.now() - 21 * 24 * 60 * 60 * 1000))
+        .then((nights) =>
+          update((d) => {
+            const next = Object.fromEntries(Object.entries({ ...d.healthSleep, ...nights }).filter(([k]) => k >= from));
+            return JSON.stringify(next) === JSON.stringify(d.healthSleep) ? d : { ...d, healthSleep: next };
+          }, { auto: true }),
+        )
+        // まだ SQL を実行していないときなども、前の記録のまま
+        .catch((e) => console.warn("ヘルスケアの睡眠を読めませんでした", e instanceof Error ? e.message : e));
+    };
+    check();
+    const onVisible = () => document.visibilityState === "visible" && check();
+    document.addEventListener("visibilitychange", onVisible);
+    const t = window.setInterval(check, 10 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(t);
+    };
+  }, [store.sync, update]);
 
   // 設定で選んだカレンダーの色を、画面全体の色の変数に上書きする（選んでいなければ初期の色）
   useEffect(() => {

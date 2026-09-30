@@ -208,10 +208,21 @@ export interface DayLog {
   /** その日の行動ポイント（予測）と上限 */
   points?: number;
   budget?: number;
+  /** 予定の就寝（「予定どおり寝た」をヘルスケアの寝ついた時刻と比べるため） */
+  bed?: number;
   /** その日に置いた記録する習慣（一度でも置いたもの） */
   habits: string[];
   /** 食事の始まり（習慣の ID → 時刻） */
   meals: Record<string, number>;
+}
+
+/** ヘルスケアの睡眠の、夜ごとのまとめ（起きた日の日付ごと。ショートカットが送り、サーバーが DB にまとめたもの） */
+export interface HealthSleep {
+  /** 寝ついた時刻と起きた時刻 */
+  start: number;
+  end: number;
+  /** 眠っていた時間（分。途中で目が覚めた時間は除く） */
+  minutes: number;
 }
 
 export interface EnergyCheck {
@@ -248,6 +259,8 @@ export interface MockData {
   bedLogs: Record<DateKey, BedLog>;
   /** その日の計画の控え（120日ぶん） */
   dayLogs: Record<DateKey, DayLog>;
+  /** ヘルスケアの睡眠（起きた日 → まとめ。60日ぶん） */
+  healthSleep: Record<DateKey, HealthSleep>;
   /** 表示だけの設定（DB では settings に入れる） */
   hiddenCalendars: CalendarId[];
   /** 帰宅したときに答えた残りの体力（日付 → 答え）。今夜の組み方に使い、記録としても残す */

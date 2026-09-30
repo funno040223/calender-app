@@ -2,6 +2,7 @@ import { resolveTravel, type AvoidWindow, type CalendarEvent, type TaskStrategy 
 import { DAY_MS, MIN, TZ, dayStartOf } from "./jst";
 import { dateKeyOf, dayStartOfKey, type MockData } from "./model";
 import { planEvents, type MockState } from "./state";
+import { bedNights } from "./stats";
 
 /**
  * 記録の画面の「気づき」：予定と実際を重ねて、自分では気づきにくい傾向を探す。
@@ -238,7 +239,7 @@ function smokeInsight(state: MockState, events: CalendarEvent[], from: number, n
     { label: "作業のあと30分", spans: worked.map((b) => ({ start: b.end, end: b.end + 30 * MIN })) },
     { label: "食事のあと30分", spans: meals.map((m) => ({ start: m.start + m.dur, end: m.start + m.dur + 30 * MIN })) },
     { label: "起きて1時間", spans: state.wakeLogs.flatMap((l) => (l.wokeAt ? [{ start: l.wokeAt, end: l.wokeAt + H }] : [])) },
-    { label: "寝る前1時間", spans: Object.values(state.bedLogs).map((b) => ({ start: b.at - H, end: b.at })) },
+    { label: "寝る前1時間", spans: bedNights(state).map((b) => ({ start: b.at - H, end: b.at })) },
   ];
   const found = scenes
     .map((s) => {

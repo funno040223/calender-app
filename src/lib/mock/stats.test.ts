@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
 import { DEFAULT_REWARD_RATES } from "./model";
 import { DAY_MS } from "./jst";
-import { bedStats, habitProgress, habitWeeks, keepMarkValues, mondayOf, periodStats, rewardBalance, rewardBreakdown, rewardEarned, workMinutes } from "./stats";
+import { bedNights, bedStats, habitProgress, habitWeeks, keepMarkValues, mondayOf, periodStats, rewardBalance, rewardBreakdown, rewardEarned, workMinutes } from "./stats";
 
 const ex = { id: "ex", name: "運動", durationMinutes: 5, windowStart: 0, windowEnd: 1440, frequency: { type: "weekly" as const, times: 3 }, skippable: true, track: true };
 const walk = { id: "walk", name: "散歩", durationMinutes: 20, windowStart: 0, windowEnd: 150, frequency: { type: "daily" as const }, skippable: true, track: true };
@@ -90,8 +90,25 @@ describe("週のまとめ", () => {
       "2026-09-29": { at: jst(2026, 9, 30, 1), plannedBed: jst(2026, 9, 30, 1) },
       "2026-09-30": { at: jst(2026, 10, 1, 3), plannedBed: jst(2026, 10, 1, 1) },
     };
-    // 10/1 の夜は押していないので数え、10/2 の夜（今夜）はまだ数えない
+    // 10/1 の夜は記録がないまま翌日の昼を過ぎたので数え、10/2 の夜（今夜）はまだ数えない
     expect(bedStats({ bedLogs }, jst(2026, 9, 28), jst(2026, 10, 5), now)).toEqual({ done: 1, total: 3 });
+  });
+
+  it("ヘルスケアの記録がある夜は、寝ついた時刻が予定の就寝から30分以内なら予定どおり", () => {
+    const dayLogs = { "2026-09-29": { events: 0, away: false, habits: [], meals: {}, bed: jst(2026, 9, 30, 1) }, "2026-09-30": { events: 0, away: false, habits: [], meals: {}, bed: jst(2026, 10, 1, 1) } };
+    const healthSleep = {
+      // 予定 1:00 に 1:25 に寝ついた → 予定どおり。「寝る」を押したのが遅くても、ヘルスケアで見る
+      "2026-09-30": { start: jst(2026, 9, 30, 1, 25), end: jst(2026, 9, 30, 8), minutes: 390 },
+      // 予定 1:00 に 1:40 → 予定どおりではない
+      "2026-10-01": { start: jst(2026, 10, 1, 1, 40), end: jst(2026, 10, 1, 9), minutes: 430 },
+    };
+    const bedLogs = { "2026-09-29": { at: jst(2026, 9, 30, 1, 30), plannedBed: jst(2026, 9, 30, 1) } };
+    const nights = bedNights({ bedLogs, healthSleep, dayLogs });
+    expect(nights.map((n) => [n.key, n.source, n.onTime])).toEqual([
+      ["2026-09-29", "health", true],
+      ["2026-09-30", "health", false],
+    ]);
+    expect(rewardBreakdown({ ...data, bedLogs, healthSleep, dayLogs }).bed).toBe(DEFAULT_REWARD_RATES.bed);
   });
 
   it("今週の習慣は、月〜日の記録と週の目安を出す", () => {

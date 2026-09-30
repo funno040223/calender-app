@@ -21,11 +21,16 @@ function base64url(bytes: Uint8Array): string {
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** 新しいアドレスを作る（前のアドレスは使えなくなる）。アドレスはこのときだけ返す */
-export async function createFeed(): Promise<string> {
+/** 推測できない合言葉（32バイトの base64url）と、保存する SHA-256（16進） */
+export async function newSecret(): Promise<{ token: string; hash: string }> {
   const token = base64url(crypto.getRandomValues(new Uint8Array(32)));
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
-  const hash = [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return { token, hash: [...digest].map((b) => b.toString(16).padStart(2, "0")).join("") };
+}
+
+/** 新しいアドレスを作る（前のアドレスは使えなくなる）。アドレスはこのときだけ返す */
+export async function createFeed(): Promise<string> {
+  const { token, hash } = await newSecret();
   const { data } = await db().auth.getSession();
   const userId = data.session?.user.id;
   if (!userId) throw new Error("ログインしていません");

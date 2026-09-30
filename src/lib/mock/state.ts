@@ -1,6 +1,6 @@
 import { captureTaskBlocks } from "./progress";
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, resolveTravel, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
 import {
   SAMPLE_RECOVERY_OPTIONS,
@@ -96,6 +96,7 @@ const DATA_KEYS = [
   "habitDoneDays",
   "bedLogs",
   "dayLogs",
+  "healthSleep",
   "hiddenCalendars",
   "eveningEnergy",
   "rainyDays",
@@ -148,6 +149,7 @@ export function sampleData(now: number): MockData {
     habitDoneDays: {},
     bedLogs: {},
     dayLogs: {},
+    healthSleep: {},
     hiddenCalendars: [],
     eveningEnergy: {},
     rainyDays: [],
@@ -311,6 +313,14 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
           Object.entries(d.dayLogs).filter(
             (e): e is [string, DayLog] =>
               isRecord(e[1]) && typeof e[1].events === "number" && typeof e[1].away === "boolean" && Array.isArray(e[1].habits) && isRecord(e[1].meals),
+          ),
+        )
+      : {},
+    healthSleep: isRecord(d.healthSleep)
+      ? Object.fromEntries(
+          Object.entries(d.healthSleep).filter(
+            (e): e is [string, HealthSleep] =>
+              isRecord(e[1]) && [e[1].start, e[1].end, e[1].minutes].every((x) => typeof x === "number" && Number.isFinite(x)),
           ),
         )
       : {},
@@ -531,6 +541,7 @@ export function captureDayLog(data: MockData, result: PlanResult, events: Calend
     todays.some((e) => !resolveTravel(e, data.places, data.settings).atHome) ||
     events.some((e) => e.allDay && e.awayFromHome && e.start < end && e.end > today);
   const energy = result.dayEnergy.find((x) => x.dayStart === today);
+  const plan = result.dayPlans.find((x) => x.dayStart === today);
   const prev = data.dayLogs[key];
   const habits = new Set(prev?.habits ?? []);
   const meals: Record<string, number> = {};
@@ -545,6 +556,7 @@ export function captureDayLog(data: MockData, result: PlanResult, events: Calend
     away,
     rainy: rainyDayKeys(data).includes(key),
     ...(energy ? { points: energy.used, budget: energy.budget } : {}),
+    ...(plan ? { bed: plan.bed } : {}),
     habits: [...habits].sort(),
     meals,
   };

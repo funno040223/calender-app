@@ -1,4 +1,4 @@
-export type SectionId = "calendars" | "timetable" | "places" | "habits" | "avoid" | "treats" | "routine" | "basic" | "notifications" | "feed" | "tags" | "colors" | "weather" | "notion" | "rewards";
+export type SectionId = "calendars" | "timetable" | "places" | "habits" | "avoid" | "treats" | "routine" | "basic" | "notifications" | "feed" | "tags" | "colors" | "weather" | "notion" | "rewards" | "health";
 
 export const SECTIONS: Record<SectionId, { title: string; summary: string }> = {
   calendars: { title: "Google カレンダー", summary: "iCal で予定を取り込む" },
@@ -16,4 +16,5 @@ export const SECTIONS: Record<SectionId, { title: string; summary: string }> = {
   colors: { title: "カレンダーの色", summary: "予定・タスク・習慣などの色" },
   notifications: { title: "通知", summary: "予定の前・枠の始まり・毎朝のまとめ" },
   rewards: { title: "ご褒美の金額", summary: "できたこと1回あたりの円" },
+  health: { title: "ヘルスケア", summary: "睡眠をショートカットで取り込む" },
 };

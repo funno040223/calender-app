@@ -6,11 +6,46 @@ import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData } from "./model
 export const WAKE_GRACE_MINUTES = 30;
 
 type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" | "rewardSpends" | "rewardRates"> &
-  Partial<Pick<MockData, "bedLogs" | "eveningEnergy">>;
+  Partial<Pick<MockData, "bedLogs" | "eveningEnergy" | "healthSleep" | "dayLogs">>;
 
 /** 予定の就寝から、この分数までに「寝る」を押せたら予定どおり */
 export const BED_GRACE_MINUTES = 15;
 export const bedOnTime = (l: { at: number; plannedBed: number }) => l.at <= l.plannedBed + BED_GRACE_MINUTES * MIN;
+/**
+ * ヘルスケアの寝ついた時刻が、予定の就寝からこの分数までなら予定どおり。
+ * 床に入ってから寝つくまでと、Apple Watch が眠りを見分けるまでのずれがあるので、「寝る」のボタンよりゆるめにする
+ */
+export const HEALTH_BED_GRACE_MINUTES = 30;
+
+export interface BedNight {
+  /** その夜の計画の日（寝る前の日） */
+  key: string;
+  day: number;
+  /** 寝ついた時刻（ヘルスケア）か、「寝る」を押した時刻 */
+  at: number;
+  onTime: boolean;
+  source: "health" | "button";
+}
+
+/** 夜ごとの就寝。ヘルスケアの記録と予定の就寝があれば寝ついた時刻で、なければ「寝る」を押した時刻で見る */
+export function bedNights(data: Partial<Pick<MockData, "bedLogs" | "healthSleep" | "dayLogs">>): BedNight[] {
+  const out = new Map<string, BedNight>();
+  for (const [key, log] of Object.entries(data.bedLogs ?? {})) {
+    const day = dayStartOfKey(key);
+    if (day !== undefined) out.set(key, { key, day, at: log.at, onTime: bedOnTime(log), source: "button" });
+  }
+  for (const [wakeKey, h] of Object.entries(data.healthSleep ?? {})) {
+    const wakeDay = dayStartOfKey(wakeKey);
+    if (wakeDay === undefined) continue;
+    // 起きた日の前の日の計画の就寝と比べる（0時を過ぎて寝る日も同じ）
+    const day = wakeDay - DAY_MS;
+    const key = dateKeyOf(day);
+    const planned = data.bedLogs?.[key]?.plannedBed ?? data.dayLogs?.[key]?.bed;
+    if (planned === undefined) continue;
+    out.set(key, { key, day, at: h.start, onTime: h.start <= planned + HEALTH_BED_GRACE_MINUTES * MIN, source: "health" });
+  }
+  return [...out.values()].sort((a, b) => a.day - b.day);
+}
 
 /** 習慣の1回ぶん。5分だけは、5分以下の習慣なら1回、ほかは半分 */
 export const markValue = (m: HabitMark | undefined, habit: Pick<Habit, "durationMinutes">) =>
@@ -99,10 +134,11 @@ export function rewardBreakdown(data: Data, from = -Infinity, to = Infinity): Re
     if (inRange(l.routineDoneAt)) yen.routine += r.routine;
     // 記録をつけた（朝の疲れ・睡眠時間）。その日の分として数える
     const day = dayStartOfKey(l.date);
-    if (inRange(day)) yen.log += ((l.fatigue !== undefined ? 1 : 0) + (l.sleepMinutes !== undefined ? 1 : 0)) * (r.log ?? 0);
+    // 睡眠時間は、ヘルスケアから取り込めた日も記録したことにする
+    if (inRange(day)) yen.log += ((l.fatigue !== undefined ? 1 : 0) + (l.sleepMinutes !== undefined || data.healthSleep?.[l.date] ? 1 : 0)) * (r.log ?? 0);
   }
   for (const key of Object.keys(data.eveningEnergy ?? {})) if (inRange(dayStartOfKey(key))) yen.log += r.log ?? 0;
-  for (const l of Object.values(data.bedLogs ?? {})) if (inRange(l.at) && bedOnTime(l)) yen.bed += r.bed ?? 0;
+  for (const n of bedNights(data)) if (n.onTime && inRange(n.at)) yen.bed += r.bed ?? 0;
   for (const [key, marks] of Object.entries(data.habitLogs)) {
     const day = dayStartOfKey(key);
     if (day === undefined || !inRange(day)) continue;
@@ -141,17 +177,19 @@ export function workMinutes(data: Pick<MockData, "taskBlockLog">, from: number, 
   return { worked: Math.round(worked), planned: Math.round(planned) };
 }
 
-/** 予定どおりに寝た夜の数。数えるのは記録を始めた日から、終わった夜（今夜は「寝る」を押したときだけ） */
-export function bedStats(data: Pick<MockData, "bedLogs">, from: number, to: number, now: number): { done: number; total: number } {
-  const start = Math.min(Infinity, ...Object.keys(data.bedLogs).map((k) => dayStartOfKey(k) ?? Infinity));
+/** 予定どおりに寝た夜の数。数えるのは記録を始めた日から、終わった夜（記録のない夜は翌日の昼から） */
+export function bedStats(data: Pick<MockData, "bedLogs"> & Partial<Pick<MockData, "healthSleep" | "dayLogs">>, from: number, to: number, now: number): { done: number; total: number } {
+  const nights = bedNights(data);
+  const byKey = new Map(nights.map((n) => [n.key, n]));
+  const start = nights[0]?.day ?? Infinity;
   let done = 0;
   let total = 0;
   for (let d = Math.max(from, start); d < to && d <= now; d += DAY_MS) {
-    const log = data.bedLogs[dateKeyOf(d)];
-    // その日の夜は、翌朝4時までは寝ていないかもしれない
-    if (!log && now < d + DAY_MS + 4 * 60 * MIN) continue;
+    const n = byKey.get(dateKeyOf(d));
+    // その日の夜は、まだ寝ていないか、ヘルスケアの記録が届いていないかもしれない（起きてから届く）
+    if (!n && now < d + DAY_MS + 12 * 60 * MIN) continue;
     total++;
-    if (log && bedOnTime(log)) done++;
+    if (n?.onTime) done++;
   }
   return { done, total };
 }
