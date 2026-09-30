@@ -36,6 +36,7 @@ export default function SettingsScreen() {
     colors: "",
     weather: state.weatherPlace?.name ?? "",
     notion: state.notion ? "取り込み中" : "",
+    rewards: "",
     basic: `睡眠${formatMinutes(s.sleepMinutes)}・${formatMinuteOfDay(s.defaultWakeMinuteOfDay)}起床`,
   };
 
@@ -43,6 +44,7 @@ export default function SettingsScreen() {
     { title: "予定", ids: ["calendars", "notion", "feed", "timetable", "places", "colors"] },
     { title: "生活のリズム", ids: ["habits", "tags", "avoid", "weather", "basic"] },
     { title: "朝", ids: ["routine", "treats"] },
+    { title: "記録", ids: ["rewards"] },
     { title: "通知", ids: ["notifications"] },
   ];
 

@@ -5,7 +5,12 @@ import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData } from "./model
 /** 予定の起床から、この分数までに「起きた」を押せたら予定どおり */
 export const WAKE_GRACE_MINUTES = 30;
 
-type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" | "rewardSpends" | "rewardRates">;
+type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" | "rewardSpends" | "rewardRates"> &
+  Partial<Pick<MockData, "bedLogs" | "eveningEnergy">>;
+
+/** 予定の就寝から、この分数までに「寝る」を押せたら予定どおり */
+export const BED_GRACE_MINUTES = 15;
+export const bedOnTime = (l: { at: number; plannedBed: number }) => l.at <= l.plannedBed + BED_GRACE_MINUTES * MIN;
 
 /** 習慣の1回ぶん。5分だけは、5分以下の習慣なら1回、ほかは半分 */
 export const markValue = (m: HabitMark | undefined, habit: Pick<Habit, "durationMinutes">) =>
@@ -81,6 +86,15 @@ export function rewardEarned(data: Data, from = -Infinity, to = Infinity): numbe
   for (const l of data.wakeLogs) {
     if (wakeOk(l) && inRange(l.wokeAt)) yen += r.wake;
     if (inRange(l.routineDoneAt)) yen += r.routine;
+    // 記録をつけた（朝の疲れ・睡眠時間）。その日の分として数える
+    const day = dayStartOfKey(l.date);
+    if (inRange(day)) yen += ((l.fatigue !== undefined ? 1 : 0) + (l.sleepMinutes !== undefined ? 1 : 0)) * (r.log ?? 0);
+  }
+  for (const key of Object.keys(data.eveningEnergy ?? {})) if (inRange(dayStartOfKey(key))) yen += r.log ?? 0;
+  for (const l of Object.values(data.bedLogs ?? {})) {
+    if (!inRange(l.at)) continue;
+    if (bedOnTime(l)) yen += r.bed ?? 0;
+    if (l.smokeFree) yen += r.smoke ?? 0;
   }
   for (const [key, marks] of Object.entries(data.habitLogs)) {
     const day = dayStartOfKey(key);

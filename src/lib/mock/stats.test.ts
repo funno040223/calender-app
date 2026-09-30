@@ -40,6 +40,23 @@ describe("ご褒美のお金", () => {
     expect(rewardEarned(data, jst(2026, 10, 2), jst(2026, 10, 3))).toBe(30);
   });
 
+  it("就寝（予定の15分後まで）・寝る前のタバコ・記録をつけたことも足す", () => {
+    const d = {
+      ...data,
+      rewardSpends: [],
+      wakeLogs: [{ date: "2026-10-02", doneStepIds: [], fatigue: 3 as const, sleepMinutes: 420 }],
+      eveningEnergy: { "2026-10-02": "normal" as const },
+      bedLogs: {
+        "2026-10-01": { at: jst(2026, 10, 2, 2, 10), plannedBed: jst(2026, 10, 2, 2), smokeFree: true },
+        "2026-10-02": { at: jst(2026, 10, 3, 2, 30), plannedBed: jst(2026, 10, 3, 2), smokeFree: false },
+      },
+      habitLogs: {},
+      taskBlockLog: {},
+    };
+    // 就寝30（1日目だけ間に合う）＋ タバコ30 ＋ 記録 10×3
+    expect(rewardEarned(d)).toBe(90);
+  });
+
   it("習慣の時間を延ばしても消しても、たまった分は減らない。「記録する」でない習慣は数えない", () => {
     const grown = { ...data, habits: [{ ...ex, durationMinutes: 10 }, walk], habitLogs: keepMarkValues(data.habitLogs, ex, 10) };
     expect(rewardEarned(grown)).toBe(235);

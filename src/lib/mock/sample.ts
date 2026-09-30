@@ -78,6 +78,7 @@ export const COOK_CUES = {
 /** 自己成長の時間：タスクの見通しが順調な休日だけ、仮でもカレンダーに置く */
 export const GROWTH_HABIT: Habit = {
   id: "habit-growth",
+  track: true,
   name: "自己成長（読書・勉強など）",
   durationMinutes: 90,
   windowStart: 10 * 60,
@@ -115,6 +116,7 @@ export const SAMPLE_HABITS: Habit[] = [
   // 散歩のあとに家での運動（homeExerciseHabit）を置く
   {
     id: "habit-walk",
+    track: true,
     name: "散歩",
     durationMinutes: 20,
     ...WALK_TIMES,
@@ -127,6 +129,7 @@ export const SAMPLE_HABITS: Habit[] = [
   // 自炊は、行動ポイントに余裕がある日だけ（外出の多い日には入れない）
   {
     id: "habit-cook-lunch",
+    track: true,
     name: "自炊（昼）",
     durationMinutes: 30,
     windowStart: 10 * 60 + 30,
@@ -138,6 +141,7 @@ export const SAMPLE_HABITS: Habit[] = [
   },
   {
     id: "habit-cook-dinner",
+    track: true,
     name: "自炊（夕）",
     durationMinutes: 45,
     windowStart: 17 * 60,
@@ -149,6 +153,7 @@ export const SAMPLE_HABITS: Habit[] = [
   },
   {
     id: "habit-laundry",
+    track: true,
     name: "洗濯を回す",
     durationMinutes: 10,
     windowStart: 9 * 60,
@@ -163,6 +168,7 @@ export const SAMPLE_HABITS: Habit[] = [
   },
   {
     id: "habit-tidy",
+    track: true,
     name: "片付け",
     durationMinutes: 30,
     windowStart: 0,

@@ -1,6 +1,6 @@
 import { captureTaskBlocks } from "./progress";
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
 import { DAY_MS, MIN } from "./jst";
 import {
   SAMPLE_RECOVERY_OPTIONS,
@@ -93,6 +93,7 @@ const DATA_KEYS = [
   "wakeLogs",
   "habitLastDone",
   "habitDoneDays",
+  "bedLogs",
   "hiddenCalendars",
   "eveningEnergy",
   "rainyDays",
@@ -142,6 +143,7 @@ export function sampleData(now: number): MockData {
     wakeLogs: [],
     habitLastDone: {},
     habitDoneDays: {},
+    bedLogs: {},
     hiddenCalendars: [],
     eveningEnergy: {},
     rainyDays: [],
@@ -179,7 +181,10 @@ const MIGRATIONS = [
   "2026-09-30-morning-meals",
   "2026-09-30-laundry-30",
   "2026-09-30-laundry-avoid-rain",
+  "2026-09-30-track-more",
 ] as const;
+
+const TRACK_MORE = ["habit-walk", GROWTH_HABIT.id, "habit-tidy", "habit-laundry", "habit-cook-lunch", "habit-cook-dinner"];
 
 function migrate(d: MockData, now: number): MockData {
   const done = new Set(d.migrations);
@@ -219,6 +224,8 @@ function migrate(d: MockData, now: number): MockData {
         : h,
     );
   if (!done.has("2026-09-30-laundry-avoid-rain")) habits = habits.map((h) => (h.id === "habit-laundry" ? { ...h, avoidRain: true } : h));
+  // ご褒美をためる方法を増やす：散歩・自己成長・片付け・洗濯・自炊も「記録する」にする
+  if (!done.has("2026-09-30-track-more")) habits = habits.map((h) => (TRACK_MORE.includes(h.id) ? { ...h, track: true } : h));
   // 散歩のあとに置いていた最初の版を、入浴の直前に移す（自分で変えたきっかけはそのまま）
   if (!done.has("2026-09-29-exercise-before-bath"))
     habits = habits.map((h) => {
@@ -293,6 +300,13 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     habitDoneDays: isRecord(d.habitDoneDays)
       ? Object.fromEntries(
           Object.entries(d.habitDoneDays).map(([id, v]) => [id, Array.isArray(v) ? v.filter((t): t is number => typeof t === "number") : []]),
+        )
+      : {},
+    bedLogs: isRecord(d.bedLogs)
+      ? Object.fromEntries(
+          Object.entries(d.bedLogs).filter(
+            (e): e is [string, BedLog] => isRecord(e[1]) && typeof e[1].at === "number" && typeof e[1].plannedBed === "number" && typeof e[1].smokeFree === "boolean",
+          ),
         )
       : {},
     hiddenCalendars: arr(d.hiddenCalendars, []),

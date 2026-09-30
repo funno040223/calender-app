@@ -10,7 +10,8 @@ import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId }
 import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type ContactAnswer, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
 import { contactDaysFor, rainyDayKeys } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
-import { keepMarkValues } from "@/lib/mock/stats";
+import { bedOnTime, keepMarkValues } from "@/lib/mock/stats";
+import { BED_PREP_MINUTES, SMOKE_CUTOFF_MINUTES } from "@/lib/notify/build";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import ProgressCard from "./ProgressCard";
 import RecoveryCard from "./RecoveryCard";
@@ -609,6 +610,56 @@ function ReviewCard({ today }: { today: number }) {
   );
 }
 
+/** 寝る準備の時刻になったら「寝る」。予定どおりに寝られたか・寝る前にタバコを控えたかを残す（ご褒美になる） */
+function BedCard({ now }: { now: number }) {
+  const { state, patch } = useApp();
+  const day = state.result.dayPlans.find((d) => now >= d.bed - BED_PREP_MINUTES * MIN && now < d.bed + 3 * 60 * MIN);
+  const key = day ? dateKeyOf(day.dayStart) : "";
+  const log = state.bedLogs[key];
+  const record = () =>
+    day &&
+    patch((d) => {
+      const at = Date.now();
+      return {
+        bedLogs: {
+          // 記録は1年ぶんだけ残す
+          ...Object.fromEntries(Object.entries(d.bedLogs).sort(([a], [b]) => a.localeCompare(b)).slice(-399)),
+          [key]: { at, plannedBed: day.bed, smokeFree: !d.smokeLogs.some((t) => t >= day.bed - SMOKE_CUTOFF_MINUTES * MIN && t <= at) },
+        },
+      };
+    });
+  if (!day) return null;
+  const undo = () =>
+    patch((d) => {
+      const bedLogs = { ...d.bedLogs };
+      delete bedLogs[key];
+      return { bedLogs };
+    });
+  return (
+    <Group title="おやすみ">
+      {log ? (
+        <div className="flex items-center gap-3 px-4 py-3">
+          <CheckCircle on />
+          <p className="min-w-0 flex-1 text-[15px]">
+            {formatTime(log.at)}に寝る
+            {!bedOnTime(log) && <span className="block text-[13px] text-muted">予定より{formatMinutes(Math.round((log.at - log.plannedBed) / MIN))}遅く</span>}
+          </p>
+          <button type="button" className="shrink-0 text-[13px] text-muted underline" onClick={undo}>
+            取り消す
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 px-4 py-3">
+          <p className="min-w-0 flex-1 text-[15px] tabular-nums">就寝 {formatTime(day.bed)}</p>
+          <button type="button" onClick={record} className="shrink-0 rounded-lg bg-accent px-5 py-2 text-[15px] font-medium text-white">
+            寝る
+          </button>
+        </div>
+      )}
+    </Group>
+  );
+}
+
 /** 今日の食事：家で食べるか、外で食べるかを選ぶ（選ばなければ、予定の空きから自動で決まる） */
 function MealCard({ today, now }: { today: number; now: number }) {
   const { state, update } = useApp();
@@ -783,6 +834,7 @@ export default function TodayScreen() {
               />
             </Group>
           )}
+          <BedCard now={now} />
           {day && <EveningCard day={day} now={now} />}
           {day && <SleepCard day={day} today={today} now={now} />}
           <WorkNowCard now={now} />

@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 
-import { buildOutlook, estimateMinutes, type OutlookStatus, type Task } from "@/lib/scheduler";
+import { buildOutlook, estimateMinutes, type OutlookStatus, type Task, type WeekOutlook } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { completeTask } from "@/lib/mock/state";
-import { MIN, TZ, formatDeadline, formatMinutes } from "@/lib/mock/jst";
+import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatDeadline, formatMinutes, formatTime } from "@/lib/mock/jst";
 import { blocksOfTask, eventIndex, formatEventWhen } from "@/lib/mock/related";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 
@@ -21,6 +21,8 @@ const STATUS: Record<OutlookStatus, { label: string; cls: string }> = {
 /** 今週と来週：タスクに使う時間と空き時間、順調かどうか */
 function Outlook() {
   const { state, openTask } = useApp();
+  // 押した週だけ、日ごとの内訳を開く
+  const [open, setOpen] = useState<number>();
   const weeks = buildOutlook({
     now: state.plannedAt,
     result: state.result,
@@ -31,21 +33,59 @@ function Outlook() {
     <Group title="見通し">
       {weeks.map((w, i) => (
         <div key={w.start} className="flex flex-col gap-1 px-4 py-2.5">
-          <Link href="/stats" className="flex items-center gap-3">
+          <button type="button" aria-expanded={open === i} onClick={() => setOpen(open === i ? undefined : i)} className="flex items-center gap-3 text-left">
             <span className="w-10 shrink-0 text-[15px] font-medium">{i === 0 ? "今週" : "来週"}</span>
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${STATUS[w.status].cls}`}>{STATUS[w.status].label}</span>
             <span className="ml-auto text-[13px] tabular-nums text-muted">
               タスク {formatMinutes(w.taskMinutes)}・空き {formatMinutes(w.freeMinutes)}
             </span>
-          </Link>
+          </button>
           {w.late.map((l) => (
             <button key={l.taskId} type="button" onClick={() => openTask(l.taskId)} className="ml-13 truncate text-left text-[13px] text-accent">
               {l.title}：{formatMinutes(l.shortfallMinutes)}足りない
             </button>
           ))}
+          {open === i && <OutlookDays week={w} />}
         </div>
       ))}
     </Group>
+  );
+}
+
+/** 押した週の日ごとの内訳：タスクの時間・空き時間・その日の締切 */
+function OutlookDays({ week: w }: { week: WeekOutlook }) {
+  const { state, openTask } = useApp();
+  const overlap = (a: { start: number; end: number }, from: number, to: number) => Math.max(0, Math.min(a.end, to) - Math.max(a.start, from));
+  const from0 = state.plannedAt;
+  const days = Array.from({ length: 7 }, (_, i) => w.start + i * DAY_MS);
+  return (
+    <ul className="flex flex-col pt-1">
+      {days.map((d) => {
+        const to = d + DAY_MS;
+        const from = Math.max(d, from0);
+        const task = state.result.blocks.filter((b) => b.kind === "task").reduce((s, b) => s + overlap(b, from, to), 0) / MIN;
+        const free = state.result.freeGaps.reduce((s, g) => s + overlap(g, from, to), 0) / MIN;
+        // 日付だけの締切（翌日 0:00）は、その前の日に出す
+        const due = state.tasks.filter((t) => t.deadline !== undefined && t.deadline - 1 >= d && t.deadline - 1 < to);
+        return (
+          <li key={d} className={`flex flex-col gap-1 py-1 ${to <= from0 ? "opacity-40" : ""}`}>
+            <div className="flex items-baseline gap-3 text-[13px] tabular-nums">
+              <span className="w-16 shrink-0 font-medium">{formatDate(d)}</span>
+              <span className="flex-1 text-muted">タスク {formatMinutes(Math.round(task))}</span>
+              <span className="text-muted">空き {formatMinutes(Math.round(free))}</span>
+            </div>
+            {due.map((t) => {
+              const late = w.late.find((l) => l.taskId === t.id);
+              return (
+                <button key={t.id} type="button" onClick={() => openTask(t.id)} className={`ml-19 truncate text-left text-[13px] ${late ? "text-accent" : ""}`}>
+                  〆 {t.deadline! - dayStartOf(t.deadline!) ? `${formatTime(t.deadline!)} ` : ""}{t.title}
+                </button>
+              );
+            })}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

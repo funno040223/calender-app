@@ -1,19 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { buildOutlook } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { dateKeyOf, type RewardRates } from "@/lib/mock/model";
+import { dateKeyOf } from "@/lib/mock/model";
 import { dailyGrid, dailyReward, periodStats, rewardBalance, rewardEarned, type CellState, type GridRow, type PeriodStats } from "@/lib/mock/stats";
-import { Group, NumberInput, Row, ScreenHeader, Segmented, inputBase } from "@/components/ui/controls";
+import { Group, Row, ScreenHeader, inputBase } from "@/components/ui/controls";
 
 const yen = (n: number) => `¥${Math.round(n).toLocaleString("ja-JP")}`;
-const STATUS = {
-  ok: { label: "順調", cls: "bg-ok text-white" },
-  tight: { label: "きつい", cls: "bg-[var(--cal-class)] text-white" },
-  late: { label: "間に合わない", cls: "bg-accent text-white" },
-};
 
 /** ご褒美のお金：たまった分から、使った分を引いた残り。使ったら金額を記録する */
 function Reward() {
@@ -238,65 +232,6 @@ function RewardChart() {
   );
 }
 
-/** 今週・来週の見通しを、日ごとに */
-function OutlookDetail() {
-  const { state, openTask } = useApp();
-  const [week, setWeek] = useState(0);
-  const weeks = buildOutlook({ now: state.plannedAt, result: state.result, minSlackMinutesPerDay: state.settings.minSlackMinutesPerDay, tzOffsetMinutes: TZ });
-  const w = weeks[week];
-  const overlap = (a: { start: number; end: number }, from: number, to: number) => Math.max(0, Math.min(a.end, to) - Math.max(a.start, from));
-  const from0 = state.plannedAt;
-  const days = Array.from({ length: 7 }, (_, i) => w.start + i * DAY_MS);
-  return (
-    <Group title="見通し">
-      <div className="flex items-center gap-3 px-4 pt-3">
-        <Segmented
-          label="週"
-          value={week}
-          onChange={setWeek}
-          options={[
-            { value: 0, label: "今週" },
-            { value: 1, label: "来週" },
-          ]}
-        />
-        <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] font-semibold ${STATUS[w.status].cls}`}>{STATUS[w.status].label}</span>
-      </div>
-      <p className="px-4 pt-2 text-[13px] tabular-nums text-muted">
-        タスク {formatMinutes(w.taskMinutes)}・空き {formatMinutes(w.freeMinutes)}
-      </p>
-      <ul className="flex flex-col py-2">
-        {days.map((d) => {
-          const to = d + DAY_MS;
-          const from = Math.max(d, from0);
-          const task = state.result.blocks.filter((b) => b.kind === "task").reduce((s, b) => s + overlap(b, from, to), 0) / MIN;
-          const free = state.result.freeGaps.reduce((s, g) => s + overlap(g, from, to), 0) / MIN;
-          // 日付だけの締切（翌日 0:00）は、その前の日に出す
-          const due = state.tasks.filter((t) => t.deadline !== undefined && t.deadline - 1 >= d && t.deadline - 1 < to);
-          const past = to <= from0;
-          return (
-            <li key={d} className={`flex flex-col gap-1 px-4 py-1.5 ${past ? "opacity-40" : ""}`}>
-              <div className="flex items-baseline gap-3 text-[14px] tabular-nums">
-                <span className="w-16 shrink-0 font-medium">{formatDate(d)}</span>
-                <span className="flex-1 text-muted">タスク {formatMinutes(Math.round(task))}</span>
-                <span className="text-muted">空き {formatMinutes(Math.round(free))}</span>
-              </div>
-              {due.map((t) => {
-                const late = w.late.find((l) => l.taskId === t.id);
-                return (
-                  <button key={t.id} type="button" onClick={() => openTask(t.id)} className={`ml-19 truncate text-left text-[13px] ${late ? "text-accent" : ""}`}>
-                    〆 {t.deadline! - dayStartOf(t.deadline!) ? `${formatTime(t.deadline!)} ` : ""}{t.title}
-                    {late ? ` ・${formatMinutes(late.shortfallMinutes)}足りない` : ""}
-                  </button>
-                );
-              })}
-            </li>
-          );
-        })}
-      </ul>
-    </Group>
-  );
-}
-
 /** 棒グラフ（1本の軸）。いちばん高い棒にだけ値を書き、押すと下に詳しく出す */
 function Columns({
   values,
@@ -432,29 +367,6 @@ function Smoking() {
   );
 }
 
-/** ご褒美の金額（1回あたり） */
-function Rates() {
-  const { state, update } = useApp();
-  const set = (k: keyof RewardRates) => (v: number | undefined) =>
-    update((d) => ({ ...d, rewardRates: { ...d.rewardRates, [k]: v ?? 0 } }));
-  const rows: { k: keyof RewardRates; label: string }[] = [
-    { k: "wake", label: "起床" },
-    { k: "routine", label: "朝ルーティン" },
-    { k: "habit", label: "習慣" },
-    { k: "task", label: "タスク" },
-  ];
-  return (
-    <Group title="金額（1回）">
-      {rows.map((r) => (
-        <Row key={r.k} label={r.label}>
-          <NumberInput label={`${r.label}の金額`} value={state.rewardRates[r.k]} onCommit={set(r.k)} step={10} max={10000} />
-          <span className="text-[15px] text-muted">円</span>
-        </Row>
-      ))}
-    </Group>
-  );
-}
-
 export default function StatsScreen() {
   return (
     <div className="h-full overflow-y-auto bg-grouped">
@@ -468,8 +380,6 @@ export default function StatsScreen() {
         <div className="flex flex-col gap-6">
           <Sleep />
           <Smoking />
-          <OutlookDetail />
-          <Rates />
         </div>
       </div>
     </div>

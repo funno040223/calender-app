@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
-import { learnedMinutes, planTagsOf, rainyDayKeys, replan, sampleData, travelAsks } from "./state";
+import { fromStoredV2, learnedMinutes, planTagsOf, rainyDayKeys, replan, sampleData, travelAsks } from "./state";
 
 describe("終わったタスクの枠", () => {
   it("未回答の枠は時間が過ぎても残り時間から引かない", () => {
@@ -58,4 +58,16 @@ describe("雨の日", () => {
     });
     expect(got.sort()).toEqual(["2026-10-01", "2026-10-03"]);
   });
+});
+
+it("散歩・自己成長・片付け・洗濯・自炊を「記録する」にする（1回だけ）", () => {
+  const now = Date.UTC(2026, 9, 1, 3);
+  const old = { ...sampleData(now), migrations: [] as string[] };
+  old.habits = old.habits.map((h) => ({ ...h, track: h.id === "habit-home-exercise" ? true : undefined }));
+  const d = fromStoredV2(old, now)!;
+  const tracked = d.habits.filter((h) => h.track).map((h) => h.id).sort();
+  expect(tracked).toEqual(["habit-cook-dinner", "habit-cook-lunch", "habit-growth", "habit-home-exercise", "habit-laundry", "habit-tidy", "habit-walk"]);
+  // 自分でオフにしたあとは、もう一度オンにしない
+  const off = { ...d, habits: d.habits.map((h) => (h.id === "habit-walk" ? { ...h, track: undefined } : h)) };
+  expect(fromStoredV2(off, now)!.habits.find((h) => h.id === "habit-walk")?.track).toBeUndefined();
 });
