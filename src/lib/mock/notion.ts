@@ -22,9 +22,9 @@ export function applyNotionRows(d: MockData, rows: NotionRow[], now: number, fet
   const cfg = d.notion;
   if (!cfg) return d;
   const ignore = new Set(cfg.ignoreStages);
-  // 完了にしたのと同じ段階だけ飛ばす（次の段階に進んだら、また取り込む）。名前に段階が入っている
-  const doneKey = (id: string, title: string) => `${id}\n${title}`;
-  const done = new Set(d.doneTasks.map((t) => doneKey(t.id, t.title)));
+  // 完了にした・消したのと同じ段階だけ飛ばす（次の段階に進んだら、また取り込む）。名前に段階が入っている
+  const done = new Set([...d.doneTasks.map((t) => notionKey(t.id, t.title)), ...(cfg.dismissed ?? [])]);
+  const seen = new Set<string>();
   const wanted = new Map<string, { title: string; deadline: number; minutes?: number }>();
   for (const r of rows) {
     if (!r.title || !r.date || (r.stage && ignore.has(r.stage))) continue;
@@ -32,7 +32,8 @@ export function applyNotionRows(d: MockData, rows: NotionRow[], now: number, fet
     if (deadline === undefined || deadline <= now) continue;
     const id = `${NOTION_TASK_PREFIX}${r.id}`;
     const title = [r.title, r.stage].filter(Boolean).join(" ");
-    if (done.has(doneKey(id, title))) continue;
+    seen.add(notionKey(id, title));
+    if (done.has(notionKey(id, title))) continue;
     wanted.set(id, { title, deadline, minutes: r.stage ? cfg.stageMinutes?.[r.stage] : undefined });
   }
   const kept: Task[] = [];
@@ -57,5 +58,18 @@ export function applyNotionRows(d: MockData, rows: NotionRow[], now: number, fet
   }
   for (const [id, w] of wanted)
     kept.push({ id, title: w.title, priority: 2, deadline: w.deadline, deadlineKind: "fixed", ...(w.minutes ? { durationMinutes: w.minutes, autoDuration: true } : {}) });
-  return { ...d, tasks: kept, notion: { ...cfg, fetchedAt } };
+  // 消した記録は、表にその段階の行があるあいだだけ残す
+  const dismissed = cfg.dismissed?.filter((k) => seen.has(k));
+  return { ...d, tasks: kept, notion: { ...cfg, dismissed: dismissed?.length ? dismissed : undefined, fetchedAt } };
+}
+
+export const notionKey = (id: string, title: string) => `${id}\n${title}`;
+
+/** タスクを消す。Notion から取り込んだタスクは、同じ段階のあいだは取り込み直さない */
+export function deleteTask(d: MockData, id: string): MockData {
+  const t = d.tasks.find((x) => x.id === id);
+  if (!t) return d;
+  const tasks = d.tasks.filter((x) => x.id !== id);
+  if (!t.id.startsWith(NOTION_TASK_PREFIX) || !d.notion) return { ...d, tasks };
+  return { ...d, tasks, notion: { ...d.notion, dismissed: [...new Set([...(d.notion.dismissed ?? []), notionKey(t.id, t.title)])] } };
 }

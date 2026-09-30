@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { loadRemote, saveRemote } from "@/lib/sync/remote";
 import { syncImports, type SyncResult } from "@/lib/sync/ical";
 import { saveSchedule } from "@/lib/sync/push";
+import { closeGoneTaskNotices } from "@/lib/notify/close";
 import { buildNotices } from "@/lib/notify/build";
 import type { Block, CalendarEvent } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
@@ -128,6 +129,8 @@ export function useMockStore() {
   const fromRemote = useRef(false);
   /** この端末で変えて、まだサーバーに送っていない */
   const dirty = useRef(false);
+  /** サーバーを読み直している間は、通知の一覧を置かない（この端末の古い内容で、ほかの端末が置いた一覧を上書きしないため） */
+  const pulling = useRef(false);
   const remoteAt = useRef(0);
   const [imports, setImports] = useState<ImportStatus>({ state: "idle" });
   const lastImportAt = useRef(0);
@@ -168,6 +171,7 @@ export function useMockStore() {
   }, []);
 
   const pull = useCallback(async (initial: boolean) => {
+    pulling.current = true;
     try {
       const row = await loadRemote();
       const newer = row && (initial ? row.updatedAt >= readEditedAt() : row.updatedAt > remoteAt.current);
@@ -191,6 +195,7 @@ export function useMockStore() {
       console.warn("サーバーからの読み込みに失敗しました", e instanceof Error ? e.message : (e as { message?: string })?.message ?? e);
       setSync("offline");
     } finally {
+      pulling.current = false;
       ready.current = true;
       setInitialLoaded(true);
     }
@@ -247,7 +252,11 @@ export function useMockStore() {
   const noticesSent = useRef("");
   useEffect(() => {
     if (!ready.current || sync === "loading") return;
-    const t = window.setTimeout(() => {
+    const save = () => {
+      if (pulling.current) {
+        t = window.setTimeout(save, NOTICE_DELAY_MS);
+        return;
+      }
       const items = buildNotices({
         now: Date.now(),
         result: state.result,
@@ -258,13 +267,15 @@ export function useMockStore() {
         travelAsks: travelAsks(state, Date.now()),
         contactDays: contactDaysFor(state, Date.now()).map((c) => c.dayStart),
       });
+      void closeGoneTaskNotices(new Set(state.tasks.map((t) => t.id)));
       const json = JSON.stringify(items);
       if (json === noticesSent.current) return;
       saveSchedule(items).then(
         () => (noticesSent.current = json),
         (e) => console.warn("通知の一覧を保存できませんでした", e instanceof Error ? e.message : e),
       );
-    }, NOTICE_DELAY_MS);
+    };
+    let t = window.setTimeout(save, NOTICE_DELAY_MS);
     return () => window.clearTimeout(t);
   }, [state, sync]);
 

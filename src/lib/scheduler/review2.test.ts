@@ -128,3 +128,17 @@ describe("夜中（0時を過ぎて、まだ寝る前）", () => {
     expect(r.dayPlans[1].holiday).toBe(true);
   });
 });
+
+describe("タスクを消したとき", () => {
+  it("そのタスクの枠の通知（始まり・どのくらい進んだ？）を一覧から外す", async () => {
+    const { replan, sampleData } = await import("../mock/state");
+    const { deleteTask } = await import("../mock/notion");
+    const now = jst(2026, 10, 1, 8);
+    const task = { id: "t1", title: "レポート", priority: 2 as const, durationMinutes: 60, deadline: jst(2026, 10, 3) };
+    const s1 = replan({ ...sampleData(now), tasks: [task], events: [], courses: [] }, [], now);
+    const notices = (s: typeof s1) => buildNotices({ now, result: s.result, events: [], places: s.places, settings: s.settings, habits: s.habits }).filter((n) => n.key.includes(":t1:"));
+    expect(notices(s1).length).toBeGreaterThan(0);
+    const s2 = replan(deleteTask(s1, "t1"), [], now + 60_000);
+    expect(notices(s2)).toHaveLength(0);
+  });
+});

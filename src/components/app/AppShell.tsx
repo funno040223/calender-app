@@ -9,7 +9,7 @@ import { completeTask } from "@/lib/mock/state";
 import { CALENDARS } from "@/lib/mock/calendars";
 import { fetchRainChance } from "@/lib/weather/openMeteo";
 import { fetchNotionRows } from "@/lib/sync/notion";
-import { applyNotionRows } from "@/lib/mock/notion";
+import { applyNotionRows, deleteTask as removeTask } from "@/lib/mock/notion";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
 import { warningCount } from "@/components/today/Notices";
@@ -115,7 +115,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     setEditingTask(null);
   };
   const deleteTask = (id: string) => {
-    update((d) => ({ ...d, tasks: d.tasks.filter((x) => x.id !== id) }));
+    update((d) => removeTask(d, id));
     setEditingTask(null);
   };
 

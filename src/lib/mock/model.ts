@@ -115,6 +115,8 @@ export interface NotionConfig {
   ignoreStages: string[];
   /** 段階ごとの目安の作業時間（分）。取り込んだタスクの所要時間になる */
   stageMinutes?: Record<string, number>;
+  /** アプリで消した取り込みのタスク（"ID\n名前"）。同じ段階のあいだは取り込み直さない */
+  dismissed?: string[];
   fetchedAt?: number;
 }
 /** Notion から取り込んだタスクの ID の頭 */

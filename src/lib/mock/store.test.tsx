@@ -101,3 +101,19 @@ it("取り込みが終わる直前の変更も、サーバーに保存する", a
   expect(saveRemote).toHaveBeenCalled();
   expect((vi.mocked(saveRemote).mock.calls.at(-1)![0] as { tasks: { title: string }[] }).tasks[0].title).toBe("取り込み中の変更");
 });
+
+it("サーバーを読み直している間は、通知の一覧を置かない", async () => {
+  const { saveSchedule } = await import("@/lib/sync/push");
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  vi.mocked(saveSchedule).mockClear();
+  let resolvePull!: (row: RemoteRow) => void;
+  vi.mocked(loadRemote).mockReturnValue(new Promise<RemoteRow>((r) => { resolvePull = r; }));
+  await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  act(() => result.current.update((d) => ({ ...d, tasks: d.tasks.slice(1) })));
+  await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+  expect(saveSchedule).not.toHaveBeenCalled();
+  await act(async () => { resolvePull({ data: sampleData(now), updatedAt: now }); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(saveSchedule).toHaveBeenCalled();
+});

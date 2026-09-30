@@ -315,6 +315,7 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
             stageMinutes: isRecord(d.notion.stageMinutes)
               ? Object.fromEntries(Object.entries(d.notion.stageMinutes).filter((e): e is [string, number] => typeof e[1] === "number" && e[1] > 0))
               : undefined,
+            dismissed: arr<unknown>(d.notion.dismissed, []).filter((x): x is string => typeof x === "string"),
             fetchedAt: typeof d.notion.fetchedAt === "number" ? d.notion.fetchedAt : undefined,
           }
         : undefined,

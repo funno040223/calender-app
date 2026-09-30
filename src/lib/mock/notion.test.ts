@@ -61,3 +61,18 @@ describe("Notion の締切の取り込み", () => {
     expect(d3.tasks.find((t) => t.id === "notion-a")?.remainingMinutes).toBeUndefined();
   });
 });
+
+describe("取り込んだタスクを消したとき", () => {
+  const now = jst(2026, 10, 1, 12);
+  const base = { ...sampleData(now), tasks: [], doneTasks: [], notion: { dateProp: "締切", stageProp: "段階", ignoreStages: [] } };
+  it("同じ段階のあいだは取り込み直さず、次の段階に進んだら取り込む", async () => {
+    const { deleteTask } = await import("./notion");
+    const d1 = applyNotionRows(base, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now);
+    const gone = deleteTask(d1, "notion-a");
+    const again = applyNotionRows(gone, [{ id: "a", title: "A社", date: "2026-10-05", stage: "ES" }], now, now);
+    expect(again.tasks.some((t) => t.id === "notion-a")).toBe(false);
+    const next = applyNotionRows(again, [{ id: "a", title: "A社", date: "2026-10-12", stage: "面接" }], now, now);
+    expect(next.tasks.find((t) => t.id === "notion-a")?.title).toBe("A社 面接");
+    expect(next.notion?.dismissed).toBeUndefined();
+  });
+});
