@@ -399,35 +399,6 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
   );
 }
 
-function Gaps({ now, day }: { now: number; day: DayPlan }) {
-  const { state } = useApp();
-  const gaps = state.result.freeGaps
-    .filter((g) => g.end > now && g.start < day.bed)
-    .map((g) => ({ start: Math.max(g.start, now), end: g.end }))
-    .filter((g) => g.end - g.start >= 20 * MIN);
-  return (
-    <Group title="今日のすきま時間">
-      {gaps.length === 0 ? (
-        <p className="px-4 py-3 text-[14px] text-muted">今日はまとまった空き時間がありません。</p>
-      ) : (
-        gaps.map((g) => {
-          const len = (g.end - g.start) / MIN;
-          return (
-            <div key={g.start} className="flex items-center gap-3 px-4 py-2.5">
-              <span className="shrink-0 whitespace-nowrap text-[15px] tabular-nums">
-                {formatTime(g.start)}〜{formatTime(g.end)}
-              </span>
-              <span className="min-w-0 flex-1 text-[14px] text-muted">
-                {formatMinutes(len)}
-              </span>
-            </div>
-          );
-        })
-      )}
-    </Group>
-  );
-}
-
 const EVENING_OPTIONS: { value: EveningEnergy; label: string }[] = [
   { value: "high", label: "多い" },
   { value: "normal", label: "ふつう" },
@@ -824,7 +795,6 @@ export default function TodayScreen() {
         <div className="flex flex-col gap-6">
           <HabitLogCard today={today} />
           <Timeline now={now} dayEnd={dayEnd} />
-          {day && <Gaps now={now} day={day} />}
           {/* 崩れた日の立て直しと「今から何分できる？」は、ときどき使うものなので下に */}
           <RecoveryCard now={now} />
           <WorkNowCard now={now} />

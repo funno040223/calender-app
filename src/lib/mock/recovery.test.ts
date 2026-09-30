@@ -132,3 +132,14 @@ describe("配置の予測しやすさ", () => {
     expect(result.movedBlocks).toContainEqual(near);
   });
 });
+
+describe("今から何分できる？の最初の分数", () => {
+  it("今いる空き時間の残りを5分刻みで。空き時間でなければなし", async () => {
+    const { freeNowMinutes } = await import("./recovery");
+    const gaps = [{ start: jst(2026, 10, 1, 22, 30), end: jst(2026, 10, 1, 23, 30) }];
+    expect(freeNowMinutes(gaps, jst(2026, 10, 1, 22, 33))).toBe(55);
+    expect(freeNowMinutes(gaps, jst(2026, 10, 1, 23, 27))).toBeUndefined();
+    expect(freeNowMinutes(gaps, jst(2026, 10, 1, 21))).toBeUndefined();
+    expect(freeNowMinutes([{ start: 0, end: jst(2026, 10, 2) }], jst(2026, 10, 1, 12))).toBe(180);
+  });
+});

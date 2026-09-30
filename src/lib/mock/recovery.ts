@@ -66,3 +66,12 @@ export const defaultPauseEnd = (state: MockState, now: number) => {
   const day = state.result.dayPlans.find((d) => now >= d.wake && now < d.bed) ?? state.result.dayPlans.find((d) => d.dayStart === dayStartOf(now));
   return Math.max(now + 30 * MIN, day?.bed ?? dayStartOf(now) + DAY_MS);
 };
+
+/** 今いる空き時間の残り（分、5分刻みで切り捨て、5〜180分）。空き時間でなければ undefined */
+export function freeNowMinutes(gaps: { start: number; end: number }[], now: number): number | undefined {
+  const g = gaps.find((x) => x.start <= now && now < x.end);
+  if (!g) return undefined;
+  const min = Math.floor((g.end - now) / 60_000 / 5) * 5;
+  return min >= 5 ? Math.min(180, min) : undefined;
+}
+
