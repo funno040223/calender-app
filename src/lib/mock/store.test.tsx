@@ -99,5 +99,5 @@ it("取り込みが終わる直前の変更も、サーバーに保存する", a
   await act(async () => { resolveImport({ sources: [], events: [], fetchedAt: now }); });
   await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
   expect(saveRemote).toHaveBeenCalled();
-  expect(vi.mocked(saveRemote).mock.calls.at(-1)![0].tasks[0].title).toBe("取り込み中の変更");
+  expect((vi.mocked(saveRemote).mock.calls.at(-1)![0] as { tasks: { title: string }[] }).tasks[0].title).toBe("取り込み中の変更");
 });
