@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { DayPlan } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { MIN, dayStartOf, formatMinutes, formatTime } from "@/lib/mock/jst";
-import { dateKeyOf, wakeStreak, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
+import { dateKeyOf, wakeStreak, type MorningFatigue, type WakeLog, type MockData } from "@/lib/mock/model";
 import { Card, Row, btnPrimary } from "@/components/ui/controls";
 import { labelCls, textBtn, CheckCircle, todaysTreat, TreatText } from "./parts";
 
@@ -60,7 +60,7 @@ export function isMorning(state: ReturnType<typeof useApp>["state"], day: DayPla
 }
 
 export default function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compact?: boolean }) {
-  const { state, patch } = useApp();
+  const { state, patch, update } = useApp();
   // 朝が終わったら1行にたたむ（押すと開く）
   const [open, setOpen] = useState(false);
   const today = dayStartOf(now);
@@ -70,14 +70,17 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
   const steps = state.routineSteps;
   const treat = todaysTreat(state, today, day);
 
-  const setLog = (fn: (l: WakeLog) => WakeLog) =>
-    patch((d) => {
+  const setLog = (fn: (l: WakeLog) => WakeLog, affectsWake = false) => {
+    const change = (d: MockData) => {
       const cur = d.wakeLogs.find((l) => l.date === key) ?? { date: key, doneStepIds: [] };
       const next = fn(cur);
       // 記録は1年ぶんだけ残す
       const rest = d.wakeLogs.filter((l) => l.date !== key);
       return { wakeLogs: [...rest, next].sort((a, b) => a.date.localeCompare(b.date)).slice(-400) };
-    });
+    };
+    if (affectsWake) update((d) => ({ ...d, ...change(d) }));
+    else patch(change);
+  };
 
   const toggleStep = (id: string) =>
     setLog((l) => {
@@ -89,7 +92,8 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
       return next;
     });
 
-  const lateBy = log.wokeAt !== undefined && day ? Math.round((log.wokeAt - day.wake) / MIN) : 0;
+  const plannedWake = log.plannedWake ?? day?.wake;
+  const lateBy = log.wokeAt !== undefined && plannedWake !== undefined ? Math.round((log.wokeAt - plannedWake) / MIN) : 0;
   const streakBadge = streak > 0 && <span className="shrink-0 text-[13px] font-semibold text-ok">連続 {streak}日</span>;
 
   if (compact && !open) {
@@ -122,7 +126,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
           <>
             <button
               type="button"
-              onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), plannedWake: day?.wake }))}
+              onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), plannedWake: day?.wake }), true)}
               className={`${btnPrimary} h-14 w-full rounded-2xl text-[18px] font-bold`}
             >
               起きた
@@ -149,7 +153,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
                     delete next.wokeAt;
                     delete next.plannedWake;
                     return next;
-                  })
+                  }, true)
                 }
               >
                 取り消す

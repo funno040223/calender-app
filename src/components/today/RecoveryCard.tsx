@@ -27,9 +27,9 @@ export default function RecoveryCard({ now }: { now: number }) {
     update((d) => resetRhythm(d, { ...draft, id: newId("reset") }, Date.now()));
     setMode(undefined); setMessage(draft.mode === "tired" ? "休む時間を確保しました。作業する余裕が出たら、下から選べます。" : "睡眠をカレンダーに反映し、起床から食事・習慣・タスクを組み直しました。");
   };
-  const active = (state.rhythmResets ?? []).filter((r) => r.end > now).at(-1);
+  const active = (state.result.rhythmResets ?? []).filter((r) => r.end > now).at(-1);
   const remainingConflicts = [
-    ...(state.rhythmResets ?? []).flatMap((r) => resetConflicts(state, r)),
+    ...(state.result.rhythmResets ?? []).flatMap((r) => resetConflicts(state, r)),
     ...state.result.dayPlans.flatMap((d) => d.firstEvent && (d.leave ?? d.firstEvent.start) < d.wake ? [d.firstEvent] : []),
   ].filter((c, i, all) => c.end > now && all.findIndex((x) => x.title === c.title && x.start === c.start) === i);
   return <Card title="今から立て直す">

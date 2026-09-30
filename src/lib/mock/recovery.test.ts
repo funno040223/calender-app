@@ -65,7 +65,7 @@ describe("生活リズムの立て直し", () => {
     const lunch = state.blocks.find((b) => b.refId === "lunch");
     expect(lunch).toBeDefined();
     expect(lunch!.start).toBeGreaterThanOrEqual(r.end);
-    expect(lunch!.start).toBeLessThan(jst(2026, 10, 2));
+    expect(lunch!.end).toBeLessThanOrEqual(jst(2026, 10, 1, 14, 30));
   });
   it("固定予定と固定枠は維持して衝突を報告する", () => {
     const event = { id: "meeting", title: "約束", start: now + MIN, end: now + 60 * MIN, atHome: true };

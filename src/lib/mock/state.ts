@@ -1,3 +1,4 @@
+import { bedtimeSleeps, reconcileBedtime } from "./bedtime";
 import { captureTaskBlocks, workedByTask } from "./progress";
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, resolveTravel, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
 import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
@@ -535,9 +536,11 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   data = captureTaskBlocks({ ...data, habitLastDone, habitDoneDays }, now);
   const planTags = planTagsOf(data);
   const events = planEvents(data, classEvents, googleEvents);
+  const sleeps = bedtimeSleeps(data, events, now);
+  data = reconcileBedtime(data, sleeps, now);
   const result = plan({
     now,
-    rhythmResets: data.rhythmResets,
+    rhythmResets: [...(data.rhythmResets ?? []), ...sleeps],
     keepFree: data.keepFree,
     settings: data.settings,
     events,

@@ -17,15 +17,16 @@ export function bedDayOf(result: PlanResult, now: number): { dayStart: number; b
 
 /** 寝る準備の時刻になったら「寝る」。予定どおりに寝られたかを残す（ご褒美になる） */
 export default function BedCard({ now }: { now: number }) {
-  const { state, patch } = useApp();
+  const { state, update } = useApp();
   const day = bedDayOf(state.result, now);
   const key = day ? dateKeyOf(day.dayStart) : "";
   const log = state.bedLogs[key];
   const record = () =>
     day &&
-    patch((d) => {
+    update((d) => {
       const at = Date.now();
       return {
+        ...d,
         bedLogs: {
           // 記録は1年ぶんだけ残す
           ...Object.fromEntries(Object.entries(d.bedLogs).sort(([a], [b]) => a.localeCompare(b)).slice(-399)),
@@ -37,10 +38,10 @@ export default function BedCard({ now }: { now: number }) {
   // 寝る前に、次の起床と最初の予定を見られるように（アラームを合わせる）
   const next = state.result.dayPlans.find((d) => d.dayStart === day.dayStart + DAY_MS);
   const undo = () =>
-    patch((d) => {
+    update((d) => {
       const bedLogs = { ...d.bedLogs };
       delete bedLogs[key];
-      return { bedLogs };
+      return { ...d, bedLogs };
     });
   return (
     <Card title="おやすみ">
@@ -68,6 +69,9 @@ export default function BedCard({ now }: { now: number }) {
           </>
         )}
       </div>
+      {log && next && next.wake - log.at < state.settings.sleepMinutes * MIN && (
+        <p role="status" className="px-4 pb-2 text-[13px] text-muted">予定に間に合うように起床を調整しました。睡眠は{formatMinutes(Math.max(0, Math.round((next.wake - log.at) / MIN)))}です。</p>
+      )}
       {next && (
         <div className="flex items-start gap-3 px-4 py-2.5">
           <div className="shrink-0">

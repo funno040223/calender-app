@@ -29,11 +29,20 @@ function rawWakeOf(dayStart: number, events: CalendarEvent[], places: Place[], s
   if (travel.atHome) {
     // オンラインで顔を出す予定は、外出と同じく身支度の時間を取る
     const prep = needsPrep(first, travel);
-    const lead = prep ? s.routineMinutes + s.prepMinutes : s.homeWakeLeadMinutes;
+    const lead = prep ? s.routineMinutes + s.prepMinutes : Math.max(s.homeWakeLeadMinutes, s.routineMinutes);
     return { kind: "home", required: first.start - lead * MIN, first, prep };
   }
   const leave = first.start - travel.minutes * MIN;
   return { kind: "away", required: leave - (s.routineMinutes + s.prepMinutes) * MIN, leave, first };
+}
+
+/** 食事などをずらさず、固定予定に間に合う最も遅い起床を求める。 */
+export function latestWakeOfDay(dayStart: number, events: CalendarEvent[], places: Place[], s: Settings): number {
+  const from = dayStart + DAY_BEGINS_AT_MINUTE * MIN;
+  return Math.min(Infinity, ...events.filter((e) => !e.allDay && e.start >= from && e.start < dayStart + DAY_MS).map((e) => {
+    const raw = rawWakeOf(dayStart, [e], places, s);
+    return raw.kind === "none" ? Infinity : raw.required;
+  }));
 }
 
 /**

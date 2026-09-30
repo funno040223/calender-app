@@ -18,7 +18,7 @@ import type {
 import { CUE_GAP_MINUTES, CUE_SLACK_MINUTES, MEAL_GAP_MINUTES, MEAL_LATE_MINUTES } from "./types";
 import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday } from "./time";
 import { intersect, lengthMinutes, merge, subtract } from "./intervals";
-import { DAY_BEGINS_AT_MINUTE, computeDayPlans } from "./rhythm";
+import { DAY_BEGINS_AT_MINUTE, computeDayPlans, latestWakeOfDay } from "./rhythm";
 import { resolveTravel } from "./travel";
 
 const FALLBACK_TASK_MINUTES = 60;
@@ -141,7 +141,7 @@ export function plan(input: PlanInput): PlanResult {
   const resets = input.rhythmResets ?? [];
   const lookBack = resets.length ? 2 : 0;
   const withHistory = computeDayPlans(firstDay - lookBack * DAY_MS, s.planningDays + 1 + lookBack, input.events, places, s);
-  const wakeShifts = applyRhythmResets(withHistory, resets, s);
+  applyRhythmResets(withHistory, resets, s, (day) => latestWakeOfDay(day, input.events, places, s));
   const allDays = withHistory.slice(lookBack);
   const sleep = resets.filter((r) => r.mode !== "tired");
   const pauses = resets.filter((r) => r.mode === "tired");
@@ -166,7 +166,7 @@ export function plan(input: PlanInput): PlanResult {
     if (!d.prep) return undefined;
     const goal = d.leave ?? d.firstEvent?.start;
     const routineEnd = d.wake + s.routineMinutes * MIN;
-    return goal === undefined || wakeShifts.has(d.dayStart) ? routineEnd : Math.max(routineEnd, goal - s.prepMinutes * MIN);
+    return goal === undefined ? routineEnd : Math.max(routineEnd, goal - s.prepMinutes * MIN);
   };
   /** 朝の準備が終わる時刻（身支度が朝ルーティンに続く日は身支度まで） */
   const morningEnd = (d: DayPlan) => {
@@ -261,7 +261,7 @@ export function plan(input: PlanInput): PlanResult {
   const movable = previous.filter((b) => !kept.includes(b));
   const routineBlocks: Block[] = sleep.filter((r) => r.end > firstDay && r.start < horizonEnd).map((r) => ({ kind: "routine", refId: "sleep:" + r.id, title: r.mode === "sleep" ? "睡眠（予定）" : "睡眠（記録）", start: r.start, end: r.end }));
   for (const d of days) {
-    const cap = wakeShifts.has(d.dayStart) ? Infinity : d.leave ?? d.firstEvent?.start ?? Infinity;
+    const cap = d.leave ?? d.firstEvent?.start ?? Infinity;
     // 身支度は、人に会う予定がある日だけ。出発が遅い日は、朝ルーティンとは分けて出発の直前に置く
     const prepStart = prepStartOf(d);
     const together = prepStart !== undefined && prepStart === d.wake + s.routineMinutes * MIN;
@@ -426,10 +426,6 @@ export function plan(input: PlanInput): PlanResult {
 
   /** 習慣の時間帯。起床・就寝からの分で決めるものもある（朝の散歩、就寝前の入浴） */
   const habitWindow = (habit: Habit, d: DayPlan): Interval => {
-    if (habit.meal && !habit.cue && !habit.anchor && wakeShifts.has(d.dayStart)) {
-      const shift = Math.max(0, wakeShifts.get(d.dayStart)!);
-      return { start: d.dayStart + habit.windowStart * MIN + shift, end: Math.min(d.bed, d.dayStart + habit.windowEnd * MIN + shift) };
-    }
     if (habit.cue) {
       const on = cueOn(habit.cue, d);
       if (!on) return { start: d.dayStart, end: d.dayStart };
@@ -495,6 +491,16 @@ export function plan(input: PlanInput): PlanResult {
         : [];
       const ok = (st: number) => {
         if (meals.some((b) => Math.abs(b.start - st) < MEAL_GAP_MINUTES * MIN)) return false;
+        // 任意の朝食で、時間帯のある必須の食事を押し出さない。
+        if (habit.meal && habit.skippable && input.habits.some((h) => {
+          if (!h.meal || h.skippable || h.cue || h.anchor || h.id === habit.id || skipped(h, d) || keptOn(h.id, d)) return false;
+          const window = habitWindow(h, d);
+          if (window.end <= st) return false;
+          const room = subtract(intersect(free, window), mergedAway);
+          const len = h.durationMinutes * MIN;
+          const possible = (t: number) => meals.every((b) => Math.abs(b.start - t) >= MEAL_GAP_MINUTES * MIN);
+          return findStart(room, len, possible) !== undefined && findStart(room, len, (t) => possible(t) && Math.abs(t - st) >= MEAL_GAP_MINUTES * MIN) === undefined;
+        })) return false;
         if (!finish) return true;
         const fStart = st + finish.afterStartMinutes * MIN;
         const fEnd = fStart + finish.durationMinutes * MIN;
