@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
 import { DEFAULT_REWARD_RATES } from "./model";
-import { dailyGrid, dailyReward, habitProgress, keepMarkValues, periodStats, rewardBalance, rewardEarned } from "./stats";
+import { DAY_MS } from "./jst";
+import { bedStats, habitProgress, habitWeeks, keepMarkValues, mondayOf, periodStats, rewardBalance, rewardBreakdown, rewardEarned, workMinutes } from "./stats";
 
 const ex = { id: "ex", name: "運動", durationMinutes: 5, windowStart: 0, windowEnd: 1440, frequency: { type: "weekly" as const, times: 3 }, skippable: true, track: true };
 const walk = { id: "walk", name: "散歩", durationMinutes: 20, windowStart: 0, windowEnd: 150, frequency: { type: "daily" as const }, skippable: true, track: true };
@@ -65,20 +66,43 @@ describe("ご褒美のお金", () => {
   });
 });
 
-describe("日ごとのマスと金額", () => {
-  it("できた・一部・できなかった・予定なしを分ける", () => {
-    const days = [jst(2026, 10, 1), jst(2026, 10, 2), jst(2026, 10, 3)];
-    const g = dailyGrid(data, days, now);
-    expect(g.wake.map((c) => c.state)).toEqual(["full", "miss", "none"]);
-    expect(g.routine.map((c) => c.state)).toEqual(["full", "miss", "none"]);
-    // 1日目は 運動（5分の習慣を5分）＋散歩5分 = 1.5、2日目は散歩 = 1
-    expect(g.habit.map((c) => c.state)).toEqual(["full", "full", "none"]);
-    expect(g.task.map((c) => c.state)).toEqual(["full", "miss", "none"]);
-    expect(dailyReward(data, days)).toEqual([
-      { day: days[0], earned: 205, spent: 0 },
-      { day: days[1], earned: 30, spent: 100 },
-      { day: days[2], earned: 0, spent: 0 },
-    ]);
+describe("週のまとめ", () => {
+  it("ご褒美は、もとごとに分けても合計は同じ", () => {
+    const day = jst(2026, 10, 1);
+    const parts = rewardBreakdown(data, day, day + DAY_MS);
+    expect(Math.round(Object.values(parts).reduce((a, b) => a + b, 0))).toBe(rewardEarned(data, day, day + DAY_MS));
+    expect(rewardEarned(data, day, day + DAY_MS)).toBe(205);
+    expect(parts.task).toBe(DEFAULT_REWARD_RATES.task);
+  });
+
+  it("作業した時間は、「できなかった」の枠を数えない", () => {
+    const log = {
+      "a:1": { title: "a", start: jst(2026, 10, 1, 10), end: jst(2026, 10, 1, 11), outcome: "planned" as const, workedMinutes: 60 },
+      "a:2": { title: "a", start: jst(2026, 10, 1, 13), end: jst(2026, 10, 1, 14, 30), outcome: "partial" as const },
+      "a:3": { title: "a", start: jst(2026, 10, 1, 16), end: jst(2026, 10, 1, 17), outcome: "none" as const },
+      "a:4": { title: "a", start: jst(2026, 10, 1, 19), end: jst(2026, 10, 1, 20) },
+    };
+    expect(workMinutes({ taskBlockLog: log }, jst(2026, 10, 1), jst(2026, 10, 2))).toEqual({ worked: 150, planned: 270 });
+  });
+
+  it("寝た夜は、記録を始めた日から数え、今夜はまだ数えない", () => {
+    const bedLogs = {
+      "2026-09-29": { at: jst(2026, 9, 30, 1), plannedBed: jst(2026, 9, 30, 1) },
+      "2026-09-30": { at: jst(2026, 10, 1, 3), plannedBed: jst(2026, 10, 1, 1) },
+    };
+    // 10/1 の夜は押していないので数え、10/2 の夜（今夜）はまだ数えない
+    expect(bedStats({ bedLogs }, jst(2026, 9, 28), jst(2026, 10, 5), now)).toEqual({ done: 1, total: 3 });
+  });
+
+  it("今週の習慣は、月〜日の記録と週の目安を出す", () => {
+    const monday = mondayOf(jst(2026, 10, 2));
+    expect(monday).toBe(jst(2026, 9, 28));
+    const [e, w] = habitWeeks(data, monday, now);
+    expect(e.marks.slice(3, 5)).toEqual(["five", undefined]);
+    expect(e.done).toBe(1);
+    expect(e.target).toBe(3);
+    expect(w.done).toBe(1.5);
+    expect(w.target).toBe(7);
   });
 });
 

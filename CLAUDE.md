@@ -47,7 +47,7 @@
 - `src/proxy.ts` ログインの確認と自動延長。未ログインはページ→/login、API→401
 - 作業の種類（`tags`、初期値は `SAMPLE_TAGS` に ID ごとに重ねる）とカレンダーの色（`calendarColors`、AppShell で `--cal-<id>` を上書き）は設定で変えられる
 - 見た目の決まり（2026-10-01、iPhone 基準で整えた）：ボタン・選んだ状態・文字のボタンは墨色 `--tint`／`--on-tint`（`bg-tint text-on-tint`。部品は controls の `btnPrimary`・`btnSecondary`・`pillCls`）。**赤 `--accent` は「いま」・今日・警告・エラー・削除・件数の印だけ**。今日・タスク・記録の画面は見出しを中に入れたカード（`Card`、角 16px、`card-shadow`）、設定は iOS の一覧（`Group`）。画面の見出しは小さく（22px）上に残す。今日の画面の見出しは日付。下の欄はタスク追加（記録・設定では出さない）とタブをひとまとまりに。シートは上につまみと「×」。iPhone の日付・時刻の欄は globals.css で幅を持たせない。確かめるのは iOS シミュレータ（Safari で localhost:3000。ログイン済み）
-- `src/app/(app)/` 画面：`/` 今日、`/calendar`、`/tasks`、`/stats`（記録：いちばん上に「気づき」、ご褒美のお金とその推移・直近14日の達成カレンダー・タバコの時間帯と日ごとの本数。計算は `src/lib/mock/stats.ts`）、`/settings/*`。`src/app/login/`、`src/app/api/ical/sync/`
+- `src/app/(app)/` 画面：`/` 今日、`/calendar`、`/tasks`、`/stats`（記録：上から 気づき・今週（予定どおり起きた／寝た日・習慣の回数・作業した時間を先週と並べる。増減の色はつけない）・ご褒美（残高と今週の内訳 `rewardBreakdown`）・習慣（今週の月〜日の点と週の目安 `habitWeeks`）・作業（6週の作業した時間と予定 `workMinutes`、終わったタスク）・朝の疲れ（14日の点）・タバコ（14日×24時間の点。1点＝1本）。計算は `src/lib/mock/stats.ts`）、`/settings/*`。`src/app/login/`、`src/app/api/ical/sync/`
 - `supabase/migrations/` SQL（`setup.sql` は 0001+0002 をまとめたもの。**ユーザーが実行済み**）
 
 ## データと安全

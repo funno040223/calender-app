@@ -4,8 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/components/app/StoreProvider";
 import { INSIGHT_DAYS, applyInsightAction, buildInsights } from "@/lib/mock/insights";
-import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatTime, newId } from "@/lib/mock/jst";
-import { dailyGrid, dailyReward, periodStats, rewardBalance, rewardEarned, type CellState, type GridRow, type PeriodStats } from "@/lib/mock/stats";
+import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatMinutes, newId } from "@/lib/mock/jst";
+import { dateKeyOf, type HabitMark } from "@/lib/mock/model";
+import {
+  REWARD_SOURCES,
+  bedStats,
+  habitWeeks,
+  mondayOf,
+  periodStats,
+  rewardBalance,
+  rewardBreakdown,
+  workMinutes,
+  type RewardSource,
+} from "@/lib/mock/stats";
 import { Card, Row, ScreenHeader, btnPrimary, btnSecondary, inputBase } from "@/components/ui/controls";
 
 const yen = (n: number) => `¥${Math.round(n).toLocaleString("ja-JP")}`;
@@ -47,7 +58,56 @@ function Insights() {
   );
 }
 
-/** ご褒美のお金：たまった分から、使った分を引いた残り。使ったら金額を記録する */
+/** 数を「3」「3.5」のように */
+const fmtN = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+const dayNum = (d: number) => String(new Date(d + TZ * MIN).getUTCDate());
+const label = "text-[12px] font-medium text-muted";
+const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
+
+/** 今週（月曜から）と先週の、予定どおり起きた・寝た日、習慣の回数、作業した時間 */
+function Summary() {
+  const { state } = useApp();
+  const now = state.plannedAt;
+  const monday = mondayOf(dayStartOf(now));
+  const week = (from: number) => {
+    const to = from + 7 * DAY_MS;
+    const p = periodStats(state, from, to, now);
+    return { wake: p.wake, bed: bedStats(state, from, to, now), habit: p.habit.done, work: workMinutes(state, from, Math.min(to, now)).worked };
+  };
+  const cur = week(monday);
+  const prev = week(monday - 7 * DAY_MS);
+  const ratio = (c: { done: number; total: number }) => (c.total ? `${c.done} / ${c.total}日` : "—");
+  const tiles = [
+    { label: "予定どおり起きた", value: ratio(cur.wake), prev: ratio(prev.wake) },
+    { label: "予定どおり寝た", value: ratio(cur.bed), prev: ratio(prev.bed) },
+    { label: "習慣", value: `${fmtN(cur.habit)}回`, prev: `${fmtN(prev.habit)}回` },
+    { label: "作業した時間", value: cur.work ? formatMinutes(cur.work) : "0分", prev: prev.work ? formatMinutes(prev.work) : "0分" },
+  ];
+  return (
+    <Card title="今週" right={<span className="shrink-0 text-[12px] tabular-nums text-muted">{formatDate(monday)}〜</span>}>
+      <div className="grid grid-cols-2 gap-2 px-4 pt-1 pb-4">
+        {tiles.map((t) => (
+          <div key={t.label} className="rounded-xl bg-surface2 px-3 py-2.5">
+            <p className={label}>{t.label}</p>
+            <p className="text-[20px] font-semibold leading-snug tabular-nums">{t.value}</p>
+            <p className="text-[12px] tabular-nums text-muted">先週 {t.prev}</p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+const SOURCE_COLOR: Record<RewardSource, string> = {
+  wake: "var(--cal-routine)",
+  routine: "var(--cal-own)",
+  bed: "var(--cal-google)",
+  habit: "var(--cal-habit)",
+  task: "var(--cal-task)",
+  log: "var(--cal-class)",
+};
+
+/** ご褒美のお金：残り、今週たまった分の内訳、使ったら金額を記録する */
 function Reward() {
   const { state, update } = useApp();
   const [amount, setAmount] = useState("");
@@ -55,8 +115,7 @@ function Reward() {
   // 使ったときだけ、金額の入力を開く
   const [spending, setSpending] = useState(false);
   // 「今」は組み直した時刻（描くたびに Date.now() を呼ばない）
-  const today = dayStartOf(state.plannedAt);
-  const monday = today - ((new Date(today + TZ * MIN).getUTCDay() + 6) % 7) * DAY_MS;
+  const monday = mondayOf(dayStartOf(state.plannedAt));
   const spend = () => {
     const n = Math.round(Number(amount));
     if (!Number.isFinite(n) || n <= 0) return;
@@ -65,36 +124,58 @@ function Reward() {
     setNote("");
     setSpending(false);
   };
+  const byWeek = rewardBreakdown(state, monday, monday + 7 * DAY_MS);
+  const parts = REWARD_SOURCES.map((s) => ({ ...s, yen: Math.round(byWeek[s.id]) })).filter((s) => s.yen > 0);
+  const weekTotal = parts.reduce((a, s) => a + s.yen, 0);
   const recent = [...state.rewardSpends].sort((a, b) => b.at - a.at).slice(0, 5);
   return (
     <Card title="ご褒美">
-      <div className="flex items-end gap-3 px-4 pt-1 pb-3.5">
-        <div className="min-w-0 flex-1">
-          <p className="text-[34px] font-bold leading-none tracking-tight tabular-nums">{yen(rewardBalance(state))}</p>
-          <p className="mt-1.5 text-[13px] tabular-nums text-muted">今週 +{yen(rewardEarned(state, monday, monday + 7 * DAY_MS))}</p>
+      <div className="flex flex-col gap-3 px-4 pt-1 pb-3.5">
+        <div className="flex items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[34px] font-bold leading-none tracking-tight tabular-nums">{yen(rewardBalance(state))}</p>
+            <p className="mt-1.5 text-[13px] tabular-nums text-muted">今週 +{yen(weekTotal)}</p>
+          </div>
+          {!spending && (
+            <button type="button" onClick={() => setSpending(true)} className={`${btnSecondary} shrink-0 py-2`}>
+              使った
+            </button>
+          )}
         </div>
-        {!spending && (
-          <button type="button" onClick={() => setSpending(true)} className={`${btnSecondary} shrink-0 py-2`}>
-            使った
-          </button>
+        {parts.length > 0 && (
+          <div>
+            <div className="flex h-2 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={`今週の内訳：${parts.map((p) => `${p.label} ${yen(p.yen)}`).join("、")}`}>
+              {parts.map((p) => (
+                <span key={p.id} style={{ flex: p.yen, background: SOURCE_COLOR[p.id] }} />
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              {parts.map((p) => (
+                <span key={p.id} className="flex items-center gap-1 text-[12px] tabular-nums text-muted">
+                  <span className="h-2 w-2 rounded-sm" style={{ background: SOURCE_COLOR[p.id] }} />
+                  {p.label} {yen(p.yen)}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </div>
       {spending && (
-      <div className="flex items-center gap-2 px-4 py-3">
-        <input
-          className={`${inputBase} w-24 text-right`}
-          type="number"
-          inputMode="numeric"
-          placeholder="円"
-          aria-label="使った金額"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        <input className={`${inputBase} flex-1`} placeholder="メモ" aria-label="メモ" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button type="button" onClick={spend} className={`${btnPrimary} shrink-0 py-2`}>
-          記録
-        </button>
-      </div>
+        <div className="flex items-center gap-2 px-4 py-3">
+          <input
+            className={`${inputBase} w-24 text-right`}
+            type="number"
+            inputMode="numeric"
+            placeholder="円"
+            aria-label="使った金額"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          <input className={`${inputBase} flex-1`} placeholder="メモ" aria-label="メモ" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button type="button" onClick={spend} className={`${btnPrimary} shrink-0 py-2`}>
+            記録
+          </button>
+        </div>
       )}
       {recent.map((s) => (
         <Row key={s.id} label={s.note ?? "ご褒美"} sub={formatDate(s.at)} detail={`−${yen(s.amount)}`}>
@@ -112,279 +193,208 @@ function Reward() {
   );
 }
 
-const CELL_CLS: Record<CellState, string> = {
-  full: "bg-ok",
-  part: "bg-ok/40",
-  miss: "bg-line",
-  none: "bg-transparent border border-dashed border-line",
-};
-const ROWS: { key: GridRow; label: string; get: (s: PeriodStats) => { done: number; total: number } }[] = [
-  { key: "wake", label: "起床", get: (s) => s.wake },
-  { key: "routine", label: "朝ルーティン", get: (s) => s.routine },
-  { key: "habit", label: "習慣", get: (s) => ({ done: s.habit.done, total: s.habit.expected }) },
-  { key: "task", label: "タスク", get: (s) => s.task },
-];
-const fmtN = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
-
-/** 直近14日の達成カレンダー（4行 × 14日）。右に2週間の数と、その前の2週間の数 */
-function Adherence() {
-  const { state } = useApp();
-  const [picked, setPicked] = useState<{ row: GridRow; i: number }>();
-  const now = state.plannedAt;
-  const end = dayStartOf(now) + DAY_MS;
-  const days = Array.from({ length: 14 }, (_, i) => end - (14 - i) * DAY_MS);
-  const grid = dailyGrid(state, days, now);
-  const cur = periodStats(state, end - 14 * DAY_MS, end, now);
-  const prev = periodStats(state, end - 28 * DAY_MS, end - 14 * DAY_MS, now);
-  const pickedRow = picked && ROWS.find((r) => r.key === picked.row);
+/** 習慣の1日ぶんの点：やった＝塗る、5分＝薄く、まだ＝枠、これからの日＝点線 */
+function HabitDot({ mark, future, today, name }: { mark?: HabitMark; future: boolean; today: boolean; name: string }) {
+  const cls = mark === "done" ? "bg-ok" : mark === "five" ? "bg-ok/40" : future ? "border border-dashed border-line" : today ? "border-[1.5px] border-muted/60" : "border border-line";
   return (
-    <Card title="直近2週間">
-      <div className="flex flex-col gap-2 px-4 py-3">
-        <div className="grid grid-cols-[5.25rem_1fr_3rem] items-end gap-x-2 text-[11px] tabular-nums text-muted">
-          <span />
-          <div className="grid grid-cols-14 gap-[2px]">
-            {days.map((d, i) => (
-              <span key={d} className="text-center">
-                {i % 2 === 1 || i === 13 ? new Date(d + TZ * MIN).getUTCDate() : ""}
-              </span>
-            ))}
-          </div>
-          <span />
-        </div>
-        {ROWS.map((r) => {
-          const c = r.get(cur);
-          const p = r.get(prev);
-          return (
-            <div key={r.key} className="grid grid-cols-[5.25rem_1fr_3rem] items-center gap-x-2">
-              <span className="whitespace-nowrap text-[13px]">{r.label}</span>
-              <div className="grid grid-cols-14 gap-[2px]">
-                {grid[r.key].map((cell, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    aria-label={`${formatDate(days[i])} ${r.label} ${cell.detail}`}
-                    onClick={() => setPicked(picked?.row === r.key && picked.i === i ? undefined : { row: r.key, i })}
-                    className={`aspect-square rounded-[4px] ${CELL_CLS[cell.state]} ${picked?.row === r.key && picked.i === i ? "ring-2 ring-fg" : ""}`}
-                  />
-                ))}
-              </div>
-              <span className="text-right text-[12px] tabular-nums">
-                <span className="font-semibold">
-                  {fmtN(c.done)}/{c.total}
-                </span>
-                {p.total > 0 && (
-                  <span className="block whitespace-nowrap text-[11px] text-muted">
-                    前 {fmtN(p.done)}/{p.total}
-                  </span>
-                )}
-              </span>
-            </div>
-          );
-        })}
-        <p className="min-h-5 text-[13px] tabular-nums">
-          {picked && pickedRow ? `${formatDate(days[picked.i])} ${pickedRow.label}：${grid[picked.row][picked.i].detail}` : ""}
-        </p>
-        <div className="flex flex-wrap gap-3 text-[12px] text-muted">
-          {(
-            [
-              ["full", "できた"],
-              ["part", "一部"],
-              ["miss", "まだ"],
-              ["none", "予定なし"],
-            ] as const
-          ).map(([k, l]) => (
-            <span key={k} className="flex items-center gap-1">
-              <span className={`inline-block h-3 w-3 rounded-[3px] ${CELL_CLS[k]}`} />
-              {l}
+    <span className="flex w-6 justify-center">
+      <span className={`h-3.5 w-3.5 rounded-full ${cls}`} aria-label={`${name}：${mark === "done" ? "やった" : mark === "five" ? "5分" : future ? "これから" : "記録なし"}`} role="img" />
+    </span>
+  );
+}
+
+/** 今週の習慣：月〜日の点、回数と週の目安、続き具合 */
+function Habits() {
+  const { state } = useApp();
+  const now = state.plannedAt;
+  const today = dayStartOf(now);
+  const monday = mondayOf(today);
+  const rows = habitWeeks(state, monday, now);
+  if (!rows.length) return null;
+  return (
+    <Card title="習慣" right={<span className="shrink-0 text-[12px] text-muted">今週</span>}>
+      <div className="px-4 pt-1 pb-3.5">
+        <div className="flex items-center text-[11px] text-muted">
+          <span className="min-w-0 flex-1" />
+          {WEEKDAYS.map((w) => (
+            <span key={w} className="w-6 text-center">
+              {w}
             </span>
           ))}
+          <span className="w-14 shrink-0" />
         </div>
+        <ul className="mt-1 flex flex-col gap-2.5">
+          {rows.map(({ habit, marks, done, target, progress }) => (
+            <li key={habit.id} className="flex items-center">
+              <div className="min-w-0 flex-1 pr-2">
+                <p className="truncate text-[14px]">{habit.name}</p>
+                {progress.streak > 1 && (
+                  <p className="text-[11px] font-medium text-ok">
+                    連続 {progress.streak}
+                    {progress.unit}
+                  </p>
+                )}
+              </div>
+              {marks.map((m, i) => {
+                const d = monday + i * DAY_MS;
+                return <HabitDot key={i} mark={m} future={d > today} today={d === today} name={`${habit.name} ${WEEKDAYS[i]}曜`} />;
+              })}
+              <span className="w-14 shrink-0 text-right text-[13px] tabular-nums">
+                {fmtN(done)}
+                {target !== undefined && <span className="text-muted"> / {target}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </Card>
   );
 }
 
-/** 日ごとの、たまった金額（上）と使った金額（下）。1本の軸（円） */
-function RewardChart() {
+/** 作業：週ごとの作業した時間と予定（6週）、最近終わったタスク */
+function Work() {
   const { state } = useApp();
-  const [picked, setPicked] = useState<number>();
+  const now = state.plannedAt;
+  const monday = mondayOf(dayStartOf(now));
+  const weeks = Array.from({ length: 6 }, (_, i) => monday - (5 - i) * 7 * DAY_MS).map((from) => ({
+    from,
+    ...workMinutes(state, from, Math.min(from + 7 * DAY_MS, now)),
+  }));
+  const max = Math.max(60, ...weeks.map((w) => Math.max(w.planned, w.worked)));
+  const hours = (m: number) => fmtN(Math.round(m / 6) / 10);
+  const done = [...state.doneTasks].filter((t) => t.doneAt >= now - 56 * DAY_MS).sort((a, b) => b.doneAt - a.doneAt).slice(0, 5);
+  if (!weeks.some((w) => w.planned) && !done.length) return null;
+  return (
+    <Card title="作業">
+      <div className="px-4 pt-1 pb-3.5">
+        <div className="flex h-28 items-end gap-2" role="img" aria-label={`週ごとの作業した時間：${weeks.map((w) => `${formatDate(w.from)}の週 ${hours(w.worked)}時間（予定 ${hours(w.planned)}時間）`).join("、")}`}>
+          {weeks.map((w, i) => (
+            <div key={w.from} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
+              <span className="text-[11px] tabular-nums text-muted">{w.worked ? hours(w.worked) : ""}</span>
+              <div className="relative w-full max-w-7 flex-1">
+                {w.planned > 0 && <div className="absolute inset-x-0 bottom-0 rounded-md border border-line" style={{ height: `${(w.planned / max) * 100}%` }} />}
+                {w.worked > 0 && <div className="absolute inset-x-1 bottom-0 rounded-[5px]" style={{ height: `${(w.worked / max) * 100}%`, background: "var(--cal-task)" }} />}
+                {/* 予定のない週は、目盛りの線だけ */}
+                {w.planned === 0 && <div className="absolute inset-x-1 bottom-0 h-px bg-line" />}
+              </div>
+              <span className={`text-[11px] tabular-nums ${i === 5 ? "font-semibold text-fg" : "text-muted"}`}>{i === 5 ? "今週" : dayNum(w.from)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 flex gap-3 text-[12px] text-muted">
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-sm" style={{ background: "var(--cal-task)" }} />
+            作業した（時間）
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-sm border border-line" />
+            予定
+          </span>
+        </div>
+      </div>
+      {done.length > 0 && (
+        <div className="px-4 py-3">
+          <p className={`mb-1.5 ${label}`}>終わったタスク</p>
+          <ul className="flex flex-col gap-1">
+            {done.map((t) => (
+              <li key={`${t.id}:${t.doneAt}`} className="flex items-baseline gap-3 text-[14px]">
+                <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                <span className="shrink-0 text-[12px] tabular-nums text-muted">{formatDate(t.doneAt)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+const FATIGUE_LABEL = ["", "元気", "少し", "ふつう", "かなり", "ぐったり"];
+
+/** 朝の疲れ：直近14日の点（濃いほど疲れている） */
+function Fatigue() {
+  const { state } = useApp();
   const end = dayStartOf(state.plannedAt) + DAY_MS;
   const days = Array.from({ length: 14 }, (_, i) => end - (14 - i) * DAY_MS);
-  const data = dailyReward(state, days);
-  const W = 336;
-  const H = 150;
-  const top = 14;
-  const bottomPad = 18;
-  const up = Math.max(10, ...data.map((d) => d.earned));
-  const down = Math.max(0, ...data.map((d) => d.spent));
-  // 使った日がなければ、下の余白は取らない
-  const plotH = H - top - bottomPad;
-  const zeroY = top + plotH * (down > 0 ? up / (up + down) : 1);
-  const scale = (zeroY - top) / up;
-  const slot = W / days.length;
-  const bw = Math.min(16, slot - 4);
-  const maxI = data.reduce((m, d, i) => (d.earned > data[m].earned ? i : m), 0);
-  const bar = (x: number, h: number, dir: 1 | -1, cls: string, key: string) => {
-    if (h <= 0) return null;
-    const r = Math.min(4, h);
-    // データの端だけ丸く、軸の側は四角
-    const y0 = zeroY;
-    const y1 = zeroY - dir * h;
-    const d =
-      dir === 1
-        ? `M${x},${y0} V${y1 + r} Q${x},${y1} ${x + r},${y1} H${x + bw - r} Q${x + bw},${y1} ${x + bw},${y1 + r} V${y0} Z`
-        : `M${x},${y0} V${y1 - r} Q${x},${y1} ${x + r},${y1} H${x + bw - r} Q${x + bw},${y1} ${x + bw},${y1 - r} V${y0} Z`;
-    return <path key={key} d={d} className={cls} />;
-  };
-  const p = picked !== undefined ? data[picked] : undefined;
+  const values = days.map((d) => state.wakeLogs.find((l) => l.date === dateKeyOf(d))?.fatigue);
+  if (!values.some((v) => v !== undefined)) return null;
+  const color = "var(--cal-google)";
   return (
-    <Card title="ご褒美の推移">
-      <div className="px-4 py-3">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="日ごとのたまった金額と使った金額">
-          <line x1={0} x2={W} y1={zeroY} y2={zeroY} className="stroke-line" strokeWidth={1} />
-          {data.map((d, i) => {
-            const x = i * slot + (slot - bw) / 2;
+    <Card title="朝の疲れ" right={<span className="shrink-0 text-[12px] text-muted">14日</span>}>
+      <div className="px-4 pt-1 pb-3.5">
+        <div className="flex justify-between">
+          {days.map((d, i) => {
+            const v = values[i];
             return (
-              <g key={d.day} onClick={() => setPicked(picked === i ? undefined : i)} className="cursor-pointer">
-                <rect x={i * slot} y={0} width={slot} height={H} fill="transparent" />
-                {picked === i && <rect x={i * slot + 1} y={top - 4} width={slot - 2} height={plotH + 8} rx={4} className="fill-surface2" />}
-                {bar(x, d.earned * scale, 1, "fill-ok", "e")}
-                {bar(x, d.spent * scale, -1, "fill-muted", "s")}
-                {(i % 2 === 1 || i === days.length - 1) && (
-                  <text x={i * slot + slot / 2} y={H - 4} textAnchor="middle" className="fill-muted text-[10px] tabular-nums">
-                    {new Date(d.day + TZ * MIN).getUTCDate()}
-                  </text>
-                )}
-              </g>
+              <div key={d} className="flex w-5 flex-col items-center gap-1">
+                <span
+                  role="img"
+                  aria-label={`${formatDate(d)} ${v ? FATIGUE_LABEL[v] : "記録なし"}`}
+                  className={`h-4 w-4 rounded-full ${v ? "" : "border border-line"}`}
+                  style={v ? { background: color, opacity: 0.18 + 0.2 * (v - 1) } : undefined}
+                />
+                <span className="text-[10px] tabular-nums text-muted">{i % 2 === 1 ? dayNum(d) : ""}</span>
+              </div>
             );
           })}
-          {data[maxI].earned > 0 && (
-            <text x={maxI * slot + slot / 2} y={zeroY - data[maxI].earned * scale - 4} textAnchor="middle" className="fill-fg text-[10px] font-semibold tabular-nums">
-              {yen(data[maxI].earned)}
-            </text>
-          )}
-        </svg>
-        <p className="min-h-5 pt-1 text-[13px] tabular-nums">
-          {p ? `${formatDate(p.day)}　+${yen(p.earned)}${p.spent ? `　−${yen(p.spent)}` : ""}` : ""}
-        </p>
-        <div className="flex gap-3 text-[12px] text-muted">
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-3 w-3 rounded-[3px] bg-ok" />
-            たまった
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-3 w-3 rounded-[3px] bg-muted" />
-            使った
-          </span>
+        </div>
+        <div className="mt-1.5 flex items-center justify-end gap-1.5 text-[11px] text-muted">
+          元気
+          {[1, 2, 3, 4, 5].map((v) => (
+            <span key={v} className="h-2.5 w-2.5 rounded-full" style={{ background: color, opacity: 0.18 + 0.2 * (v - 1) }} />
+          ))}
+          ぐったり
         </div>
       </div>
     </Card>
   );
 }
 
-/** 棒グラフ（1本の軸）。いちばん高い棒にだけ値を書き、押すと下に詳しく出す */
-function Columns({
-  values,
-  labels,
-  details,
-  label,
-  format = String,
-}: {
-  values: number[];
-  /** 軸の下の文字（空文字は書かない） */
-  labels: string[];
-  details: string[];
-  label: string;
-  /** いちばん高い棒に書く値の形 */
-  format?: (v: number) => string;
-}) {
-  const [picked, setPicked] = useState<number>();
-  const W = 336;
-  const H = 120;
-  const top = 14;
-  const base = H - 18;
-  const max = Math.max(1, ...values);
-  const slot = W / values.length;
-  const bw = Math.min(16, slot - 2);
-  const maxI = values.indexOf(Math.max(...values));
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={label}>
-        <line x1={0} x2={W} y1={base} y2={base} className="stroke-line" strokeWidth={1} />
-        {values.map((v, i) => {
-          const h = (v / max) * (base - top);
-          const x = i * slot + (slot - bw) / 2;
-          const r = Math.min(4, h);
-          return (
-            <g key={i} onClick={() => setPicked(picked === i ? undefined : i)} className="cursor-pointer">
-              <rect x={i * slot} y={0} width={slot} height={H} fill="transparent" />
-              {picked === i && <rect x={i * slot + 0.5} y={top - 4} width={slot - 1} height={base - top + 8} rx={3} className="fill-surface2" />}
-              {h > 0 && (
-                <path
-                  d={`M${x},${base} V${base - h + r} Q${x},${base - h} ${x + r},${base - h} H${x + bw - r} Q${x + bw},${base - h} ${x + bw},${base - h + r} V${base} Z`}
-                  className="fill-ok"
-                />
-              )}
-              {labels[i] && (
-                <text x={i * slot + slot / 2} y={H - 4} textAnchor="middle" className="fill-muted text-[10px] tabular-nums">
-                  {labels[i]}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        {values[maxI] > 0 && (
-          <text x={maxI * slot + slot / 2} y={base - (values[maxI] / max) * (base - top) - 4} textAnchor="middle" className="fill-fg text-[10px] font-semibold tabular-nums">
-            {format(values[maxI])}
-          </text>
-        )}
-      </svg>
-      <p className="min-h-5 pt-1 text-[13px] tabular-nums">{picked !== undefined ? details[picked] : ""}</p>
-    </div>
-  );
-}
-
-/** タバコ：直近14日の、時間帯ごとの本数と、日ごとの本数 */
+/** タバコ：直近14日の吸った時刻（1つの点が1本）。多い少ないは評価しない */
 function Smoking() {
   const { state } = useApp();
   const end = dayStartOf(state.plannedAt) + DAY_MS;
   const from = end - 14 * DAY_MS;
   const logs = state.smokeLogs.filter((t) => t >= from && t < end);
   const prev = state.smokeLogs.filter((t) => t >= from - 14 * DAY_MS && t < from).length;
-  const hourOf = (t: number) => new Date(t + TZ * MIN).getUTCHours();
-  const byHour = Array.from({ length: 24 }, (_, h) => logs.filter((t) => hourOf(t) === h).length);
-  const days = Array.from({ length: 14 }, (_, i) => from + i * DAY_MS);
-  const byDay = days.map((d) => logs.filter((t) => t >= d && t < d + DAY_MS).length);
   const avg = (n: number) => (Math.round((n / 14) * 10) / 10).toFixed(1);
+  const days = Array.from({ length: 14 }, (_, i) => from + i * DAY_MS);
+  const L = 30;
+  const W = 290;
+  const rowH = 11;
+  const x = (t: number) => L + ((t - dayStartOf(t)) / DAY_MS) * W;
   return (
-    <Card title="タバコ（直近2週間）">
-      <div className="flex flex-col gap-3 px-4 py-3">
-        <p className="flex items-baseline gap-3 tabular-nums">
-          <span className="text-[22px] font-semibold">{logs.length}本</span>
+    <Card title="タバコ" right={<span className="shrink-0 text-[12px] text-muted">14日</span>}>
+      <div className="flex flex-col gap-2 px-4 pt-1 pb-3.5">
+        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 tabular-nums">
+          <span className="text-[20px] font-semibold">{logs.length}本</span>
           <span className="text-[13px] text-muted">1日 {avg(logs.length)}本</span>
-          {prev > 0 && <span className="ml-auto text-[12px] text-muted">前の2週間 1日 {avg(prev)}本</span>}
+          {prev > 0 && <span className="text-[12px] text-muted">前の2週間 1日 {avg(prev)}本</span>}
         </p>
-        <div>
-          <p className="text-[12px] text-muted">時間帯</p>
-          <Columns
-            label="時間帯ごとの本数"
-            values={byHour}
-            labels={byHour.map((_, h) => (h % 3 === 0 ? String(h) : ""))}
-            details={byHour.map((n, h) => `${h}時台 ${n}本`)}
-          />
-        </div>
-        <div>
-          <p className="text-[12px] text-muted">日ごと</p>
-          <Columns
-            label="日ごとの本数"
-            values={byDay}
-            labels={days.map((d, i) => (i % 2 === 1 || i === 13 ? String(new Date(d + TZ * MIN).getUTCDate()) : ""))}
-            details={days.map((d, i) => {
-              const times = logs.filter((t) => t >= d && t < d + DAY_MS).map(formatTime);
-              return `${formatDate(d)} ${byDay[i]}本${times.length ? `（${times.join(" ")}）` : ""}`;
-            })}
-          />
-        </div>
+        <svg viewBox={`0 0 ${L + W + 4} ${days.length * rowH + 16}`} className="w-full" role="img" aria-label="14日の吸った時刻">
+          {[0, 6, 12, 18, 24].map((h) => (
+            <g key={h}>
+              <line x1={L + (h / 24) * W} x2={L + (h / 24) * W} y1={0} y2={days.length * rowH} style={{ stroke: "var(--line)" }} strokeWidth={0.6} />
+              <text x={L + (h / 24) * W} y={days.length * rowH + 12} textAnchor={h === 24 ? "end" : "middle"} fontSize={10} style={{ fill: "var(--muted)" }}>
+                {h}
+              </text>
+            </g>
+          ))}
+          {days.map((d, i) => (
+            <g key={d}>
+              {i % 2 === 1 && (
+                <text x={0} y={i * rowH + 8.5} fontSize={10} style={{ fill: "var(--muted)" }}>
+                  {formatDate(d).replace(/\(.\)$/, "")}
+                </text>
+              )}
+              {logs
+                .filter((t) => t >= d && t < d + DAY_MS)
+                .map((t) => (
+                  <circle key={t} cx={x(t)} cy={i * rowH + 5.5} r={3} style={{ fill: "var(--fg)", opacity: 0.55 }} />
+                ))}
+            </g>
+          ))}
+        </svg>
       </div>
     </Card>
   );
@@ -397,11 +407,13 @@ export default function StatsScreen() {
       <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">
           <Insights />
+          <Summary />
           <Reward />
-          <RewardChart />
+          <Habits />
         </div>
         <div className="flex flex-col gap-4">
-          <Adherence />
+          <Work />
+          <Fatigue />
           <Smoking />
         </div>
       </div>

@@ -1,5 +1,5 @@
 import type { Habit } from "@/lib/scheduler";
-import { DAY_MS, MIN } from "./jst";
+import { DAY_MS, MIN, TZ } from "./jst";
 import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData } from "./model";
 
 /** 予定の起床から、この分数までに「起きた」を押せたら予定どおり */
@@ -78,20 +78,31 @@ export function periodStats(data: Data, from: number, to: number, now: number): 
   };
 }
 
-/** ご褒美のお金の、たまった合計（円）。[from, to) を渡せばその間だけ */
-export function rewardEarned(data: Data, from = -Infinity, to = Infinity): number {
+/** ご褒美がたまったもと */
+export type RewardSource = "wake" | "routine" | "bed" | "habit" | "task" | "log";
+export const REWARD_SOURCES: { id: RewardSource; label: string }[] = [
+  { id: "wake", label: "起床" },
+  { id: "routine", label: "朝ルーティン" },
+  { id: "bed", label: "就寝" },
+  { id: "habit", label: "習慣" },
+  { id: "task", label: "タスク" },
+  { id: "log", label: "記録" },
+];
+
+/** ご褒美のお金の、もとごとのたまった額（円）。[from, to) を渡せばその間だけ */
+export function rewardBreakdown(data: Data, from = -Infinity, to = Infinity): Record<RewardSource, number> {
   const r = data.rewardRates;
   const inRange = (t: number | undefined) => t !== undefined && t >= from && t < to;
-  let yen = 0;
+  const yen: Record<RewardSource, number> = { wake: 0, routine: 0, bed: 0, habit: 0, task: 0, log: 0 };
   for (const l of data.wakeLogs) {
-    if (wakeOk(l) && inRange(l.wokeAt)) yen += r.wake;
-    if (inRange(l.routineDoneAt)) yen += r.routine;
+    if (wakeOk(l) && inRange(l.wokeAt)) yen.wake += r.wake;
+    if (inRange(l.routineDoneAt)) yen.routine += r.routine;
     // 記録をつけた（朝の疲れ・睡眠時間）。その日の分として数える
     const day = dayStartOfKey(l.date);
-    if (inRange(day)) yen += ((l.fatigue !== undefined ? 1 : 0) + (l.sleepMinutes !== undefined ? 1 : 0)) * (r.log ?? 0);
+    if (inRange(day)) yen.log += ((l.fatigue !== undefined ? 1 : 0) + (l.sleepMinutes !== undefined ? 1 : 0)) * (r.log ?? 0);
   }
-  for (const key of Object.keys(data.eveningEnergy ?? {})) if (inRange(dayStartOfKey(key))) yen += r.log ?? 0;
-  for (const l of Object.values(data.bedLogs ?? {})) if (inRange(l.at) && bedOnTime(l)) yen += r.bed ?? 0;
+  for (const key of Object.keys(data.eveningEnergy ?? {})) if (inRange(dayStartOfKey(key))) yen.log += r.log ?? 0;
+  for (const l of Object.values(data.bedLogs ?? {})) if (inRange(l.at) && bedOnTime(l)) yen.bed += r.bed ?? 0;
   for (const [key, marks] of Object.entries(data.habitLogs)) {
     const day = dayStartOfKey(key);
     if (day === undefined || !inRange(day)) continue;
@@ -99,78 +110,66 @@ export function rewardEarned(data: Data, from = -Infinity, to = Infinity): numbe
     for (const [id, m] of Object.entries(marks)) {
       const h = data.habits.find((x) => x.id === id);
       if (h && !h.track) continue;
-      yen += markValue(m, h ?? { durationMinutes: Infinity }) * r.habit;
+      yen.habit += markValue(m, h ?? { durationMinutes: Infinity }) * r.habit;
     }
   }
-  for (const b of Object.values(data.taskBlockLog)) if (inRange(b.doneAt)) yen += r.task;
-  return Math.round(yen);
+  for (const b of Object.values(data.taskBlockLog)) if (inRange(b.doneAt)) yen.task += r.task;
+  return yen;
+}
+
+/** ご褒美のお金の、たまった合計（円）。[from, to) を渡せばその間だけ */
+export function rewardEarned(data: Data, from = -Infinity, to = Infinity): number {
+  return Math.round(Object.values(rewardBreakdown(data, from, to)).reduce((a, b) => a + b, 0));
+}
+
+/** その日（0:00）を含む週の月曜 0:00 */
+export const mondayOf = (day: number) => day - ((new Date(day + TZ * MIN).getUTCDay() + 6) % 7) * DAY_MS;
+
+/**
+ * [from, to) に始まった作業の枠の、予定の時間と作業した時間（分）。
+ * 作業した時間は、進み具合で「予定どおり」「完了」「残り時間を直した」と答えた枠の時間（「できなかった」は数えない）
+ */
+export function workMinutes(data: Pick<MockData, "taskBlockLog">, from: number, to: number): { worked: number; planned: number } {
+  let worked = 0;
+  let planned = 0;
+  for (const b of Object.values(data.taskBlockLog)) {
+    if (b.start < from || b.start >= to) continue;
+    const len = (b.end - b.start) / MIN;
+    planned += len;
+    worked += b.workedMinutes ?? (b.outcome && b.outcome !== "none" ? len : b.counted ? len : 0);
+  }
+  return { worked: Math.round(worked), planned: Math.round(planned) };
+}
+
+/** 予定どおりに寝た夜の数。数えるのは記録を始めた日から、終わった夜（今夜は「寝る」を押したときだけ） */
+export function bedStats(data: Pick<MockData, "bedLogs">, from: number, to: number, now: number): { done: number; total: number } {
+  const start = Math.min(Infinity, ...Object.keys(data.bedLogs).map((k) => dayStartOfKey(k) ?? Infinity));
+  let done = 0;
+  let total = 0;
+  for (let d = Math.max(from, start); d < to && d <= now; d += DAY_MS) {
+    const log = data.bedLogs[dateKeyOf(d)];
+    // その日の夜は、翌朝4時までは寝ていないかもしれない
+    if (!log && now < d + DAY_MS + 4 * 60 * MIN) continue;
+    total++;
+    if (log && bedOnTime(log)) done++;
+  }
+  return { done, total };
+}
+
+/** 今週の習慣：月〜日の記録、回数、週の目安（毎日なら7、週○回ならその回数。間隔の習慣は目安なし）、続き具合 */
+export function habitWeeks(data: Pick<MockData, "habitLogs" | "habits">, monday: number, now: number) {
+  return data.habits
+    .filter((h) => h.track)
+    .map((habit) => {
+      const marks = Array.from({ length: 7 }, (_, i) => data.habitLogs[dateKeyOf(monday + i * DAY_MS)]?.[habit.id]);
+      const done = marks.reduce((s, m) => s + markValue(m, habit), 0);
+      const target = habit.frequency.type === "daily" ? 7 : habit.frequency.type === "weekly" ? habit.frequency.times : undefined;
+      return { habit, marks, done, target, progress: habitProgress(data, habit, now) };
+    });
 }
 
 /** 使える残り（円）。減らすのは、使った記録だけ */
 export const rewardBalance = (data: Data) => rewardEarned(data) - data.rewardSpends.reduce((s, x) => s + x.amount, 0);
-
-/** 1日のマスの状態。full＝できた、part＝一部（5分だけ・枠の一部）、miss＝できなかった、none＝予定がない・記録を始める前 */
-export type CellState = "full" | "part" | "miss" | "none";
-export interface DayCell {
-  state: CellState;
-  /** 押したときに出す説明 */
-  detail: string;
-}
-export type GridRow = "wake" | "routine" | "habit" | "task";
-
-/** 日ごと（days は各日の 0:00）の、起床・朝ルーティン・習慣・タスクの枠のマス */
-export function dailyGrid(data: Data, days: number[], now: number): Record<GridRow, DayCell[]> {
-  const out: Record<GridRow, DayCell[]> = { wake: [], routine: [], habit: [], task: [] };
-  const tracked = data.habits.filter((h) => h.track);
-  const st = startsOf(data);
-  for (const d of days) {
-    const key = dateKeyOf(d);
-    const future = d > now;
-    const log = data.wakeLogs.find((l) => l.date === key);
-    out.wake.push(
-      future || d < st.wake || log?.plannedWake === undefined
-        ? { state: "none", detail: "記録なし" }
-        : wakeOk(log)
-          ? { state: "full", detail: "予定どおり" }
-          : { state: "miss", detail: log.wokeAt === undefined ? "押していない" : "30分より遅い" },
-    );
-    out.routine.push(
-      future || d < st.routine || !log
-        ? { state: "none", detail: "記録なし" }
-        : log.routineDoneAt !== undefined
-          ? { state: "full", detail: "終えた" }
-          : { state: "miss", detail: "終えていない" },
-    );
-    const marks = data.habitLogs[key] ?? {};
-    const done = tracked.filter((h) => marks[h.id]);
-    const v = tracked.reduce((s, h) => s + markValue(marks[h.id], h), 0);
-    out.habit.push(
-      future || d < st.habit || tracked.length === 0
-        ? { state: "none", detail: "記録なし" }
-        : {
-            state: v >= 1 ? "full" : v > 0 ? "part" : "miss",
-            detail: done.length ? done.map((h) => `${h.name} ${marks[h.id] === "five" ? "5分" : "やった"}`).join("・") : "なし",
-          },
-    );
-    const blocks = Object.values(data.taskBlockLog).filter((b) => b.start >= d && b.start < d + DAY_MS && b.start <= now);
-    const n = blocks.filter((b) => b.doneAt !== undefined).length;
-    out.task.push(
-      blocks.length === 0
-        ? { state: "none", detail: "枠なし" }
-        : { state: n === blocks.length ? "full" : n > 0 ? "part" : "miss", detail: `${n} / ${blocks.length}` },
-    );
-  }
-  return out;
-}
-
-/** 日ごとの、たまった金額と使った金額（円） */
-export function dailyReward(data: Data, days: number[]): { day: number; earned: number; spent: number }[] {
-  return days.map((d) => ({
-    day: d,
-    earned: rewardEarned(data, d, d + DAY_MS),
-    spent: data.rewardSpends.filter((s) => s.at >= d && s.at < d + DAY_MS).reduce((a, s) => a + s.amount, 0),
-  }));
-}
 
 /**
  * 習慣の続き具合：連続した日数（毎日の習慣は今日か昨日まで続いている日数、週○回の習慣は続いている週の数）と、
