@@ -783,20 +783,9 @@ export default function TodayScreen() {
       {!!state.result.movedBlocks?.length && <div role="status" className="mx-auto max-w-5xl px-4 pb-3 text-[13px] text-muted">予定に合わせて今日の自動枠を{state.result.movedBlocks.length}件変更しました。{state.result.movedBlocks.slice(0, 3).map((b) => `${formatTime(b.start)} ${b.title}`).join("、")}</div>}
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
-          {day && <EveningCard day={day} now={now} />}
-          {day && <SleepCard day={day} today={today} now={now} />}
-          <EnergyCard today={today} />
-          <MealCard today={today} now={now} />
-          <MorningCard day={day} now={now} />
-          <TreatCard today={today} />
-          <ContactCard today={today} now={now} />
-          <SmokeCard today={today} />
-        </div>
-        <div className="flex flex-col gap-6">
+          {/* 答えや設定が要るもの（作業の進み具合・移動時間・締切に足りないなど）は、いちばん上に */}
           <ProgressCard now={now} />
           <ReviewCard today={today} />
-          <HabitLogCard today={today} />
-          <Timeline now={now} dayEnd={dayEnd} />
           {hasNotices(state) && (
             <Group title="お知らせ">
               <Notices
@@ -823,6 +812,18 @@ export default function TodayScreen() {
               />
             </Group>
           )}
+          {day && <EveningCard day={day} now={now} />}
+          {day && <SleepCard day={day} today={today} now={now} />}
+          <EnergyCard today={today} />
+          <MealCard today={today} now={now} />
+          <MorningCard day={day} now={now} />
+          <TreatCard today={today} />
+          <ContactCard today={today} now={now} />
+          <SmokeCard today={today} />
+        </div>
+        <div className="flex flex-col gap-6">
+          <HabitLogCard today={today} />
+          <Timeline now={now} dayEnd={dayEnd} />
           {day && <Gaps now={now} day={day} />}
           {/* 崩れた日の立て直しと「今から何分できる？」は、ときどき使うものなので下に */}
           <RecoveryCard now={now} />
