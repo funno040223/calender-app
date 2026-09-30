@@ -14,6 +14,7 @@ import {
   periodStats,
   rewardBalance,
   rewardBreakdown,
+  rewardEarned,
   workMinutes,
   type RewardSource,
 } from "@/lib/mock/stats";
@@ -126,7 +127,8 @@ function Reward() {
   };
   const byWeek = rewardBreakdown(state, monday, monday + 7 * DAY_MS);
   const parts = REWARD_SOURCES.map((s) => ({ ...s, yen: Math.round(byWeek[s.id]) })).filter((s) => s.yen > 0);
-  const weekTotal = parts.reduce((a, s) => a + s.yen, 0);
+  // 合計は1回だけ丸める（残高と同じ数え方）
+  const weekTotal = rewardEarned(state, monday, monday + 7 * DAY_MS);
   const recent = [...state.rewardSpends].sort((a, b) => b.at - a.at).slice(0, 5);
   return (
     <Card title="ご褒美">

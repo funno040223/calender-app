@@ -1,3 +1,7 @@
+import { MIN, TZ } from "@/lib/mock/jst";
+import { dateKeyOf } from "@/lib/mock/model";
+import { merge } from "@/lib/scheduler/intervals";
+
 /**
  * iPhone のショートカットが送るヘルスケアの睡眠の記録を読み、夜ごとにまとめる（画面にもサーバーにも依存しない）。
  * 送り方はショートカットで作りやすい「開始|終了|値」の行（JSON の lines か、そのままの文字）。{start, end, value} の並びも読む
@@ -27,12 +31,14 @@ export const HEALTH_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const MAX_SAMPLES = 5000;
 /** これより短い眠り（昼寝など）は夜にしない */
 const MIN_NIGHT_MINUTES = 120;
-/** 眠りのあいだに、これより長く起きていたら別の眠りにする */
-const SESSION_GAP_MINUTES = 60;
+/**
+ * 眠りのあいだに、これより長く起きていたら別の眠りにする。夜中に1〜2時間目が覚めても同じ夜のまま
+ * （寝ついた時刻が後ろにずれないように）。宵の仮眠と夜の眠りは、たいていこれより離れている
+ */
+const SESSION_GAP_MINUTES = 150;
 
-const JST = 9 * 60 * 60 * 1000;
-const MIN = 60 * 1000;
-const keyOf = (t: number) => new Date(t + JST).toISOString().slice(0, 10);
+/** タイムゾーンのない時刻は日本時間として読む */
+const JST = TZ * MIN;
 const NEWLINE = /\r?\n|\r|\u2028/;
 
 /** 時刻の文字。ISO 8601（タイムゾーンつき）はそのまま、つかない「2026/10/01 2:13」などは日本時間として読む */
@@ -79,15 +85,17 @@ export function parseSleepBody(body: string): SleepSample[] {
 }
 
 /** 本文を読み、何行届いて何件読めたか・読めなかった最初の行も返す（ショートカットの作りを直すときの手がかり） */
-export function inspectSleepBody(body: string): { lines: number; samples: SleepSample[]; unread?: string } {
+export function inspectSleepBody(body: string): { lines: number; samples: SleepSample[]; unread?: string; keys: string[] } {
   let lines: string[] | undefined;
   let rows: unknown[] | undefined;
+  let keys: string[] = [];
   try {
     const j: unknown = JSON.parse(body);
     if (typeof j === "string") lines = j.split(NEWLINE);
     else if (Array.isArray(j)) rows = j;
     else if (j && typeof j === "object") {
       const o = j as Record<string, unknown>;
+      keys = Object.keys(o).slice(0, 10);
       if (typeof o.lines === "string") lines = o.lines.split(NEWLINE);
       else if (Array.isArray(o.lines)) lines = o.lines.filter((x): x is string => typeof x === "string");
       else if (Array.isArray(o.samples)) rows = o.samples;
@@ -114,19 +122,13 @@ export function inspectSleepBody(body: string): { lines: number; samples: SleepS
     if (x) out.push(x);
     else unread ??= line.slice(0, 120);
   }
-  return { lines: count, samples: out.slice(0, MAX_SAMPLES), ...(unread !== undefined ? { unread } : {}) };
+  return { lines: count, samples: out.slice(0, MAX_SAMPLES), keys, ...(unread !== undefined ? { unread } : {}) };
 }
 
 /** 眠っていた記録を夜ごとにまとめる。起きた日ごとに、いちばん長く眠った1回を残す */
 export function summarizeSleep(samples: SleepSample[]): SleepNight[] {
-  const asleep = samples.filter((s) => s.kind === "asleep").sort((a, b) => a.start - b.start);
-  // 重なりをまとめる
-  const spans: { start: number; end: number }[] = [];
-  for (const s of asleep) {
-    const last = spans.at(-1);
-    if (last && s.start <= last.end) last.end = Math.max(last.end, s.end);
-    else spans.push({ start: s.start, end: s.end });
-  }
+  // 重なり（iPhone と Apple Watch など）をまとめる
+  const spans = merge(samples.filter((s) => s.kind === "asleep").map(({ start, end }) => ({ start, end })));
   // 起きていた時間が短ければ、同じ眠りの続き
   const sessions: { start: number; end: number; minutes: number }[] = [];
   for (const x of spans) {
@@ -140,7 +142,7 @@ export function summarizeSleep(samples: SleepSample[]): SleepNight[] {
   const nights = new Map<string, SleepNight>();
   for (const s of sessions) {
     if (s.minutes < MIN_NIGHT_MINUTES) continue;
-    const night = keyOf(s.end);
+    const night = dateKeyOf(s.end);
     const prev = nights.get(night);
     if (!prev || s.minutes > prev.minutes) nights.set(night, { night, start: s.start, end: s.end, minutes: Math.round(s.minutes) });
   }

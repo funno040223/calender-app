@@ -1,4 +1,4 @@
-import type { AvoidWindow, RecoveryOption, CalendarEvent, Habit, Place, Tag, Task } from "@/lib/scheduler";
+import type { AvoidWindow, RecoveryOption, Habit, Place, Tag, Task } from "@/lib/scheduler";
 import { dateKeyOf, type Course, type OwnEvent, type Period, type RoutineStep, type Treat } from "./model";
 import { DAY_MS, MIN, dayStartOf, weekdayOf } from "./jst";
 import { UTOKYO_PERIODS } from "./utokyo";
@@ -199,7 +199,7 @@ export const SAMPLE_AVOID_WINDOWS: AvoidWindow[] = [
 const at = (day: number, h: number, mi = 0) => day + (h * 60 + mi) * MIN;
 
 /** 時限は東大の標準（1コマ105分） */
-export const SAMPLE_PERIODS: Period[] = UTOKYO_PERIODS;
+export const SAMPLE_PERIODS: Period[] = UTOKYO_PERIODS.map((p) => ({ ...p }));
 
 /** 時間割（本人のゼミ）。学期は今週の月曜から15週間 */
 export function buildSampleCourses(now: number): Course[] {
@@ -279,17 +279,6 @@ export const MONDAY_CLASS: Omit<Course, "termStart" | "termEnd"> = {
   cancelledDates: [],
   attendedDates: [],
 };
-
-/** Google から取り込んだ予定（読み取り専用） */
-export function buildGoogleEvents(now: number): CalendarEvent[] {
-  const today = dayStartOf(now);
-  const d = (n: number) => today + n * DAY_MS;
-  return [
-    { id: "google-dentist", title: "歯医者", start: at(d(2), 15), end: at(d(2), 16), location: "駅前デンタルクリニック" },
-    { id: "google-circle", title: "サークル ミーティング", start: at(d(4), 19), end: at(d(4), 20), location: "Zoom" },
-    { id: "google-birthday", title: "友だちの誕生日", start: d(5), end: d(6), allDay: true },
-  ];
-}
 
 export function buildSampleOwnEvents(now: number): OwnEvent[] {
   const today = dayStartOf(now);

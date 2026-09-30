@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
-import { DEFAULT_REWARD_RATES } from "./model";
+import { DEFAULT_REWARD_RATES, type MockData } from "./model";
 import { DAY_MS } from "./jst";
 import { bedNights, bedStats, habitProgress, habitWeeks, keepMarkValues, mondayOf, periodStats, rewardBalance, rewardBreakdown, rewardEarned, workMinutes } from "./stats";
 
@@ -109,6 +109,14 @@ describe("週のまとめ", () => {
       ["2026-09-30", "health", false],
     ]);
     expect(rewardBreakdown({ ...data, bedLogs, healthSleep, dayLogs }).bed).toBe(DEFAULT_REWARD_RATES.bed);
+  });
+
+  it("アプリを開かなかった日も、翌朝「起きた」を押した予定の起床 − 睡眠時間を予定の就寝として見る", () => {
+    const wakeLogs = [{ date: "2026-10-02", doneStepIds: [], wokeAt: jst(2026, 10, 2, 9), plannedWake: jst(2026, 10, 2, 9) }];
+    const healthSleep = { "2026-10-02": { start: jst(2026, 10, 2, 2, 20), end: jst(2026, 10, 2, 9), minutes: 400 } };
+    const settings = { sleepMinutes: 7 * 60 } as MockData["settings"];
+    // 予定の就寝 2:00、寝ついたのは 2:20 → 30分以内なので予定どおり
+    expect(bedNights({ healthSleep, wakeLogs, settings })).toMatchObject([{ key: "2026-10-01", source: "health", onTime: true }]);
   });
 
   it("今週の習慣は、月〜日の記録と週の目安を出す", () => {

@@ -66,8 +66,7 @@ export const UTOKYO_NO_CLASS_DAYS: ReadonlySet<DateKey> = new Set([
   "2027-01-15",
 ]);
 
-/** その日を含むか、これから来る学期（S か A）。学期の選び方の初期値に使う */
+/** その日を含むか、これから来る学期（S か A）。学期の選び方の初期値に使う。入っている年度が終わったら undefined（呼ぶ側が今日から15週にする） */
 export function currentSemester(todayKey: DateKey): Term | undefined {
-  const semesters = UTOKYO_TERMS.filter((t) => t.label === "S" || t.label === "A");
-  return semesters.find((t) => todayKey <= t.end) ?? semesters.at(-1);
+  return UTOKYO_TERMS.find((t) => (t.label === "S" || t.label === "A") && todayKey <= t.end);
 }

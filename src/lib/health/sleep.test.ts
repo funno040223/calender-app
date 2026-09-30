@@ -48,6 +48,14 @@ describe("夜ごとにまとめる", () => {
     expect(summarizeSleep(samples)).toEqual([{ night: "2026-10-01", start: jst(1, 2, 10), end: jst(1, 8, 50), minutes: 170 + 210 }]);
   });
 
+  it("夜中に1時間ほど目が覚めても同じ夜のまま（寝ついた時刻を後ろにずらさない）", () => {
+    const samples = [
+      { start: jst(1, 1, 50), end: jst(1, 4, 30), kind: "asleep" as const },
+      { start: jst(1, 5, 40), end: jst(1, 9), kind: "asleep" as const },
+    ];
+    expect(summarizeSleep(samples)).toEqual([{ night: "2026-10-01", start: jst(1, 1, 50), end: jst(1, 9), minutes: 160 + 200 }]);
+  });
+
   it("昼寝（2時間より短い眠り）は夜にしない", () => {
     const samples = [
       { start: jst(1, 2), end: jst(1, 9), kind: "asleep" as const },

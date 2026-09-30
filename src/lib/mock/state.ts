@@ -1,4 +1,4 @@
-import { captureTaskBlocks } from "./progress";
+import { captureTaskBlocks, workedByTask } from "./progress";
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, resolveTravel, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
 import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
@@ -45,14 +45,8 @@ export const LEARN_MIN_SAMPLES = 3;
  * 終わったタスクについて、作業したと確かめた枠の長さを足したものを「かかった時間」とする
  */
 export function learnedMinutes(data: Pick<MockData, "doneTasks" | "taskBlockLog">): Record<string, { minutes: number; samples: number }> {
-  const spent = new Map<string, number>();
-  for (const [key, b] of Object.entries(data.taskBlockLog)) {
-    // 「予定どおりできた」「完了」で確かめた枠と、以前の版で残り時間から引いた枠だけを、作業した時間として数える
-    const worked = b.workedMinutes ?? (b.outcome === "done" || b.counted ? (b.end - b.start) / MIN : 0);
-    if (!worked) continue;
-    const id = key.slice(0, key.lastIndexOf(":"));
-    spent.set(id, (spent.get(id) ?? 0) + worked);
-  }
+  // 「予定どおりできた」「完了」で確かめた枠と、以前の版で残り時間から引いた枠だけを、作業した時間として数える
+  const spent = workedByTask(data.taskBlockLog);
   const byTag = new Map<string, number[]>();
   for (const t of data.doneTasks) {
     const m = spent.get(t.id);

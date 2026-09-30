@@ -2,6 +2,31 @@ import { estimateMinutes } from "@/lib/scheduler";
 import { MIN } from "./jst";
 import { taskBlockKey, type MockData, type TaskBlockLog } from "./model";
 
+/**
+ * 進み具合で確かめた作業時間（分）。「予定どおり」「完了」と、以前の版で残り時間から引いた枠だけを数える。
+ * 「残り時間を直した」枠は、作業した長さが分からないので数えない（実績からの見積もりに使う）
+ */
+export function confirmedWorkMinutes(b: TaskBlockLog): number {
+  return b.workedMinutes ?? (b.outcome === "done" || b.counted ? (b.end - b.start) / MIN : 0);
+}
+
+/** 作業した枠の時間（分）。確かめた作業時間に、「残り時間を直した」枠（その枠で作業はした）も枠の長さで足す（記録の画面） */
+export function usedSlotMinutes(b: TaskBlockLog): number {
+  return b.outcome === "partial" ? (b.end - b.start) / MIN : confirmedWorkMinutes(b);
+}
+
+/** タスクごとの、確かめた作業時間の合計（分） */
+export function workedByTask(log: Record<string, TaskBlockLog>): Map<string, number> {
+  const spent = new Map<string, number>();
+  for (const [key, b] of Object.entries(log)) {
+    const worked = confirmedWorkMinutes(b);
+    if (!worked) continue;
+    const id = key.slice(0, key.lastIndexOf(":"));
+    spent.set(id, (spent.get(id) ?? 0) + worked);
+  }
+  return spent;
+}
+
 /** 予定の経過は実行とは区別する。未回答の枠を翌日以降も残す。 */
 export function captureTaskBlocks(d: MockData, now: number): MockData {
   const logs = { ...d.taskBlockLog };

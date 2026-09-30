@@ -8,16 +8,6 @@ const MAX_BODY = 300_000;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
 
-/** JSON の本文の項目の名前（JSON でなければ空） */
-function fieldNames(body: string): string[] {
-  try {
-    const j: unknown = JSON.parse(body);
-    return j && typeof j === "object" && !Array.isArray(j) ? Object.keys(j).slice(0, 10) : [];
-  } catch {
-    return [];
-  }
-}
-
 /**
  * iPhone のショートカットが送るヘルスケアの睡眠を受け取り、夜ごとのまとめを保存する。
  * ログインの代わりに Authorization: Bearer <合言葉> で本人を見分ける（DB には SHA-256 だけ）。proxy.ts はこの道を通す。
@@ -58,7 +48,7 @@ export async function POST(request: Request) {
     nights: nights.map((n) => ({ night: n.night, minutes: n.minutes })),
     read: { lines: read.lines, samples: read.samples.length, ...kinds },
     // 中身が空のときに、本文が空か・項目の名前がちがうかを見分けるため
-    received: { bytes: body.length, keys: fieldNames(body) },
+    received: { bytes: body.length, keys: read.keys },
     ...(read.unread !== undefined ? { unread: read.unread } : {}),
   });
 }

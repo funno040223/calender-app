@@ -1,12 +1,13 @@
 import type { Habit } from "@/lib/scheduler";
 import { DAY_MS, MIN, TZ } from "./jst";
 import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData } from "./model";
+import { usedSlotMinutes } from "./progress";
 
 /** 予定の起床から、この分数までに「起きた」を押せたら予定どおり */
 export const WAKE_GRACE_MINUTES = 30;
 
 type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" | "rewardSpends" | "rewardRates"> &
-  Partial<Pick<MockData, "bedLogs" | "eveningEnergy" | "healthSleep" | "dayLogs">>;
+  Partial<Pick<MockData, "bedLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings">>;
 
 /** 予定の就寝から、この分数までに「寝る」を押せたら予定どおり */
 export const BED_GRACE_MINUTES = 15;
@@ -27,8 +28,12 @@ export interface BedNight {
   source: "health" | "button";
 }
 
-/** 夜ごとの就寝。ヘルスケアの記録と予定の就寝があれば寝ついた時刻で、なければ「寝る」を押した時刻で見る */
-export function bedNights(data: Partial<Pick<MockData, "bedLogs" | "healthSleep" | "dayLogs">>): BedNight[] {
+/**
+ * 夜ごとの就寝。ヘルスケアの記録と予定の就寝があれば寝ついた時刻で、なければ「寝る」を押した時刻で見る。
+ * 予定の就寝は「寝る」を押したときの予定、その日の計画の控え、翌朝「起きた」を押したときの予定の起床 − 睡眠時間の順に探す
+ * （アプリを開かなかった日は控えが残らないため）
+ */
+export function bedNights(data: Partial<Pick<MockData, "bedLogs" | "healthSleep" | "dayLogs" | "wakeLogs" | "settings">>): BedNight[] {
   const out = new Map<string, BedNight>();
   for (const [key, log] of Object.entries(data.bedLogs ?? {})) {
     const day = dayStartOfKey(key);
@@ -40,7 +45,9 @@ export function bedNights(data: Partial<Pick<MockData, "bedLogs" | "healthSleep"
     // 起きた日の前の日の計画の就寝と比べる（0時を過ぎて寝る日も同じ）
     const day = wakeDay - DAY_MS;
     const key = dateKeyOf(day);
-    const planned = data.bedLogs?.[key]?.plannedBed ?? data.dayLogs?.[key]?.bed;
+    const wake = data.wakeLogs?.find((l) => l.date === wakeKey)?.plannedWake;
+    const fromWake = wake !== undefined && data.settings ? wake - data.settings.sleepMinutes * MIN : undefined;
+    const planned = data.bedLogs?.[key]?.plannedBed ?? data.dayLogs?.[key]?.bed ?? fromWake;
     if (planned === undefined) continue;
     out.set(key, { key, day, at: h.start, onTime: h.start <= planned + HEALTH_BED_GRACE_MINUTES * MIN, source: "health" });
   }
@@ -170,15 +177,19 @@ export function workMinutes(data: Pick<MockData, "taskBlockLog">, from: number, 
   let planned = 0;
   for (const b of Object.values(data.taskBlockLog)) {
     if (b.start < from || b.start >= to) continue;
-    const len = (b.end - b.start) / MIN;
-    planned += len;
-    worked += b.workedMinutes ?? (b.outcome && b.outcome !== "none" ? len : b.counted ? len : 0);
+    planned += (b.end - b.start) / MIN;
+    worked += usedSlotMinutes(b);
   }
   return { worked: Math.round(worked), planned: Math.round(planned) };
 }
 
 /** 予定どおりに寝た夜の数。数えるのは記録を始めた日から、終わった夜（記録のない夜は翌日の昼から） */
-export function bedStats(data: Pick<MockData, "bedLogs"> & Partial<Pick<MockData, "healthSleep" | "dayLogs">>, from: number, to: number, now: number): { done: number; total: number } {
+export function bedStats(
+  data: Pick<MockData, "bedLogs"> & Partial<Pick<MockData, "healthSleep" | "dayLogs" | "wakeLogs" | "settings">>,
+  from: number,
+  to: number,
+  now: number,
+): { done: number; total: number } {
   const nights = bedNights(data);
   const byKey = new Map(nights.map((n) => [n.key, n]));
   const start = nights[0]?.day ?? Infinity;

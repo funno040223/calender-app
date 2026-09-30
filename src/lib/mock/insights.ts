@@ -3,6 +3,8 @@ import { DAY_MS, MIN, TZ, dayStartOf } from "./jst";
 import { dateKeyOf, dayStartOfKey, type MockData } from "./model";
 import { planEvents, type MockState } from "./state";
 import { bedNights } from "./stats";
+import { workedByTask } from "./progress";
+import { intersect, merge } from "@/lib/scheduler/intervals";
 
 /**
  * 記録の画面の「気づき」：予定と実際を重ねて、自分では気づきにくい傾向を探す。
@@ -106,13 +108,7 @@ function blockInsight(state: MockState, from: number, to: number): Insight | und
 
 /** 見積もりのずれ：終わったタスクの、作業した時間 ÷ 見積もり（種類ごとの中央値） */
 function estimateInsight(state: MockState, from: number): Insight | undefined {
-  const spent = new Map<string, number>();
-  for (const [key, b] of Object.entries(state.taskBlockLog)) {
-    const worked = b.workedMinutes ?? (b.outcome === "done" || b.counted ? (b.end - b.start) / MIN : 0);
-    if (!worked) continue;
-    const id = key.slice(0, key.lastIndexOf(":"));
-    spent.set(id, (spent.get(id) ?? 0) + worked);
-  }
+  const spent = workedByTask(state.taskBlockLog);
   let best: { ratio: number; n: number; tag: string } | undefined;
   for (const tag of state.tags) {
     const ratios = state.doneTasks
@@ -204,16 +200,7 @@ interface Span {
   end: number;
 }
 /** 重なりをまとめて、[from, to) に切る */
-function union(spans: Span[], from: number, to: number): Span[] {
-  const s = spans.map((x) => ({ start: Math.max(x.start, from), end: Math.min(x.end, to) })).filter((x) => x.end > x.start).sort((a, b) => a.start - b.start);
-  const out: Span[] = [];
-  for (const x of s) {
-    const last = out.at(-1);
-    if (last && x.start <= last.end) last.end = Math.max(last.end, x.end);
-    else out.push({ ...x });
-  }
-  return out;
-}
+const union = (spans: Span[], from: number, to: number): Span[] => intersect(merge(spans), { start: from, end: to });
 
 /** タバコの場面：場面ごとの「1時間あたりの本数」が、起きている時間全体の何倍か */
 function smokeInsight(state: MockState, events: CalendarEvent[], from: number, now: number): Insight | undefined {
