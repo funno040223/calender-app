@@ -70,9 +70,10 @@ export function courseTimes(c: Course, periods: Period[]): { start: number; end:
   return { start: c.startMinute, end: c.endMinute };
 }
 
-export type TreatCategory = "food" | "hobby" | "reward";
+export type TreatCategory = "adventure" | "food" | "hobby" | "reward";
 
 export const TREAT_CATEGORIES: { id: TreatCategory; label: string }[] = [
+  { id: "adventure", label: "小さな冒険" },
   { id: "food", label: "食べ物・飲み物" },
   { id: "hobby", label: "趣味・娯楽" },
   { id: "reward", label: "小さなご褒美" },
@@ -85,6 +86,10 @@ export interface Treat {
   category: TreatCategory;
   /** ご褒美の条件（「朝ルーティンが終わったら」など） */
   condition?: string;
+  /** 休日（遊び以外の予定がない日）だけに出す（遠出など） */
+  holidayOnly?: boolean;
+  /** 外で楽しむもの。雨の日には出さない */
+  outdoor?: boolean;
 }
 
 /** 朝ルーティンの手順 */
@@ -419,9 +424,12 @@ export function treatIndexFor(dayNumber: number, n: number, seedText = ""): numb
   return p[pos];
 }
 
-export function treatFor(dayStart: number, treats: Treat[]): Treat | undefined {
-  const i = treatIndexFor(dayNumberOf(dayStart), treats.length, treats.map((t) => t.id).join("|"));
-  return i < 0 ? undefined : treats[i];
+/** その日の楽しみ。休日でなければ「休日だけ」を、雨の日なら「外で」を除いて選ぶ（合うものがなければ全部から） */
+export function treatFor(dayStart: number, treats: Treat[], day: { holiday?: boolean; rainy?: boolean } = {}): Treat | undefined {
+  const fit = treats.filter((t) => (!t.holidayOnly || day.holiday !== false) && (!t.outdoor || !day.rainy));
+  const pool = fit.length ? fit : treats;
+  const i = treatIndexFor(dayNumberOf(dayStart), pool.length, treats.map((t) => t.id).join("|"));
+  return i < 0 ? undefined : pool[i];
 }
 
 // ---------- 起床の記録 ----------

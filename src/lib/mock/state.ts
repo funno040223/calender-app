@@ -192,11 +192,14 @@ const MIGRATIONS = [
   "2026-09-30-track-more",
   "2026-10-01-utokyo-periods",
   "2026-10-01-personal-setup",
+  "2026-10-01-treats-adventure",
 ] as const;
 
 /** 以前の初期値のままの朝ルーティン・楽しみ（このままなら 2026-10-01 に聞いた中身に置き換える） */
 const OLD_ROUTINE_IDS = "step-curtain,step-water,step-wash-face,step-stretch,step-check-plan";
 const OLD_TREAT_IDS = "treat-bread,treat-coffee-good,treat-sweets,treat-game,treat-video,treat-manga,treat-brew,treat-snack,treat-music";
+/** 2026-10-01 に入れた好物だけのリスト（このままなら、ちょっとした冒険を足したリストに置き換える） */
+const FAVORITES_TREAT_IDS = "treat-kanikama,treat-cocoa,treat-banana-shake,treat-sweet-drink,treat-pasta,treat-huikoro,treat-sukiyaki";
 
 /** 以前の初期値の時限（9:00 から90分）。このままなら東大の時限に置き換える */
 const OLD_SAMPLE_PERIODS = [
@@ -280,6 +283,8 @@ function migrate(d: MockData, now: number): MockData {
     // 起きるのを後押しする（起床のご褒美を 30円 → 50円。自分で変えた額はそのまま）
     if (rewardRates.wake === 30) rewardRates = { ...rewardRates, wake: 50 };
   }
+  // 好物だけのリストを、いつもから少し外れた楽しみ（本郷の近くのちょっとした冒険・好物のひとひねり）に広げる
+  if (!done.has("2026-10-01-treats-adventure") && treats.map((t) => t.id).join() === FAVORITES_TREAT_IDS) treats = SAMPLE_TREATS;
   return { ...d, habits, periods, routineSteps, treats, places, courses, settings, rewardRates, migrations: [...new Set([...d.migrations, ...MIGRATIONS])] };
 }
 

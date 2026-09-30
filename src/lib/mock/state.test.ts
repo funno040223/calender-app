@@ -85,7 +85,7 @@ describe("2026-10-01 の生活に合わせた移し替え", () => {
       settings: { ...sampleData(Date.now()).settings, routineMinutes: 15 },
       rewardRates: { ...sampleData(Date.now()).rewardRates, wake: 30 },
     };
-    const d = fromStoredV2(JSON.parse(JSON.stringify(old)), Date.now());
+    const d = fromStoredV2(JSON.parse(JSON.stringify(old)), Date.now())!;
     expect(d.routineSteps.map((s) => s.id)).toEqual(["step-stretch-bed", "step-curtain", "step-water", "step-drink"]);
     expect(d.settings.routineMinutes).toBe(10);
     expect(d.treats.map((t) => t.id)).toEqual(["mine"]);

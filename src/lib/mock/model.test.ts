@@ -128,3 +128,21 @@ describe("東大の暦", () => {
     expect((first.end - first.start) / 60000).toBe(105);
   });
 });
+
+describe("今日の楽しみの選び方", () => {
+  const treats = [
+    { id: "far", name: "遠出", category: "adventure" as const, holidayOnly: true, outdoor: true },
+    { id: "walk", name: "散歩", category: "adventure" as const, outdoor: true },
+    { id: "home", name: "家で", category: "food" as const },
+  ];
+  it("休日でなければ「休日だけ」を、雨の日なら「外で」を出さない", () => {
+    for (let day = 20000; day < 20060; day++) {
+      const ms = day * DAY_MS;
+      expect(treatFor(ms, treats, { holiday: false })?.id).not.toBe("far");
+      expect(["home"]).toContain(treatFor(ms, treats, { holiday: true, rainy: true })?.id);
+    }
+  });
+  it("合うものがなければ、全部から選ぶ", () => {
+    expect(treatFor(0, [treats[0]], { holiday: false, rainy: true })?.id).toBe("far");
+  });
+});

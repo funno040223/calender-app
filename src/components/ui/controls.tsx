@@ -149,17 +149,20 @@ export function Segmented<T extends string | number>({
   onChange,
   label,
   full,
+  columns,
 }: {
   value: T;
   options: { value: T; label: ReactNode }[];
   onChange: (v: T) => void;
   label: string;
   full?: boolean;
+  /** 文字が長くて1行に入りきらないときの列の数（2 なら2列で折り返す） */
+  columns?: 2 | 3;
 }) {
   return (
     // 5つ以上は1行に入りきらず文字が切れるので、3列で折り返す
     <div
-      className={`${options.length > 4 ? "grid grid-cols-3 gap-0.5" : "flex"} rounded-lg bg-surface2 p-0.5 ${full ? "w-full" : ""}`}
+      className={`${columns === 2 ? "grid grid-cols-2 gap-0.5" : columns === 3 || options.length > 4 ? "grid grid-cols-3 gap-0.5" : "flex"} rounded-lg bg-surface2 p-0.5 ${full ? "w-full" : ""}`}
       role="radiogroup"
       aria-label={label}
     >

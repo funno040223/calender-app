@@ -115,6 +115,26 @@ input::-webkit-date-and-time-value {
   }
 }
 
+/* 今日の楽しみが開くとき */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.reveal {
+  animation: reveal 0.4s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+}
+
 /* 押したときに少し沈む */
 .press {
   transition: transform 0.12s ease, opacity 0.12s ease;

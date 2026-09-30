@@ -227,15 +227,33 @@ export function buildSampleCourses(now: number): Course[] {
   ];
 }
 
-/** 好きなもの（2026-10-01 に聞いた）：カニカマ、牛乳から作る甘い飲み物、すき焼き・パスタ・ホイコーロー */
+/**
+ * 今日の楽しみ：いつもの暮らしから少しだけ外れた、体によくて面白いこと。本郷の近くのちょっとした冒険と、好物のひとひねり。
+ * 好きなもの（2026-10-01 に聞いた）：カニカマ、牛乳から作る甘い飲み物、すき焼き・パスタ・ホイコーロー
+ */
 export const SAMPLE_TREATS: Treat[] = [
-  { id: "treat-kanikama", name: "カニカマ", category: "food" },
-  { id: "treat-cocoa", name: "ココアを作る", category: "food" },
-  { id: "treat-banana-shake", name: "バナナシェイクを作る", category: "food" },
-  { id: "treat-sweet-drink", name: "好きな甘い飲み物を買う", category: "food" },
-  { id: "treat-pasta", name: "パスタ", category: "food", condition: "自炊の日に" },
-  { id: "treat-huikoro", name: "ホイコーロー", category: "food", condition: "自炊の日に" },
+  { id: "treat-nezu", name: "根津神社まで歩いて、境内をひと回り", category: "adventure", outdoor: true },
+  { id: "treat-shinobazu", name: "不忍池を1周する", category: "adventure", outdoor: true },
+  { id: "treat-yanaka", name: "谷中銀座で気になるものを1つ買う", category: "adventure", outdoor: true, holidayOnly: true },
+  { id: "treat-rikugien", name: "六義園の庭を歩く", category: "adventure", outdoor: true, holidayOnly: true },
+  { id: "treat-koishikawa", name: "小石川植物園で季節の植物を見る", category: "adventure", outdoor: true, holidayOnly: true },
+  { id: "treat-jimbocho", name: "神保町の古本屋で1冊だけ選ぶ", category: "adventure", holidayOnly: true },
+  { id: "treat-new-station", name: "降りたことのない駅で降りて15分歩く", category: "adventure", outdoor: true, holidayOnly: true },
+  { id: "treat-other-way", name: "いつもと違う道で帰る", category: "adventure", outdoor: true },
+  { id: "treat-sento", name: "近くの銭湯に行く", category: "adventure" },
+  { id: "treat-cafe-new", name: "喫茶店で、頼んだことのない飲み物を頼む", category: "adventure" },
+  { id: "treat-milk-twist", name: "いつもの牛乳ドリンクを変えてみる（ほうじ茶ラテ・きなこミルクなど）", category: "food" },
+  { id: "treat-frozen-banana", name: "冷凍バナナで、砂糖なしのシェイクを作る", category: "food" },
+  { id: "treat-kanikama-dish", name: "カニカマで1品作る（天津飯・サラダなど）", category: "food" },
+  { id: "treat-season-fruit", name: "季節の果物を1つ買って食べる", category: "food" },
+  { id: "treat-new-veg", name: "買ったことのない野菜を1つ試す", category: "food" },
+  { id: "treat-photo-theme", name: "テーマを決めて写真を1枚撮る（今日は「丸いもの」など）", category: "hobby" },
+  { id: "treat-moon", name: "夜、月や星を探して5分眺める", category: "hobby", outdoor: true },
+  { id: "treat-room-change", name: "部屋の1か所だけ模様替えする", category: "hobby" },
+  { id: "treat-letter", name: "はがきか手紙を1通書く", category: "hobby" },
   { id: "treat-sukiyaki", name: "すき焼き", category: "reward", condition: "今週が順調なら、週末に" },
+  { id: "treat-sweet-drink", name: "好きな甘い飲み物を買う", category: "reward", condition: "予定どおり起きたら" },
+  { id: "treat-kanikama", name: "カニカマ", category: "reward", condition: "集中の枠が終わったら" },
 ];
 
 /**

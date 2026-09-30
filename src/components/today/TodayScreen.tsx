@@ -189,6 +189,22 @@ const FATIGUE_OPTIONS: { value: MorningFatigue; label: string }[] = [
   { value: 5, label: "ぐったり" },
 ];
 
+/** 今日の楽しみ。休日でなければ遠出を、雨の日なら外でやるものを除いて選ぶ */
+function todaysTreat(state: ReturnType<typeof useApp>["state"], today: number, day: DayPlan | undefined) {
+  return treatFor(today, state.treats, { holiday: day?.holiday, rainy: rainyDayKeys(state).includes(dateKeyOf(today)) });
+}
+
+/** 楽しみの見せ方：種類と条件を小さく */
+function TreatText({ treat }: { treat: NonNullable<ReturnType<typeof treatFor>> }) {
+  return (
+    <>
+      <p className="text-[12px] font-medium text-muted">{TREAT_CATEGORIES.find((c) => c.id === treat.category)?.label}</p>
+      <p className="text-[17px] font-semibold leading-snug">{treat.name}</p>
+      {treat.condition && <p className="mt-0.5 text-[13px] text-muted">{treat.condition}</p>}
+    </>
+  );
+}
+
 /** 朝のうち（起床の2時間前〜4時間後）で、起きた・疲れ・朝ルーティンがまだ終わっていない */
 function isMorning(state: ReturnType<typeof useApp>["state"], day: DayPlan | undefined, now: number): boolean {
   const today = dayStartOf(now);
@@ -209,7 +225,7 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
   const log: WakeLog = state.wakeLogs.find((l) => l.date === key) ?? { date: key, doneStepIds: [] };
   const streak = wakeStreak(state.wakeLogs, today);
   const steps = state.routineSteps;
-  const treat = treatFor(today, state.treats);
+  const treat = todaysTreat(state, today, day);
 
   const setLog = (fn: (l: WakeLog) => WakeLog) =>
     patch((d) => {
@@ -268,8 +284,8 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
             >
               起きた
             </button>
-            {/* 起き上がるきっかけに、今日の楽しみを見せる */}
-            {treat && <p className="text-center text-[13px] text-muted">今日の楽しみ：{treat.name}</p>}
+            {/* 今日の楽しみは伏せておき、起きたら開く（起き上がるきっかけに） */}
+            {treat && <p className="text-center text-[13px] text-muted">起きると、今日の楽しみが開きます</p>}
           </>
         ) : (
           <>
@@ -312,6 +328,12 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
                 ))}
               </div>
             </div>
+            {treat && (
+              <div className="reveal rounded-xl bg-surface2 px-3.5 py-3">
+                <p className="mb-0.5 text-[12px] font-semibold text-ok">今日の楽しみ</p>
+                <TreatText treat={treat} />
+              </div>
+            )}
             <SleepInput
               value={log.sleepMinutes}
               health={state.healthSleep[key]?.minutes}
@@ -350,18 +372,14 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
   );
 }
 
-function TreatCard({ today }: { today: number }) {
+function TreatCard({ today, day }: { today: number; day?: DayPlan }) {
   const { state } = useApp();
-  const treat = treatFor(today, state.treats);
+  const treat = todaysTreat(state, today, day);
   return (
-    <Card
-      title="今日の楽しみ"
-      right={treat && <span className="shrink-0 text-[12px] font-medium text-muted">{TREAT_CATEGORIES.find((c) => c.id === treat.category)?.label}</span>}
-    >
+    <Card title="今日の楽しみ">
       {treat ? (
         <div className="px-4 pt-1 pb-3.5">
-          <p className="text-[18px] font-semibold leading-snug">{treat.name}</p>
-          {treat.condition && <p className="mt-0.5 text-[13px] text-muted">{treat.condition}</p>}
+          <TreatText treat={treat} />
         </div>
       ) : (
         <p className="px-4 pt-1 pb-3.5 text-[14px] text-muted">
@@ -988,7 +1006,8 @@ export default function TodayScreen() {
     <>
       <SmokeCard today={today} />
       <MealCard today={today} now={now} />
-      <TreatCard today={today} />
+      {/* 朝のうちは、朝ルーティンのカードで「起きた」を押すと開く */}
+      {!morning && <TreatCard today={today} day={day} />}
       <ContactCard today={today} now={now} />
       {!morning && <MorningCard day={day} now={now} compact />}
     </>
