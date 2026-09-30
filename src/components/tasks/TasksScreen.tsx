@@ -90,7 +90,7 @@ function OutlookDays({ week: w }: { week: WeekOutlook }) {
 }
 
 export default function TasksScreen() {
-  const { state, openTask, update } = useApp();
+  const { state, openTask, update, notify } = useApp();
   const events = eventIndex(state);
 
   const effectiveDeadline = (t: Task) => {
@@ -115,7 +115,10 @@ export default function TasksScreen() {
         <button
           type="button"
           aria-label={`「${t.title}」を完了にする`}
-          onClick={() => update((d) => completeTask(d, t.id, Date.now()))}
+          onClick={() => {
+            update((d) => completeTask(d, t.id, Date.now()));
+            notify(`「${t.title}」を完了`);
+          }}
           className="flex h-11 w-9 shrink-0 items-start justify-center pt-3"
         >
           <span className="h-5 w-5 rounded-full border-2" style={{ borderColor: "var(--cal-task)" }} />

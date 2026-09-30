@@ -7,24 +7,31 @@ import { formatMinutes } from "@/lib/mock/jst";
 import { replan } from "@/lib/mock/state";
 import { freeNowMinutes, startHabitNow, startWorkNow, workNowChoices, workNowGap, workNowHabits } from "@/lib/mock/recovery";
 
+const PRESETS = [15, 30, 60];
+
 export default function WorkNowCard({ now }: { now: number }) {
-  const { state, update } = useApp();
-  // 空にして打ち直せるように、入力は文字のまま持つ。最初は次の予定・習慣までの時間（5分刻み、なければ30分）
-  const [text, setText] = useState(() => String(freeNowMinutes(workNowGap(state, now), now) ?? 30));
-  const minutes = text.trim() ? Number(text) : 0;
-  const [show, setShow] = useState(false);
-  const choices = show ? workNowChoices(state, now, minutes) : [];
-  const habits = show ? workNowHabits(state, now, minutes) : [];
+  const { state, update, notify } = useApp();
+  // 押した分だけ候補を出す。数字は打たずに、次の予定・習慣までの空き時間か、よく使う長さから選ぶ
+  const [minutes, setMinutes] = useState<number>();
+  const free = freeNowMinutes(workNowGap(state, now), now);
+  const options = [...new Set([...PRESETS, ...(free !== undefined ? [free] : [])])].sort((a, b) => a - b);
+  const choices = minutes ? workNowChoices(state, now, minutes) : [];
+  const habits = minutes ? workNowHabits(state, now, minutes) : [];
   return <Group title="今から何する？">
     <div className="flex flex-col gap-3 px-4 py-3">
-      <label className="text-[14px]">使える時間（分）<input type="number" min="5" max="180" step="5" inputMode="numeric" value={text} onChange={(e) => { setText(e.target.value); setShow(false); }} className="ml-2 w-20 rounded-lg border border-line bg-surface p-2 text-[16px]" /></label>
-      <button disabled={!Number.isFinite(minutes) || minutes < 5 || minutes > 180} onClick={() => setShow(true)} className="rounded-lg bg-surface2 px-3 py-2 disabled:opacity-40">候補を見る</button>
-      {show && !choices.length && !habits.length && <p role="status" className="text-[14px]">次の予定までに入るものがありません</p>}
-      {choices.map((c) => <button key={c.task.id} className="rounded-lg bg-accent px-3 py-3 text-left text-white" onClick={() => {
-        update((d) => startWorkNow(replan(d, state.googleEvents, Date.now()), c.task.id, minutes, Date.now())); setShow(false);
+      <div className="flex flex-wrap gap-2">
+        {options.map((m) => <button key={m} type="button" aria-pressed={minutes === m} onClick={() => setMinutes(minutes === m ? undefined : m)} className={`rounded-full px-3.5 py-1.5 text-[14px] tabular-nums ${minutes === m ? "bg-accent font-medium text-white" : "bg-surface2"}`}>
+          {m === free ? `空き ${formatMinutes(m)}` : formatMinutes(m)}
+        </button>)}
+      </div>
+      {minutes !== undefined && !choices.length && !habits.length && <p role="status" className="text-[14px]">次の予定までに入るものがありません</p>}
+      {minutes !== undefined && choices.map((c) => <button key={c.task.id} className="rounded-lg bg-accent px-3 py-3 text-left text-white" onClick={() => {
+        update((d) => startWorkNow(replan(d, state.googleEvents, Date.now()), c.task.id, minutes, Date.now())); setMinutes(undefined);
+        notify(`「${c.task.title}」を始めました`);
       }}>{c.task.title}・{formatMinutes(c.minutes)}を始める</button>)}
-      {habits.map((c) => <button key={c.habit.id} className="rounded-lg bg-surface2 px-3 py-3 text-left" onClick={() => {
-        update((d) => startHabitNow(replan(d, state.googleEvents, Date.now()), c.habit.id, minutes, Date.now())); setShow(false);
+      {minutes !== undefined && habits.map((c) => <button key={c.habit.id} className="rounded-lg bg-surface2 px-3 py-3 text-left" onClick={() => {
+        update((d) => startHabitNow(replan(d, state.googleEvents, Date.now()), c.habit.id, minutes, Date.now())); setMinutes(undefined);
+        notify(`「${c.title}」を始めました`);
       }}>{c.title}・{formatMinutes(c.minutes)}を始める</button>)}
     </div>
   </Group>;

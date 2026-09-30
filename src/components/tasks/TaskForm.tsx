@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { Task, TaskTiming } from "@/lib/scheduler";
+import type { Block, Task, TaskTiming } from "@/lib/scheduler";
 import type { MockState } from "@/lib/mock/store";
 import { DAY_MS, dayStartOf, formatDate, formatMinutes, formatTime, fromInputDateTime, newId, toInputDate, toInputDateTime } from "@/lib/mock/jst";
 import { allEventRefs, blocksOfTask, formatEventWhen } from "@/lib/mock/related";
@@ -69,6 +69,8 @@ export default function TaskForm({
   onSave,
   onDelete,
   onComplete,
+  onKeepFree,
+  onReleaseFree,
   onClose,
 }: {
   task?: Task;
@@ -76,6 +78,10 @@ export default function TaskForm({
   onSave: (task: Task) => void;
   onDelete: (id: string) => void;
   onComplete?: (id: string) => void;
+  /** その枠だけ外して、その時間は空けておく（外した分は別の時間に入れ直す） */
+  onKeepFree?: (block: Block) => void;
+  /** 空けた時間を戻す */
+  onReleaseFree?: (id: string) => void;
   onClose: () => void;
 }) {
   const [d, setD] = useState<Draft>(() => toDraft(task, state.plannedAt));
@@ -89,6 +95,8 @@ export default function TaskForm({
     .sort((a, b) => a.event.start - b.event.start);
   const options = related && !upcoming.includes(related) ? [related, ...upcoming] : upcoming;
   const blocks = task ? blocksOfTask(state.result.blocks, task.id) : [];
+  const freed = task ? (state.keepFree ?? []).filter((k) => k.taskId === task.id && k.end > state.plannedAt) : [];
+  const small = "shrink-0 rounded-md bg-surface px-2 py-1 text-[12px] font-medium text-accent";
   const shortfall = task ? state.result.shortfalls.find((s) => s.taskId === task.id) : undefined;
 
   const submit = (e: FormEvent) => {
@@ -159,13 +167,36 @@ export default function TaskForm({
             {blocks.length > 0 ? (
               <ul className="flex flex-col gap-0.5">
                 {blocks.map((b) => (
-                  <li key={b.start}>
-                    {formatDate(b.start)} {formatTime(b.start)}〜{formatTime(b.end)} に配置{b.pinned ? "（固定）" : ""}
+                  <li key={b.start} className="flex min-h-7 items-center gap-2">
+                    <span className="min-w-0 flex-1">
+                      {formatDate(b.start)} {formatTime(b.start)}〜{formatTime(b.end)} に配置{b.pinned ? "（固定）" : ""}
+                    </span>
+                    {onKeepFree && b.start > state.plannedAt && (
+                      <button type="button" onClick={() => onKeepFree(b)} className={small}>
+                        空ける
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="text-muted">まだ配置できていません</p>
+            )}
+            {freed.length > 0 && (
+              <ul className="mt-0.5 flex flex-col gap-0.5 text-muted">
+                {freed.map((k) => (
+                  <li key={k.id} className="flex min-h-7 items-center gap-2">
+                    <span className="min-w-0 flex-1">
+                      {formatDate(k.start)} {formatTime(k.start)}〜{formatTime(k.end)} は空ける
+                    </span>
+                    {onReleaseFree && (
+                      <button type="button" onClick={() => onReleaseFree(k.id)} className={small}>
+                        戻す
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
             {shortfall && <p className="mt-1 text-accent">締切までに{formatMinutes(shortfall.shortfallMinutes)}足りません</p>}
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { estimateMinutes, parseQuickAdd, type Task } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { TZ, formatDeadline, formatMinutes, newId } from "@/lib/mock/jst";
@@ -30,6 +30,11 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
   const [chip, setChip] = useState<DeadlineChip | undefined>();
   const [tagId, setTagId] = useState<string | undefined>();
 
+  // 締切と作業の種類のチップは、入力しているときだけ出す（ふだんは画面を広く使う）
+  const [focused, setFocused] = useState(false);
+  const blurTimer = useRef<number>(undefined);
+  const open = focused || !!text || !!chip || !!tagId;
+
   // 入力中の読み取り結果を出すための基準時刻（追加するときは取り直す）。開いたまま日付が変わっても、入力を始めたときに取り直す
   const [previewNow, setPreviewNow] = useState(() => Date.now());
 
@@ -56,6 +61,7 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
     onAdd({ ...task, id: newId("task") });
     setText("");
     setChip(undefined);
+    setTagId(undefined);
   };
 
   return (
@@ -67,7 +73,13 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onFocus={() => setPreviewNow(Date.now())}
+          onFocus={() => {
+            window.clearTimeout(blurTimer.current);
+            setFocused(true);
+            setPreviewNow(Date.now());
+          }}
+          // チップを押したときに先に閉じないよう、少し待ってから閉じる
+          onBlur={() => (blurTimer.current = window.setTimeout(() => setFocused(false), 250))}
           placeholder="タスクを追加（例：レポート 明日まで 2時間 重要）"
           aria-label="タスクを追加"
           enterKeyHint="done"
@@ -81,19 +93,21 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
           追加
         </button>
       </div>
-      <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-        {DEADLINE_CHIPS.map((c) => (
-          <Chip key={c} on={chip === c} onClick={() => setChip(chip === c ? undefined : c)}>
-            {c}まで
-          </Chip>
-        ))}
-        <span className="mx-1 h-4 w-px shrink-0 bg-line" />
-        {TAGS.map((t) => (
-          <Chip key={t.id} on={tagId === t.id} onClick={() => setTagId(tagId === t.id ? undefined : t.id)}>
-            {t.name}
-          </Chip>
-        ))}
-      </div>
+      {open && (
+        <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+          {DEADLINE_CHIPS.map((c) => (
+            <Chip key={c} on={chip === c} onClick={() => setChip(chip === c ? undefined : c)}>
+              {c}まで
+            </Chip>
+          ))}
+          <span className="mx-1 h-4 w-px shrink-0 bg-line" />
+          {TAGS.map((t) => (
+            <Chip key={t.id} on={tagId === t.id} onClick={() => setTagId(tagId === t.id ? undefined : t.id)}>
+              {t.name}
+            </Chip>
+          ))}
+        </div>
+      )}
       {preview && (
         <p className="mt-1.5 truncate px-1 text-[12px] text-muted">
           「{preview.title}」・{preview.deadline ? formatDeadline(preview.deadline) : "締切なし"}・

@@ -79,6 +79,7 @@ export const TAGS = SAMPLE_TAGS;
 const DATA_KEYS = [
   "version",
   "rhythmResets",
+  "keepFree",
   "settings",
   "places",
   "periods",
@@ -129,6 +130,7 @@ export function sampleData(now: number): MockData {
   return {
     version: 2,
     rhythmResets: [],
+    keepFree: [],
     settings: normalizeSettings(undefined),
     places: SAMPLE_PLACES,
     periods: SAMPLE_PERIODS,
@@ -391,6 +393,8 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
       : {},
     rhythmResets: arr<unknown>(d.rhythmResets, []).filter((x): x is NonNullable<MockData["rhythmResets"]>[number] =>
       isRecord(x) && typeof x.id === "string" && ["sleep", "woke", "tired"].includes(String(x.mode)) && typeof x.start === "number" && Number.isFinite(x.start) && typeof x.end === "number" && Number.isFinite(x.end) && x.end > x.start && x.end - x.start <= 48 * 60 * MIN),
+    keepFree: arr<unknown>(d.keepFree, []).filter((x): x is NonNullable<MockData["keepFree"]>[number] =>
+      isRecord(x) && typeof x.id === "string" && typeof x.start === "number" && Number.isFinite(x.start) && typeof x.end === "number" && Number.isFinite(x.end) && x.end > x.start && (x.taskId === undefined || typeof x.taskId === "string")),
     rewardRates: { ...DEFAULT_REWARD_RATES, ...(isRecord(d.rewardRates) ? (d.rewardRates as Partial<RewardRates>) : {}) },
     contactLogs: isRecord(d.contactLogs)
       ? Object.fromEntries(Object.entries(d.contactLogs).filter((e): e is [string, ContactAnswer] => CONTACT_ANSWERS.includes(e[1] as ContactAnswer)))
@@ -474,6 +478,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   const result = plan({
     now,
     rhythmResets: data.rhythmResets,
+    keepFree: data.keepFree,
     settings: data.settings,
     events: planEvents(data, classEvents, googleEvents),
     places: data.places,
@@ -508,6 +513,20 @@ export function contactDaysFor(state: MockState, now: number): { weekStart: numb
 }
 
 /** タスクを完了にする：一覧と配置から外し、完了の記録に移す */
+/**
+ * タスクの枠を1つ外して、その時間は空けておく（タスクも習慣も自動では入れない）。
+ * 外した分の作業は、組み直しで別の時間に入る。終わって1日たった空き時間は捨てる
+ */
+export function keepBlockFree(d: MockData, block: { start: number; end: number; refId?: string }, id: string, now: number): MockData {
+  const entry = { id, start: block.start, end: block.end, ...(block.refId ? { taskId: block.refId } : {}) };
+  return { ...d, keepFree: [...(d.keepFree ?? []).filter((k) => k.end > now - DAY_MS), entry] };
+}
+
+/** 空けた時間を戻す（また自動で入るようにする） */
+export function releaseKeepFree(d: MockData, id: string): MockData {
+  return { ...d, keepFree: (d.keepFree ?? []).filter((k) => k.id !== id) };
+}
+
 export function completeTask(d: MockData, id: string, now: number): MockData {
   const t = d.tasks.find((x) => x.id === id);
   if (!t) return d;

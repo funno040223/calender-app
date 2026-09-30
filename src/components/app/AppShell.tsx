@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Task } from "@/lib/scheduler";
-import { useMockStore } from "@/lib/mock/store";
-import { completeTask } from "@/lib/mock/state";
+import { TASK_LEAD_DAYS, type Task } from "@/lib/scheduler";
+import { useMockStore, type MockState } from "@/lib/mock/store";
+import { completeTask, keepBlockFree, releaseKeepFree } from "@/lib/mock/state";
+import { DAY_MS, dayStartOf, formatDate, formatTime, newId } from "@/lib/mock/jst";
 import { CALENDARS } from "@/lib/mock/calendars";
 import { fetchRainChance } from "@/lib/weather/openMeteo";
 import { fetchNotionRows } from "@/lib/sync/notion";
@@ -32,6 +33,27 @@ const RETRY_MS = 10 * 60 * 1000;
 
 const isActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
+/** お知らせを出しておく時間 */
+const TOAST_MS = 5000;
+
+/** 追加・変更したタスクが次にいつ入るか（入らなければ、その理由を短く） */
+function placementOf(state: MockState, taskId: string, now: number): string | undefined {
+  const b = state.result.blocks
+    .filter((x) => x.kind === "task" && x.refId === taskId && x.end > now)
+    .sort((a, c) => a.start - c.start)[0];
+  if (b) {
+    const today = dayStartOf(now);
+    const d = dayStartOf(b.start);
+    return `${d === today ? "今日" : d === today + DAY_MS ? "明日" : formatDate(b.start)} ${formatTime(b.start)}〜`;
+  }
+  const t = state.tasks.find((x) => x.id === taskId);
+  if (!t) return undefined;
+  if (state.result.shortfalls.some((s) => s.taskId === taskId)) return "入りきりません";
+  // 締切の2週間前になるまでは、予定に入れない
+  if (t.deadline !== undefined && t.deadline - TASK_LEAD_DAYS * DAY_MS > state.plannedAt) return "まだ先";
+  return undefined;
+}
+
 function Badge({ n }: { n: number }) {
   if (n <= 0) return null;
   return (
@@ -45,11 +67,34 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const store = useMockStore();
   const pathname = usePathname();
   const [editingTask, setEditingTask] = useState<{ id?: string } | null>(null);
+  const [toast, setToast] = useState<{ text: string; taskId?: string; at: number }>();
 
   const openTask = useCallback((id?: string) => setEditingTask({ id }), []);
-  const ctx = useMemo<AppContextValue>(() => ({ ...store, openTask }), [store, openTask]);
+  const notify = useCallback((text: string, opts?: { taskId?: string }) => setToast({ text, taskId: opts?.taskId, at: Date.now() }), []);
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(undefined), TOAST_MS);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+  // 次の操作をしたら、前のお知らせは消す（「元に戻す」で別の操作を戻さないように）
+  const { update: storeUpdate, patch: storePatch, undo } = store;
+  const update = useCallback<typeof storeUpdate>(
+    (fn, opts) => {
+      if (!opts?.auto) setToast(undefined);
+      storeUpdate(fn, opts);
+    },
+    [storeUpdate],
+  );
+  const patch = useCallback<typeof storePatch>(
+    (fn) => {
+      setToast(undefined);
+      storePatch(fn);
+    },
+    [storePatch],
+  );
+  const ctx = useMemo<AppContextValue>(() => ({ ...store, update, patch, openTask, notify }), [store, update, patch, openTask, notify]);
 
-  const { state, update } = store;
+  const { state } = store;
   const warnings = warningCount(state);
 
   // 天気予報：場所があれば、開いたときと3時間ごとに雨の確率を取り直す（取れなければ前の予報のまま）
@@ -106,18 +151,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const showQuickAdd = !pathname.startsWith("/settings");
   const task = editingTask?.id ? state.tasks.find((t) => t.id === editingTask.id) : undefined;
 
-  const addTask = (t: Task) => update((d) => ({ ...d, tasks: [...d.tasks, t] }));
+  const addTask = (t: Task) => {
+    update((d) => ({ ...d, tasks: [...d.tasks, t] }));
+    notify(`「${t.title}」を追加`, { taskId: t.id });
+  };
   const saveTask = (t: Task) => {
+    const isNew = !state.tasks.some((x) => x.id === t.id);
     update((d) => ({
       ...d,
       tasks: d.tasks.some((x) => x.id === t.id) ? d.tasks.map((x) => (x.id === t.id ? t : x)) : [...d.tasks, t],
     }));
     setEditingTask(null);
+    notify(`「${t.title}」を${isNew ? "追加" : "保存"}`, { taskId: t.id });
   };
   const deleteTask = (id: string) => {
+    const title = state.tasks.find((x) => x.id === id)?.title;
     update((d) => removeTask(d, id));
     setEditingTask(null);
+    notify(`「${title ?? ""}」を削除`);
   };
+  const toastPlace = toast?.taskId ? placementOf(state, toast.taskId, toast.at) : undefined;
 
   // サーバーの状態が確定するまで、入力・記録用の画面を表示しない。
   // 読み込みに失敗した場合は、端末の控えで編集を続けられる。
@@ -156,7 +209,31 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1">{children}</div>
+          <div className="relative min-h-0 flex-1">
+            {children}
+            {toast && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-3 z-40 flex justify-center px-4">
+                <div role="status" className="pointer-events-auto flex min-w-0 max-w-md items-center gap-3 rounded-xl bg-fg py-2 pl-4 pr-2 text-[14px] text-bg shadow-lg">
+                  <span className="min-w-0 truncate">{toast.text}</span>
+                  {toastPlace && <span className="shrink-0 font-semibold">{toastPlace}</span>}
+                  {store.canUndo ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        undo();
+                        setToast(undefined);
+                      }}
+                      className="shrink-0 rounded-lg bg-bg/15 px-2.5 py-1.5 font-semibold"
+                    >
+                      元に戻す
+                    </button>
+                  ) : (
+                    <span className="w-2 shrink-0" />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <OfflineNotice />
           {showQuickAdd && <QuickAddBar onAdd={addTask} />}
 
@@ -196,9 +273,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
           onSave={saveTask}
           onDelete={deleteTask}
           onComplete={(id) => {
+            const title = state.tasks.find((x) => x.id === id)?.title;
             update((d) => completeTask(d, id, Date.now()));
             setEditingTask(null);
+            notify(`「${title ?? ""}」を完了`);
           }}
+          onKeepFree={(b) => update((d) => keepBlockFree(d, b, newId("free"), Date.now()))}
+          onReleaseFree={(id) => update((d) => releaseKeepFree(d, id))}
           onClose={() => setEditingTask(null)}
         />
       )}

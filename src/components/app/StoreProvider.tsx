@@ -6,6 +6,8 @@ import type { MockStore } from "@/lib/mock/store";
 export interface AppContextValue extends MockStore {
   /** タスクの編集シートを開く（id なしで新規） */
   openTask: (id?: string) => void;
+  /** 画面の下に短いお知らせを出す（数秒で消える。直前の操作を元に戻せる）。taskId を渡すと、入った時刻も出す */
+  notify: (text: string, opts?: { taskId?: string }) => void;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);

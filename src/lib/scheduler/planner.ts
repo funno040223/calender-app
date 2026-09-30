@@ -193,7 +193,8 @@ export function plan(input: PlanInput): PlanResult {
   const energyOn = (d: DayPlan) => energy.get(d.dayStart) ?? 0;
 
   const travelQuestions: TravelQuestion[] = [];
-  const busy: Interval[] = [...sleep];
+  const keepFree = input.keepFree ?? [];
+  const busy: Interval[] = [...sleep, ...keepFree];
   /** 予定そのもの（移動を含み、帰宅後の休憩は含まない） */
   const eventSpans: Interval[] = [];
   /** 家にいない時間（移動を含む） */
@@ -242,6 +243,8 @@ export function plan(input: PlanInput): PlanResult {
   // 直前30分の予定は、固定予定や睡眠と衝突しない限り動かさない。
   // 固定したタスクの枠も、始まる前にあとから予定が重なったら動かす（予定を優先する）
   kept = kept.filter((b) => !(b.kind === "task" && b.pinned && b.start > now && eventSpans.some((v) => overlaps(v, b))));
+  // 空けた時間に固定した枠があれば、まだ始まっていないものは外す
+  kept = kept.filter((b) => b.start <= now || !keepFree.some((v) => overlaps(v, b)));
   const near = previous.filter((b) => !kept.includes(b) && exists(b) && b.start > now && b.start < now + 30 * MIN && !busy.some((v) => overlaps(v, b)) && !pauses.some((v) => overlaps(v, b)) && days.some((d) => b.start >= morningEnd(d) && b.end <= d.bed - s.windDownMinutes * MIN));
   kept = [...kept, ...near];
   // 待ち時間のある習慣（洗濯など）は、始まった枠を残すなら2つ目の枠（干すなど）も残す

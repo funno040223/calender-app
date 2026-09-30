@@ -17,10 +17,11 @@ const task = { id: "t", title: "レポート", durationMinutes: 180, priority: 2
 const block = { kind: "task" as const, refId: task.id, title: task.title, start: now - 60 * MIN, end: now };
 let last: MockData;
 const openTask = vi.fn();
+const notify = vi.fn();
 function Harness({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState(() => replan({ ...sampleData(now), tasks: [task], courses: [], habits: [], events: [], blocks: [block] }, [], now));
   useEffect(() => { last = state; }, [state]);
-  const value = { state, update: (f: (d: MockData) => MockData) => setState((s) => replan(f(s), [], now)), patch: vi.fn(), sync: "synced", imports: { state: "idle" }, openTask, initialLoaded: true } as unknown as AppContextValue;
+  const value = { state, update: (f: (d: MockData) => MockData) => setState((s) => replan(f(s), [], now)), patch: vi.fn(), sync: "synced", imports: { state: "idle" }, openTask, notify, initialLoaded: true } as unknown as AppContextValue;
   return <AppContext value={value}>{children}</AppContext>;
 }
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); openTask.mockClear(); });
@@ -28,6 +29,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); window.history.replaceState(nul
 
 it("予定との差を分単位で確認し、その残り時間を確定できる", () => {
   render(<Harness><ProgressCard now={now} /></Harness>);
+  fireEvent.click(screen.getByRole("button", { name: "残りを直す" }));
   fireEvent.click(screen.getByRole("button", { name: "レポートの残りを30分増やす" }));
   expect(screen.getByRole("status").textContent).toContain("30分多く残る");
   fireEvent.change(screen.getByLabelText("残り（分）"), { target: { value: "95" } });
@@ -52,7 +54,8 @@ it("徹夜後の睡眠を入力し、表示と保存する予定へ反映でき�
 it("候補を見るだけでは予定を変更しない", () => {
   render(<Harness><WorkNowCard now={now} /></Harness>);
   const before = last;
-  fireEvent.click(screen.getByRole("button", { name: "候補を見る" }));
+  fireEvent.click(screen.getByRole("button", { name: "30分" }));
+  expect(screen.getByRole("button", { name: "30分" }).getAttribute("aria-pressed")).toBe("true");
   expect(last).toBe(before);
 });
 it("旧版の達成リンクを開いても実績や報酬にせずタスクを開く", () => {

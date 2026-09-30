@@ -329,6 +329,8 @@ export interface SkippedHabit {
 
 export interface PlanInput {
   rhythmResets?: RhythmReset[];
+  /** 「この時間は空ける」にした時間。タスクも習慣も自動では入れない（予定と同じく埋まっている扱い） */
+  keepFree?: Interval[];
   now: number;
   settings: Settings;
   /** 自分で入れた予定、取り込んだ Google の予定、授業 */

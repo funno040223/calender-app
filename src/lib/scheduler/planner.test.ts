@@ -16,6 +16,18 @@ describe("タスクの配置（減点方式）", () => {
     expect(b.end).toBe(jst(2026, 10, 1, 12, 15));
   });
 
+  it("空けた時間には置かず、外した分は別の時間に入れ直す。固定した枠も外す", () => {
+    const freed = { start: jst(2026, 10, 1, 10, 15), end: jst(2026, 10, 1, 12, 15) };
+    const r = plan(baseInput(now, { tags: [focus], tasks: [report], keepFree: [freed] }));
+    const bs = taskBlocks(r);
+    expect(bs.reduce((m, b) => m + (b.end - b.start) / 60_000, 0)).toBe(120);
+    expect(bs.every((b) => b.end <= freed.start || b.start >= freed.end)).toBe(true);
+    expect(r.blocks.every((b) => b.end <= freed.start || b.start >= freed.end)).toBe(true);
+    const pinned = { kind: "task" as const, refId: report.id, title: report.title, ...freed, pinned: true };
+    const again = taskBlocks(plan(baseInput(now, { tags: [focus], tasks: [report], keepFree: [freed], previousBlocks: [pinned] })));
+    expect(again.some((b) => b.start === freed.start)).toBe(false);
+  });
+
   it("「なるべく避ける」時間帯を外して置く", () => {
     const morning: AvoidWindow = { id: "a1", label: "午前はだるい", start: 9 * 60, end: 12 * 60, hard: false };
     const [b] = taskBlocks(plan(baseInput(now, { tags: [focus], tasks: [report], avoidWindows: [morning] })));

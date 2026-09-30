@@ -9,7 +9,8 @@ import type { CalendarId } from "@/lib/mock/calendars";
 import { useApp } from "@/components/app/StoreProvider";
 import { eventIndex, formatEventShort, groupKeyOf, tasksByEvent } from "@/lib/mock/related";
 import { dateKeyOf, parseClassEventId, type HabitMark } from "@/lib/mock/model";
-import { formatDate } from "@/lib/mock/jst";
+import { formatDate, newId } from "@/lib/mock/jst";
+import { keepBlockFree } from "@/lib/mock/state";
 import CalendarView, { type CalendarHandle, type CalendarMode, type EventSource } from "./CalendarView";
 import CalendarToggles from "./CalendarToggles";
 import EventForm from "./EventForm";
@@ -371,12 +372,26 @@ export default function CalendarApp() {
 
 /** 枠の記録：タスクは「やった」、習慣は「やった／5分」と「今日は飛ばす」 */
 function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void }) {
-  const { state, update } = useApp();
+  const { state, update, notify } = useApp();
   // 「今」は組み直した時刻（描くたびに Date.now() を呼ばない）
   const started = block.start <= state.plannedAt;
   const btn = (on: boolean) => `flex-1 rounded-xl py-2.5 font-medium ${on ? "bg-accent text-white" : "bg-surface2"}`;
   if (block.kind === "task") {
-    if (!started) return null;
+    // まだ始まっていない枠は、この回だけ外してその時間を空けられる（外した分は別の時間に入れ直す）
+    if (!started)
+      return (
+        <button
+          type="button"
+          className="rounded-xl bg-surface2 py-2.5 font-medium"
+          onClick={() => {
+            update((d) => keepBlockFree(d, block, newId("free"), Date.now()));
+            onSkipped();
+            notify("この時間を空けました");
+          }}
+        >
+          この時間は空ける
+        </button>
+      );
     return <Link href="/" className={btn(false)}>今日の画面で進み具合を確認</Link>;
   }
   if (block.kind !== "habit") return null;

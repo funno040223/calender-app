@@ -205,6 +205,8 @@ export interface EnergyCheck {
 
 export interface MockData {
   rhythmResets?: import("@/lib/scheduler").RhythmReset[];
+  /** 「この時間は空ける」にした時間（タスクの枠を外したところ）。自動では何も入れない */
+  keepFree?: { id: string; start: number; end: number; taskId?: string }[];
   version: 2;
   settings: Settings;
   places: Place[];

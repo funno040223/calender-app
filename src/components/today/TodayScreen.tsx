@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { type DayPlan, type EveningEnergy, type Habit } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
@@ -8,11 +8,11 @@ import { LinkIcon } from "@/components/app/icons";
 import { CALENDARS, type CalendarId } from "@/lib/mock/calendars";
 import { DAY_MS, MIN, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
 import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type ContactAnswer, type HabitMark, type MorningFatigue, type WakeLog } from "@/lib/mock/model";
-import { contactDaysFor, rainyDayKeys } from "@/lib/mock/state";
+import { contactDaysFor, rainyDayKeys, releaseKeepFree } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { bedOnTime, keepMarkValues } from "@/lib/mock/stats";
 import { BED_PREP_MINUTES } from "@/lib/notify/build";
-import { Group, ScreenHeader } from "@/components/ui/controls";
+import { Group, Row, ScreenHeader } from "@/components/ui/controls";
 import ProgressCard from "./ProgressCard";
 import RecoveryCard from "./RecoveryCard";
 import WorkNowCard from "./WorkNowCard";
@@ -28,6 +28,21 @@ function useNow(): number {
     return () => window.clearInterval(t);
   }, []);
   return now;
+}
+
+const WIDE = "(min-width: 1024px)";
+/** 広い画面（2列で並べる）かどうか */
+function useWide(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      if (typeof window.matchMedia !== "function") return () => {};
+      const m = window.matchMedia(WIDE);
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => typeof window.matchMedia === "function" && window.matchMedia(WIDE).matches,
+    () => false,
+  );
 }
 
 /** 日付をまたいだ時刻には「翌」をつける */
@@ -56,6 +71,7 @@ function SleepCard({ day, today, now }: { day: DayPlan; today: number; now: numb
           )}
         </p>
       )}
+      <EnergyLine today={today} />
     </div>
   );
 }
@@ -106,8 +122,21 @@ const FATIGUE_OPTIONS: { value: MorningFatigue; label: string }[] = [
   { value: 5, label: "ぐったり" },
 ];
 
-function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
+/** 朝のうち（起床の2時間前〜4時間後）で、起きた・疲れ・朝ルーティンがまだ終わっていない */
+function isMorning(state: ReturnType<typeof useApp>["state"], day: DayPlan | undefined, now: number): boolean {
+  const today = dayStartOf(now);
+  const wake = day?.wake ?? today + 9 * 60 * MIN;
+  if (now < wake - 2 * 60 * MIN || now >= wake + 4 * 60 * MIN) return false;
+  const log = state.wakeLogs.find((l) => l.date === dateKeyOf(today));
+  const finished =
+    log?.wokeAt !== undefined && log.fatigue !== undefined && (state.routineSteps.length === 0 || log.routineDoneAt !== undefined);
+  return !finished;
+}
+
+function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compact?: boolean }) {
   const { state, patch } = useApp();
+  // 朝が終わったら1行にたたむ（押すと開く）
+  const [open, setOpen] = useState(false);
   const today = dayStartOf(now);
   const key = dateKeyOf(today);
   const log: WakeLog = state.wakeLogs.find((l) => l.date === key) ?? { date: key, doneStepIds: [] };
@@ -134,6 +163,29 @@ function MorningCard({ day, now }: { day?: DayPlan; now: number }) {
     });
 
   const lateBy = log.wokeAt !== undefined && day ? Math.round((log.wokeAt - day.wake) / MIN) : 0;
+
+  if (compact && !open) {
+    return (
+      <Group>
+        <Row
+          label={
+            <>
+              朝ルーティン
+              {streak > 0 && <span className="ml-2 text-[13px] font-semibold text-ok">連続 {streak}日</span>}
+            </>
+          }
+          detail={
+            log.routineDoneAt !== undefined
+              ? `${formatTime(log.routineDoneAt)} 完了`
+              : log.wokeAt !== undefined
+                ? `${formatTime(log.wokeAt)} 起床`
+                : "記録なし"
+          }
+          onClick={() => setOpen(true)}
+        />
+      </Group>
+    );
+  }
 
   return (
     <Group
@@ -265,8 +317,10 @@ interface TimelineItem {
   action?: { label: string; onClick: () => void };
 }
 
-function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
+function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: number; limit?: number }) {
   const { state, openTask, update } = useApp();
+  // 狭い画面では、いまと次のいくつかだけ。残りは押すと出す
+  const [all, setAll] = useState(false);
   const events = eventIndex(state);
   const related = tasksByEvent(state.tasks, events);
   const items: TimelineItem[] = [];
@@ -322,8 +376,22 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
       action: rainSwap ? { label: rainy ? `晴れたので「${habit!.name}」に戻す` : "雨なので家の中でやる", onClick: toggleRain } : undefined,
     });
   }
+  // 枠を外して空けた時間。押すと、また自動で入るように戻せる
+  for (const k of state.keepFree ?? []) {
+    if (k.end <= now || k.start >= dayEnd) continue;
+    items.push({
+      key: `free:${k.id}`,
+      title: "空けた時間",
+      start: k.start,
+      end: k.end,
+      color: "var(--muted)",
+      dim: true,
+      action: { label: "戻す", onClick: () => update((d) => releaseKeepFree(d, k.id)) },
+    });
+  }
   items.sort((a, b) => a.start - b.start || a.end - b.end);
   const nextIdx = items.findIndex((i) => i.start > now && !i.dim);
+  const shown = all || !limit ? items : items.slice(0, Math.max(limit, nextIdx + 1));
   const allDay = allEventRefs(state).filter((r) => r.event.allDay && r.event.start < dayEnd && r.event.end > now);
 
   return (
@@ -341,7 +409,7 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
         <p className="px-4 py-3 text-[14px] text-muted">今日の残りの予定はありません。</p>
       ) : (
         <ol className="flex flex-col py-1">
-          {items.map((it, i) => {
+          {shown.map((it, i) => {
             const current = it.start <= now && it.end > now;
             const next = i === nextIdx;
             const body = (
@@ -394,6 +462,13 @@ function Timeline({ now, dayEnd }: { now: number; dayEnd: number }) {
               </li>
             );
           })}
+          {shown.length < items.length && (
+            <li>
+              <button type="button" onClick={() => setAll(true)} className="w-full px-4 py-2 text-left text-[14px] text-accent">
+                ほか {items.length - shown.length}件
+              </button>
+            </li>
+          )}
         </ol>
       )}
     </Group>
@@ -459,37 +534,33 @@ function EveningCard({ day, now }: { day: DayPlan; now: number }) {
   );
 }
 
-/** 今日の行動ポイント。上限を超える日は、発散の時間を提案する */
-function EnergyCard({ today }: { today: number }) {
+/** 今日の行動ポイント（起床・就寝の下に1行で）。上限を超える日は、発散の時間を提案する */
+function EnergyLine({ today }: { today: number }) {
   const { state } = useApp();
   const e = state.result.dayEnergy.find((x) => x.dayStart === today);
   if (!e) return null;
   const ratio = Math.min(1, e.used / e.budget);
   const over = e.used > e.budget;
   const tired = e.evening === "low";
+  const note = tired
+    ? e.suggestion ? `${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "今夜は休む"
+    : over
+      ? e.suggestion ? `上限超え・${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "上限超え"
+      : undefined;
   return (
-    <Group title="今日の行動ポイント">
-      <div className="flex flex-col gap-2 px-4 py-3">
-        <p className="text-[15px] tabular-nums">
-          <span className="text-[22px] font-semibold">{e.used}</span>
-          <span className="text-muted"> / {e.budget} ポイント</span>
-        </p>
-        <div className="h-2 overflow-hidden rounded-full bg-surface2" role="meter" aria-valuenow={e.used} aria-valuemin={0} aria-valuemax={e.budget} aria-label="今日の行動ポイント">
+    <div className="col-span-2 flex flex-col gap-1.5 rounded-xl bg-surface px-4 py-2.5">
+      <div className="flex items-center gap-3">
+        <span className="shrink-0 text-[13px] font-medium text-muted">行動ポイント</span>
+        <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-surface2" role="meter" aria-valuenow={e.used} aria-valuemin={0} aria-valuemax={e.budget} aria-label="今日の行動ポイント">
           <div className={`h-full rounded-full ${over ? "bg-accent" : "bg-ok"}`} style={{ width: `${ratio * 100}%` }} />
         </div>
-        {tired ? (
-          <p className="text-[14px]">
-            {e.suggestion ? `${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "今夜は休む"}
-          </p>
-        ) : over ? (
-          <p className="text-[14px]">
-            {e.suggestion ? `上限超え・${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "上限超え"}
-          </p>
-        ) : (
-          <p className="text-[13px] text-muted">あと {Math.round((e.budget - e.used) * 10) / 10}</p>
-        )}
+        <span className="shrink-0 text-[14px] tabular-nums">
+          <span className="font-semibold">{e.used}</span>
+          <span className="text-muted"> / {e.budget}</span>
+        </span>
       </div>
-    </Group>
+      {note && <p className="text-[14px]">{note}</p>}
+    </div>
   );
 }
 
@@ -556,7 +627,7 @@ function HabitLogCard({ today }: { today: number }) {
 
 /** 少しずつ増やす習慣（家での運動）：2週間たったら記録を見て、増やすか・きっかけを変えるかを聞く */
 function ReviewCard({ today }: { today: number }) {
-  const { state, update } = useApp();
+  const { state, update, notify } = useApp();
   const key = dateKeyOf(today);
   const habit = state.habits.find((h) => {
     const from = h.progression && dayStartOfKey(h.progression.reviewFrom);
@@ -570,7 +641,7 @@ function ReviewCard({ today }: { today: number }) {
   const ratio = done / planned;
   const up = ratio >= 0.8 && habit.durationMinutes < p.maxMinutes;
   const low = ratio < 0.5;
-  const finish = (grow: boolean) =>
+  const finish = (grow: boolean) => {
     update((d) => ({
       ...d,
       habitLogs: grow ? keepMarkValues(d.habitLogs, habit, Math.min(p.maxMinutes, habit.durationMinutes + p.stepMinutes)) : d.habitLogs,
@@ -584,6 +655,8 @@ function ReviewCard({ today }: { today: number }) {
           : h,
       ),
     }));
+    notify(grow ? `${habit.name}を${Math.min(p.maxMinutes, habit.durationMinutes + p.stepMinutes)}分に` : "記録しました");
+  };
   const btn = "rounded-lg px-4 py-2 text-[15px]";
   return (
     <Group title={habit.name}>
@@ -630,6 +703,15 @@ function BedCard({ now }: { now: number }) {
       };
     });
   if (!day) return null;
+  // 寝る前に、明日の起床と最初の予定を見られるように（アラームを合わせる）
+  const next = state.result.dayPlans.find((d) => d.dayStart === day.dayStart + DAY_MS);
+  const tomorrow = next && (
+    <p className="truncate px-4 pb-3 text-[13px] tabular-nums text-muted">
+      明日 {formatTime(next.wake)} 起床
+      {next.firstEvent ? `・${formatTime(next.firstEvent.start)}「${next.firstEvent.title}」` : ""}
+      {next.leave ? `・${formatTime(next.leave)}出発` : ""}
+    </p>
+  );
   const undo = () =>
     patch((d) => {
       const bedLogs = { ...d.bedLogs };
@@ -638,6 +720,7 @@ function BedCard({ now }: { now: number }) {
     });
   return (
     <Group title="おやすみ">
+      <div>
       {log ? (
         <div className="flex items-center gap-3 px-4 py-3">
           <CheckCircle on />
@@ -657,6 +740,8 @@ function BedCard({ now }: { now: number }) {
           </button>
         </div>
       )}
+      {tomorrow}
+      </div>
     </Group>
   );
 }
@@ -717,10 +802,13 @@ function MealCard({ today, now }: { today: number; now: number }) {
 
 /** 余裕のある週の最初の休日に「連絡してみる？」。答えたらその週はもう出さない */
 function ContactCard({ today, now }: { today: number; now: number }) {
-  const { state, update } = useApp();
+  const { state, update, notify } = useApp();
   const c = contactDaysFor(state, now).find((x) => x.dayStart === today);
   if (!c) return null;
-  const answer = (a: ContactAnswer) => update((d) => ({ ...d, contactLogs: { ...d.contactLogs, [dateKeyOf(c.weekStart)]: a } }));
+  const answer = (a: ContactAnswer) => {
+    update((d) => ({ ...d, contactLogs: { ...d.contactLogs, [dateKeyOf(c.weekStart)]: a } }));
+    notify("記録しました");
+  };
   return (
     <Group title="連絡してみる？">
       <div className="flex gap-2 px-4 py-3">
@@ -794,64 +882,98 @@ export default function TodayScreen() {
   const day = idx >= 0 ? days[idx] : undefined;
   const dayEnd = Math.max(day?.bed ?? 0, today + DAY_MS);
 
+  const wide = useWide();
+  const morning = isMorning(state, day, now);
+
   const registerPlace = (location: string, minutes: number) =>
     update((d) => ({
       ...d,
       places: [...d.places, { id: newId("place"), name: location, keywords: [location], travelMinutes: minutes }],
     }));
 
+  // 答えや設定が要るもの（作業の進み具合・移動時間・締切に足りないなど）は、いちばん上に。
+  // そのあとは今の時間に合わせる：朝は「起きた」と朝ルーティン、夜は「おやすみ」と帰宅時の体力
+  const top = (
+    <>
+      <ProgressCard now={now} />
+      <ReviewCard today={today} />
+      {hasNotices(state) && (
+        <Group title="お知らせ">
+          <Notices
+            state={state}
+            onRegisterPlace={registerPlace}
+            onOpenTask={openTask}
+            onSetTravel={(id, m) => update((d) => ({ ...d, importedTravel: { ...d.importedTravel, [id]: m } }))}
+            onFixShortfall={(id, fix) =>
+              update((d) => ({
+                ...d,
+                tasks: d.tasks.map((t) =>
+                  t.id !== id
+                    ? t
+                    : fix === "first"
+                      ? { ...t, first: true }
+                      : fix === "stretch"
+                        ? { ...t, stretch: true }
+                        : t.deadline !== undefined && t.deadlineKind === "target" && !t.relatedEventId
+                          ? { ...t, deadline: t.deadline + DAY_MS }
+                          : t,
+                ),
+              }))
+            }
+          />
+        </Group>
+      )}
+      <BedCard now={now} />
+      {day && <EveningCard day={day} now={now} />}
+      {morning && <MorningCard day={day} now={now} />}
+    </>
+  );
+  const middle = (
+    <>
+      {day && <SleepCard day={day} today={today} now={now} />}
+      <WorkNowCard now={now} />
+    </>
+  );
+  const rest = (
+    <>
+      <SmokeCard today={today} />
+      <MealCard today={today} now={now} />
+      <TreatCard today={today} />
+      <ContactCard today={today} now={now} />
+      {!morning && <MorningCard day={day} now={now} compact />}
+    </>
+  );
+
   return (
     <div className="h-full overflow-y-auto bg-grouped">
       <ScreenHeader title="今日" sub={formatDate(today)} width="max-w-5xl" />
       {!!state.result.movedBlocks?.length && <div role="status" className="mx-auto max-w-5xl px-4 pb-3 text-[13px] text-muted">予定に合わせて今日の自動枠を{state.result.movedBlocks.length}件変更しました。{state.result.movedBlocks.slice(0, 3).map((b) => `${formatTime(b.start)} ${b.title}`).join("、")}</div>}
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
-        <div className="flex flex-col gap-6">
-          {/* 答えや設定が要るもの（作業の進み具合・移動時間・締切に足りないなど）は、いちばん上に */}
-          <ProgressCard now={now} />
-          <ReviewCard today={today} />
-          {hasNotices(state) && (
-            <Group title="お知らせ">
-              <Notices
-                state={state}
-                onRegisterPlace={registerPlace}
-                onOpenTask={openTask}
-                onSetTravel={(id, m) => update((d) => ({ ...d, importedTravel: { ...d.importedTravel, [id]: m } }))}
-                onFixShortfall={(id, fix) =>
-                  update((d) => ({
-                    ...d,
-                    tasks: d.tasks.map((t) =>
-                      t.id !== id
-                        ? t
-                        : fix === "first"
-                          ? { ...t, first: true }
-                          : fix === "stretch"
-                            ? { ...t, stretch: true }
-                            : t.deadline !== undefined && t.deadlineKind === "target" && !t.relatedEventId
-                              ? { ...t, deadline: t.deadline + DAY_MS }
-                              : t,
-                    ),
-                  }))
-                }
-              />
-            </Group>
-          )}
-          <BedCard now={now} />
-          {day && <EveningCard day={day} now={now} />}
-          {day && <SleepCard day={day} today={today} now={now} />}
-          <WorkNowCard now={now} />
-          <EnergyCard today={today} />
-          <MealCard today={today} now={now} />
-          <MorningCard day={day} now={now} />
-          <TreatCard today={today} />
-          <ContactCard today={today} now={now} />
-          <SmokeCard today={today} />
-        </div>
-        <div className="flex flex-col gap-6">
-          <HabitLogCard today={today} />
-          <Timeline now={now} dayEnd={dayEnd} />
-          {/* 崩れた日の立て直しは、ときどき使うものなので下に */}
-          <RecoveryCard now={now} />
-        </div>
+        {wide ? (
+          <>
+            <div className="flex flex-col gap-6">
+              {top}
+              {middle}
+              {rest}
+            </div>
+            <div className="flex flex-col gap-6">
+              <HabitLogCard today={today} />
+              <Timeline now={now} dayEnd={dayEnd} />
+              <RecoveryCard now={now} />
+            </div>
+          </>
+        ) : (
+          <>
+            {top}
+            {middle}
+            {/* 狭い画面では、今日の流れを上に（いまと次だけ） */}
+            <Timeline now={now} dayEnd={dayEnd} limit={5} />
+            <HabitLogCard today={today} />
+            {rest}
+            {/* 崩れた日の立て直しは、ときどき使うものなので下に */}
+            <RecoveryCard now={now} />
+          </>
+        )}
       </div>
       {/* 取り消しは目立たせず、いちばん下に */}
       {canUndo && (
