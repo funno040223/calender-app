@@ -196,6 +196,24 @@ export const HABIT_MARKS: HabitMark[] = ["done", "five"];
 export type MorningFatigue = 1 | 2 | 3 | 4 | 5;
 
 /** 帰宅時に体力を答えたときの、行動ポイントの予測（あとで値を合わせるための記録） */
+/**
+ * その日の計画の控え（記録の画面の「気づき」で使う。画面には出さない）。
+ * その日のうちは組み直すたびに書き直し、日が変わったら残したままにする
+ */
+export interface DayLog {
+  /** 時刻のある予定の数と、家にいない予定があったか */
+  events: number;
+  away: boolean;
+  rainy?: boolean;
+  /** その日の行動ポイント（予測）と上限 */
+  points?: number;
+  budget?: number;
+  /** その日に置いた記録する習慣（一度でも置いたもの） */
+  habits: string[];
+  /** 食事の始まり（習慣の ID → 時刻） */
+  meals: Record<string, number>;
+}
+
 export interface EnergyCheck {
   /** 答えた時点のその日の行動ポイント（予測） */
   predicted: number;
@@ -228,6 +246,8 @@ export interface MockData {
   habitDoneDays: Record<string, number[]>;
   /** 「寝る」を押した記録（その日の日付 → 記録） */
   bedLogs: Record<DateKey, BedLog>;
+  /** その日の計画の控え（120日ぶん） */
+  dayLogs: Record<DateKey, DayLog>;
   /** 表示だけの設定（DB では settings に入れる） */
   hiddenCalendars: CalendarId[];
   /** 帰宅したときに答えた残りの体力（日付 → 答え）。今夜の組み方に使い、記録としても残す */

@@ -1,7 +1,7 @@
 import { captureTaskBlocks } from "./progress";
-import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
-import { DAY_MS, MIN } from "./jst";
+import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, resolveTravel, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
+import { DAY_MS, MIN, dayStartOf } from "./jst";
 import {
   SAMPLE_RECOVERY_OPTIONS,
   SAMPLE_AVOID_WINDOWS,
@@ -95,6 +95,7 @@ const DATA_KEYS = [
   "habitLastDone",
   "habitDoneDays",
   "bedLogs",
+  "dayLogs",
   "hiddenCalendars",
   "eveningEnergy",
   "rainyDays",
@@ -146,6 +147,7 @@ export function sampleData(now: number): MockData {
     habitLastDone: {},
     habitDoneDays: {},
     bedLogs: {},
+    dayLogs: {},
     hiddenCalendars: [],
     eveningEnergy: {},
     rainyDays: [],
@@ -302,6 +304,14 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     habitDoneDays: isRecord(d.habitDoneDays)
       ? Object.fromEntries(
           Object.entries(d.habitDoneDays).map(([id, v]) => [id, Array.isArray(v) ? v.filter((t): t is number => typeof t === "number") : []]),
+        )
+      : {},
+    dayLogs: isRecord(d.dayLogs)
+      ? Object.fromEntries(
+          Object.entries(d.dayLogs).filter(
+            (e): e is [string, DayLog] =>
+              isRecord(e[1]) && typeof e[1].events === "number" && typeof e[1].away === "boolean" && Array.isArray(e[1].habits) && isRecord(e[1].meals),
+          ),
         )
       : {},
     bedLogs: isRecord(d.bedLogs)
@@ -475,12 +485,13 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   }
   data = captureTaskBlocks({ ...data, habitLastDone, habitDoneDays }, now);
   const planTags = planTagsOf(data);
+  const events = planEvents(data, classEvents, googleEvents);
   const result = plan({
     now,
     rhythmResets: data.rhythmResets,
     keepFree: data.keepFree,
     settings: data.settings,
-    events: planEvents(data, classEvents, googleEvents),
+    events,
     places: data.places,
     habits: data.habits,
     tags: planTags,
@@ -500,7 +511,47 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     skipHabitDays: skipDays,
     mealAtHomeDays: byHabit(data.mealsAtHome),
   });
+  data = captureDayLog(data, result, events, now);
   return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now, planTags };
+}
+
+/** 計画の控えを残す日数 */
+const DAY_LOG_DAYS = 120;
+
+/**
+ * 今日の計画の控えを残す（予定の数・外出・雨・行動ポイント・置いた習慣と食事の時刻）。
+ * 習慣は一度でも置いたものを残し（飛ばした日も「置いた日」に数える）、食事は今の置き方にする
+ */
+export function captureDayLog(data: MockData, result: PlanResult, events: CalendarEvent[], now: number): MockData {
+  const today = dayStartOf(now);
+  const end = today + DAY_MS;
+  const key = dateKeyOf(today);
+  const todays = events.filter((e) => !e.allDay && e.start >= today && e.start < end);
+  const away =
+    todays.some((e) => !resolveTravel(e, data.places, data.settings).atHome) ||
+    events.some((e) => e.allDay && e.awayFromHome && e.start < end && e.end > today);
+  const energy = result.dayEnergy.find((x) => x.dayStart === today);
+  const prev = data.dayLogs[key];
+  const habits = new Set(prev?.habits ?? []);
+  const meals: Record<string, number> = {};
+  for (const b of result.blocks) {
+    if (b.kind !== "habit" || b.start < today || b.start >= end) continue;
+    const h = data.habits.find((x) => x.id === b.refId);
+    if (h?.track) habits.add(h.id);
+    if (h?.meal && meals[h.id] === undefined) meals[h.id] = b.start;
+  }
+  const next: DayLog = {
+    events: todays.length,
+    away,
+    rainy: rainyDayKeys(data).includes(key),
+    ...(energy ? { points: energy.used, budget: energy.budget } : {}),
+    habits: [...habits].sort(),
+    meals,
+  };
+  if (prev && JSON.stringify(prev) === JSON.stringify(next)) return data;
+  const from = dateKeyOf(today - DAY_LOG_DAYS * DAY_MS);
+  const kept = Object.entries(data.dayLogs).filter(([k]) => k >= from && k !== key);
+  return { ...data, dayLogs: Object.fromEntries([...kept, [key, next]]) };
 }
 
 

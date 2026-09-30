@@ -1,13 +1,51 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useApp } from "@/components/app/StoreProvider";
-import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
-import { dateKeyOf } from "@/lib/mock/model";
+import { INSIGHT_DAYS, applyInsightAction, buildInsights } from "@/lib/mock/insights";
+import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatTime, newId } from "@/lib/mock/jst";
 import { dailyGrid, dailyReward, periodStats, rewardBalance, rewardEarned, type CellState, type GridRow, type PeriodStats } from "@/lib/mock/stats";
 import { Card, Row, ScreenHeader, btnPrimary, btnSecondary, inputBase } from "@/components/ui/controls";
 
 const yen = (n: number) => `¥${Math.round(n).toLocaleString("ja-JP")}`;
+
+/** 気づき：予定と実際を重ねて見つけた傾向。はっきりしたものがなければ出さない */
+function Insights() {
+  const { state, update, notify } = useApp();
+  // 「今」は組み直した時刻（描くたびに Date.now() を呼ばない）
+  const list = buildInsights(state, state.plannedAt);
+  if (!list.length) return null;
+  return (
+    <Card title="気づき" right={<span className="shrink-0 text-[12px] text-muted">直近{INSIGHT_DAYS / 7}週間</span>}>
+      {list.map((i) => (
+        <div key={i.id} className="flex flex-col gap-0.5 px-4 py-3">
+          <p className="text-[12px] font-medium text-muted">{i.topic}</p>
+          <p className="text-[15px] leading-snug">{i.text}</p>
+          {i.sub && <p className="text-[13px] tabular-nums text-muted">{i.sub}</p>}
+          {i.action &&
+            (i.action.type === "link" ? (
+              <Link href={i.action.href} className={`${btnSecondary} mt-2 self-start py-1.5 text-[14px]`}>
+                {i.action.label}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const action = i.action!;
+                  update((d) => applyInsightAction(d, action, newId("avoid")));
+                  notify(`「${action.label}」にしました`);
+                }}
+                className={`${btnSecondary} mt-2 self-start py-1.5 text-[14px]`}
+              >
+                {i.action.label}
+              </button>
+            ))}
+        </div>
+      ))}
+    </Card>
+  );
+}
 
 /** ご褒美のお金：たまった分から、使った分を引いた残り。使ったら金額を記録する */
 function Reward() {
@@ -306,33 +344,6 @@ function Columns({
   );
 }
 
-/** 睡眠：直近14日の、朝に記録した睡眠時間 */
-function Sleep() {
-  const { state } = useApp();
-  const end = dayStartOf(state.plannedAt) + DAY_MS;
-  const days = Array.from({ length: 14 }, (_, i) => end - (14 - i) * DAY_MS);
-  const minutes = days.map((d) => state.wakeLogs.find((l) => l.date === dateKeyOf(d))?.sleepMinutes);
-  const recorded = minutes.filter((m): m is number => m !== undefined);
-  const avg = recorded.length ? recorded.reduce((a, b) => a + b, 0) / recorded.length : undefined;
-  return (
-    <Card title="睡眠（直近2週間）">
-      <div className="flex flex-col gap-2 px-4 py-3">
-        <p className="flex items-baseline gap-3 tabular-nums">
-          <span className="text-[22px] font-semibold">{avg === undefined ? "—" : formatMinutes(Math.round(avg / 5) * 5)}</span>
-          <span className="text-[13px] text-muted">平均・{recorded.length}日分</span>
-        </p>
-        <Columns
-          label="日ごとの睡眠時間"
-          values={minutes.map((m) => m ?? 0)}
-          labels={days.map((d, i) => (i % 2 === 1 || i === 13 ? String(new Date(d + TZ * MIN).getUTCDate()) : ""))}
-          details={days.map((d, i) => `${formatDate(d)} ${minutes[i] === undefined ? "記録なし" : formatMinutes(minutes[i]!)}`)}
-          format={(v) => formatMinutes(v)}
-        />
-      </div>
-    </Card>
-  );
-}
-
 /** タバコ：直近14日の、時間帯ごとの本数と、日ごとの本数 */
 function Smoking() {
   const { state } = useApp();
@@ -385,12 +396,12 @@ export default function StatsScreen() {
       <ScreenHeader title="記録" width="max-w-5xl" />
       <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">
+          <Insights />
           <Reward />
           <RewardChart />
-          <Adherence />
         </div>
         <div className="flex flex-col gap-4">
-          <Sleep />
+          <Adherence />
           <Smoking />
         </div>
       </div>
