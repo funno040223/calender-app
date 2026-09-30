@@ -168,8 +168,8 @@ export interface RewardSpend {
 }
 /**
  * 1回あたりの円。起床は予定の30分以内に「起きた」、習慣は「記録する」の習慣（5分だけは半分）、
- * 就寝は予定の15分後までに「寝る」、タバコは「寝る」を押したときに就寝の3時間前から吸っていない、
- * 記録は朝の疲れ・睡眠時間・帰宅時の体力をそれぞれ答えたとき
+ * 就寝は予定の15分後までに「寝る」、記録は朝の疲れ・睡眠時間・帰宅時の体力をそれぞれ答えたとき。
+ * タバコはご褒美の対象にしない（責めずに記録するため。吸ったら減るなら、記録しない理由になる）
  */
 export interface RewardRates {
   wake: number;
@@ -177,17 +177,14 @@ export interface RewardRates {
   habit: number;
   task: number;
   bed: number;
-  smoke: number;
   log: number;
 }
-export const DEFAULT_REWARD_RATES: RewardRates = { wake: 30, routine: 30, habit: 30, task: 100, bed: 30, smoke: 30, log: 10 };
+export const DEFAULT_REWARD_RATES: RewardRates = { wake: 30, routine: 30, habit: 30, task: 100, bed: 30, log: 10 };
 /** 「寝る」を押した記録。その日（起きている日）の日付が主キー */
 export interface BedLog {
   at: number;
   /** 押したときの、予定の就寝時刻 */
   plannedBed: number;
-  /** 押したときに、就寝の3時間前から吸っていなかった */
-  smokeFree: boolean;
 }
 export const taskBlockKey = (refId: string, start: number) => `${refId}:${start}`;
 

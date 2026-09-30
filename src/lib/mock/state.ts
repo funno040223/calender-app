@@ -305,7 +305,7 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     bedLogs: isRecord(d.bedLogs)
       ? Object.fromEntries(
           Object.entries(d.bedLogs).filter(
-            (e): e is [string, BedLog] => isRecord(e[1]) && typeof e[1].at === "number" && typeof e[1].plannedBed === "number" && typeof e[1].smokeFree === "boolean",
+            (e): e is [string, BedLog] => isRecord(e[1]) && typeof e[1].at === "number" && typeof e[1].plannedBed === "number",
           ),
         )
       : {},

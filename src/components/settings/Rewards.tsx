@@ -10,7 +10,6 @@ const ROWS: { k: keyof RewardRates; label: string }[] = [
   { k: "habit", label: "習慣" },
   { k: "task", label: "タスク" },
   { k: "bed", label: "就寝" },
-  { k: "smoke", label: "寝る前のタバコ" },
   { k: "log", label: "記録" },
 ];
 

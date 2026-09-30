@@ -91,11 +91,7 @@ export function rewardEarned(data: Data, from = -Infinity, to = Infinity): numbe
     if (inRange(day)) yen += ((l.fatigue !== undefined ? 1 : 0) + (l.sleepMinutes !== undefined ? 1 : 0)) * (r.log ?? 0);
   }
   for (const key of Object.keys(data.eveningEnergy ?? {})) if (inRange(dayStartOfKey(key))) yen += r.log ?? 0;
-  for (const l of Object.values(data.bedLogs ?? {})) {
-    if (!inRange(l.at)) continue;
-    if (bedOnTime(l)) yen += r.bed ?? 0;
-    if (l.smokeFree) yen += r.smoke ?? 0;
-  }
+  for (const l of Object.values(data.bedLogs ?? {})) if (inRange(l.at) && bedOnTime(l)) yen += r.bed ?? 0;
   for (const [key, marks] of Object.entries(data.habitLogs)) {
     const day = dayStartOfKey(key);
     if (day === undefined || !inRange(day)) continue;

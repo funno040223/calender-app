@@ -11,7 +11,7 @@ import { TREAT_CATEGORIES, dateKeyOf, dayStartOfKey, treatFor, wakeStreak, type 
 import { contactDaysFor, rainyDayKeys } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { bedOnTime, keepMarkValues } from "@/lib/mock/stats";
-import { BED_PREP_MINUTES, SMOKE_CUTOFF_MINUTES } from "@/lib/notify/build";
+import { BED_PREP_MINUTES } from "@/lib/notify/build";
 import { Group, ScreenHeader } from "@/components/ui/controls";
 import ProgressCard from "./ProgressCard";
 import RecoveryCard from "./RecoveryCard";
@@ -611,7 +611,7 @@ function ReviewCard({ today }: { today: number }) {
   );
 }
 
-/** 寝る準備の時刻になったら「寝る」。予定どおりに寝られたか・寝る前にタバコを控えたかを残す（ご褒美になる） */
+/** 寝る準備の時刻になったら「寝る」。予定どおりに寝られたかを残す（ご褒美になる） */
 function BedCard({ now }: { now: number }) {
   const { state, patch } = useApp();
   const day = state.result.dayPlans.find((d) => now >= d.bed - BED_PREP_MINUTES * MIN && now < d.bed + 3 * 60 * MIN);
@@ -625,7 +625,7 @@ function BedCard({ now }: { now: number }) {
         bedLogs: {
           // 記録は1年ぶんだけ残す
           ...Object.fromEntries(Object.entries(d.bedLogs).sort(([a], [b]) => a.localeCompare(b)).slice(-399)),
-          [key]: { at, plannedBed: day.bed, smokeFree: !d.smokeLogs.some((t) => t >= day.bed - SMOKE_CUTOFF_MINUTES * MIN && t <= at) },
+          [key]: { at, plannedBed: day.bed },
         },
       };
     });
