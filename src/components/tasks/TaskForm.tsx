@@ -96,7 +96,7 @@ export default function TaskForm({
   const options = related && !upcoming.includes(related) ? [related, ...upcoming] : upcoming;
   const blocks = task ? blocksOfTask(state.result.blocks, task.id) : [];
   const freed = task ? (state.keepFree ?? []).filter((k) => k.taskId === task.id && k.end > state.plannedAt) : [];
-  const small = "shrink-0 rounded-md bg-surface px-2 py-1 text-[12px] font-medium text-accent";
+  const small = "shrink-0 rounded-md bg-surface px-2 py-1 text-[12px] font-medium text-tint";
   const shortfall = task ? state.result.shortfalls.find((s) => s.taskId === task.id) : undefined;
 
   const submit = (e: FormEvent) => {
@@ -212,7 +212,7 @@ export default function TaskForm({
           </div>
           {d.hasDeadline && <label className="block text-[14px]">期限の種類<select aria-label="期限の種類" value={d.deadlineKind} onChange={(e) => set("deadlineKind", e.target.value as "fixed" | "target")} className="ml-2 rounded-lg bg-surface2 p-2"><option value="fixed">提出・約束の締切</option><option value="target">自分の目標日</option></select></label>}
           {d.hasDeadline && (
-            <div className="grid grid-cols-[1fr_7.5rem] gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-2">
               <input className={inputCls} type="date" aria-label="締切の日付" value={d.deadlineDate} onChange={(e) => set("deadlineDate", e.target.value)} />
               <input
                 className={inputCls}

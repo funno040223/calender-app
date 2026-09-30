@@ -27,7 +27,7 @@ function StepRow({
     setSynced(step.title);
     setText(step.title);
   }
-  const arrow = "flex h-8 w-8 items-center justify-center rounded-lg text-[15px] text-accent disabled:text-line";
+  const arrow = "flex h-8 w-8 items-center justify-center rounded-lg text-[15px] font-medium text-tint disabled:text-line";
   return (
     <div className="flex min-h-11 items-center gap-1 px-2 py-1">
       <input

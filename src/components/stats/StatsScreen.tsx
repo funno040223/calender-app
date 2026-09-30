@@ -5,7 +5,7 @@ import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatMinutes, formatTime, newId } from "@/lib/mock/jst";
 import { dateKeyOf } from "@/lib/mock/model";
 import { dailyGrid, dailyReward, periodStats, rewardBalance, rewardEarned, type CellState, type GridRow, type PeriodStats } from "@/lib/mock/stats";
-import { Group, Row, ScreenHeader, inputBase } from "@/components/ui/controls";
+import { Card, Row, ScreenHeader, btnPrimary, btnSecondary, inputBase } from "@/components/ui/controls";
 
 const yen = (n: number) => `¥${Math.round(n).toLocaleString("ja-JP")}`;
 
@@ -14,6 +14,8 @@ function Reward() {
   const { state, update } = useApp();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  // 使ったときだけ、金額の入力を開く
+  const [spending, setSpending] = useState(false);
   // 「今」は組み直した時刻（描くたびに Date.now() を呼ばない）
   const today = dayStartOf(state.plannedAt);
   const monday = today - ((new Date(today + TZ * MIN).getUTCDay() + 6) % 7) * DAY_MS;
@@ -23,14 +25,23 @@ function Reward() {
     update((d) => ({ ...d, rewardSpends: [...d.rewardSpends, { id: newId("spend"), at: Date.now(), amount: n, note: note.trim() || undefined }] }));
     setAmount("");
     setNote("");
+    setSpending(false);
   };
   const recent = [...state.rewardSpends].sort((a, b) => b.at - a.at).slice(0, 5);
   return (
-    <Group title="ご褒美">
-      <div className="flex items-end justify-between px-4 pt-3">
-        <p className="text-[34px] font-bold tabular-nums leading-none">{yen(rewardBalance(state))}</p>
-        <p className="text-[13px] tabular-nums text-muted">今週 +{yen(rewardEarned(state, monday, monday + 7 * DAY_MS))}</p>
+    <Card title="ご褒美">
+      <div className="flex items-end gap-3 px-4 pt-1 pb-3.5">
+        <div className="min-w-0 flex-1">
+          <p className="text-[34px] font-bold leading-none tracking-tight tabular-nums">{yen(rewardBalance(state))}</p>
+          <p className="mt-1.5 text-[13px] tabular-nums text-muted">今週 +{yen(rewardEarned(state, monday, monday + 7 * DAY_MS))}</p>
+        </div>
+        {!spending && (
+          <button type="button" onClick={() => setSpending(true)} className={`${btnSecondary} shrink-0 py-2`}>
+            使った
+          </button>
+        )}
       </div>
+      {spending && (
       <div className="flex items-center gap-2 px-4 py-3">
         <input
           className={`${inputBase} w-24 text-right`}
@@ -42,10 +53,11 @@ function Reward() {
           onChange={(e) => setAmount(e.target.value)}
         />
         <input className={`${inputBase} flex-1`} placeholder="メモ" aria-label="メモ" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button type="button" onClick={spend} className="shrink-0 rounded-lg bg-accent px-3 py-2 text-[15px] font-medium text-white">
-          使った
+        <button type="button" onClick={spend} className={`${btnPrimary} shrink-0 py-2`}>
+          記録
         </button>
       </div>
+      )}
       {recent.map((s) => (
         <Row key={s.id} label={s.note ?? "ご褒美"} sub={formatDate(s.at)} detail={`−${yen(s.amount)}`}>
           <button
@@ -58,7 +70,7 @@ function Reward() {
           </button>
         </Row>
       ))}
-    </Group>
+    </Card>
   );
 }
 
@@ -88,7 +100,7 @@ function Adherence() {
   const prev = periodStats(state, end - 28 * DAY_MS, end - 14 * DAY_MS, now);
   const pickedRow = picked && ROWS.find((r) => r.key === picked.row);
   return (
-    <Group title="直近2週間">
+    <Card title="直近2週間">
       <div className="flex flex-col gap-2 px-4 py-3">
         <div className="grid grid-cols-[5.25rem_1fr_3rem] items-end gap-x-2 text-[11px] tabular-nums text-muted">
           <span />
@@ -150,7 +162,7 @@ function Adherence() {
           ))}
         </div>
       </div>
-    </Group>
+    </Card>
   );
 }
 
@@ -188,7 +200,7 @@ function RewardChart() {
   };
   const p = picked !== undefined ? data[picked] : undefined;
   return (
-    <Group title="ご褒美の推移">
+    <Card title="ご褒美の推移">
       <div className="px-4 py-3">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="日ごとのたまった金額と使った金額">
           <line x1={0} x2={W} y1={zeroY} y2={zeroY} className="stroke-line" strokeWidth={1} />
@@ -228,7 +240,7 @@ function RewardChart() {
           </span>
         </div>
       </div>
-    </Group>
+    </Card>
   );
 }
 
@@ -303,7 +315,7 @@ function Sleep() {
   const recorded = minutes.filter((m): m is number => m !== undefined);
   const avg = recorded.length ? recorded.reduce((a, b) => a + b, 0) / recorded.length : undefined;
   return (
-    <Group title="睡眠（直近2週間）">
+    <Card title="睡眠（直近2週間）">
       <div className="flex flex-col gap-2 px-4 py-3">
         <p className="flex items-baseline gap-3 tabular-nums">
           <span className="text-[22px] font-semibold">{avg === undefined ? "—" : formatMinutes(Math.round(avg / 5) * 5)}</span>
@@ -317,7 +329,7 @@ function Sleep() {
           format={(v) => formatMinutes(v)}
         />
       </div>
-    </Group>
+    </Card>
   );
 }
 
@@ -334,7 +346,7 @@ function Smoking() {
   const byDay = days.map((d) => logs.filter((t) => t >= d && t < d + DAY_MS).length);
   const avg = (n: number) => (Math.round((n / 14) * 10) / 10).toFixed(1);
   return (
-    <Group title="タバコ（直近2週間）">
+    <Card title="タバコ（直近2週間）">
       <div className="flex flex-col gap-3 px-4 py-3">
         <p className="flex items-baseline gap-3 tabular-nums">
           <span className="text-[22px] font-semibold">{logs.length}本</span>
@@ -363,7 +375,7 @@ function Smoking() {
           />
         </div>
       </div>
-    </Group>
+    </Card>
   );
 }
 
@@ -371,13 +383,13 @@ export default function StatsScreen() {
   return (
     <div className="h-full overflow-y-auto bg-grouped">
       <ScreenHeader title="記録" width="max-w-5xl" />
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
-        <div className="flex flex-col gap-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
+        <div className="flex flex-col gap-4">
           <Reward />
           <RewardChart />
           <Adherence />
         </div>
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
           <Sleep />
           <Smoking />
         </div>

@@ -4,8 +4,16 @@ import { useState, type ReactNode } from "react";
 import { hhmmToMinutes, minutesToHHMM } from "@/lib/mock/model";
 
 /** 幅を決めない入力欄（w-20 などと組み合わせる） */
-export const inputBase = "min-w-0 rounded-lg border border-line bg-surface2 px-3 py-2 text-[16px] outline-none focus:border-accent";
+export const inputBase = "min-w-0 rounded-lg border border-line bg-surface2 px-3 py-2 text-[16px] outline-none focus:border-tint";
 export const inputCls = `w-full ${inputBase}`;
+
+/** 主なボタン（1つの場面に1つ） */
+export const btnPrimary = "press rounded-xl bg-tint px-4 py-2.5 text-[15px] font-semibold text-on-tint disabled:opacity-40";
+/** そのほかのボタン */
+export const btnSecondary = "press rounded-xl bg-surface2 px-4 py-2.5 text-[15px] font-medium text-fg disabled:opacity-40";
+/** 選ぶボタン（押すと黒くなる） */
+export const pillCls = (on: boolean) =>
+  `press shrink-0 rounded-full px-3.5 py-1.5 text-[14px] tabular-nums ${on ? "bg-tint font-medium text-on-tint" : "bg-surface2 text-fg"}`;
 
 /** 画面の大きな見出し（iOS のラージタイトル） */
 export function ScreenHeader({
@@ -21,13 +29,16 @@ export function ScreenHeader({
   width?: string;
 }) {
   return (
-    <header className={`mx-auto flex w-full items-end gap-2 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2 sm:px-6 sm:pt-5 ${width}`}>
-      <div className="min-w-0 flex-1">
-        {sub && <p className="text-[13px] font-medium text-muted">{sub}</p>}
-        <h1 className="truncate text-[28px] font-bold leading-tight tracking-tight">{title}</h1>
-      </div>
-      {right}
-    </header>
+    // スクロールしても上に残す（下の内容は少し透ける）
+    <div className="sticky top-0 z-10 bg-grouped/85 backdrop-blur-xl">
+      <header className={`mx-auto flex min-h-12 w-full items-center gap-2 px-4 pt-[max(8px,env(safe-area-inset-top))] pb-1.5 sm:px-6 sm:pt-5 ${width}`}>
+        <div className="flex min-w-0 flex-1 items-baseline gap-2">
+          <h1 className="truncate text-[22px] font-bold leading-tight tracking-tight">{title}</h1>
+          {sub && <span className="shrink-0 text-[14px] font-medium text-muted">{sub}</span>}
+        </div>
+        {right}
+      </header>
+    </div>
   );
 }
 
@@ -36,10 +47,39 @@ export function Group({ title, footer, children }: { title?: ReactNode; footer?:
   return (
     <section className="flex flex-col gap-1.5">
       {title && <h2 className="px-4 text-[13px] font-medium text-muted">{title}</h2>}
-      <div className="overflow-hidden rounded-xl bg-surface">
+      <div className="overflow-hidden rounded-2xl bg-surface">
         <div className="flex flex-col divide-y divide-line">{children}</div>
       </div>
       {footer && <p className="px-4 text-[12px] leading-relaxed text-muted">{footer}</p>}
+    </section>
+  );
+}
+
+/** 今日の画面などのカード。見出しはカードの中に置く */
+export function Card({
+  title,
+  right,
+  children,
+  className = "",
+  divided = true,
+}: {
+  title?: ReactNode;
+  /** 見出しの右（件数・小さなボタンなど） */
+  right?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  /** 中身の間に線を引く（行が自分で区切り線を持つときは false） */
+  divided?: boolean;
+}) {
+  return (
+    <section className={`card-shadow overflow-hidden rounded-2xl bg-surface ${className}`}>
+      {(title || right) && (
+        <div className="flex min-h-10 items-center gap-2 px-4 pt-3">
+          {title && <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</h2>}
+          {right}
+        </div>
+      )}
+      <div className={`flex flex-col ${divided ? "divide-y divide-line" : ""}`}>{children}</div>
     </section>
   );
 }
@@ -161,7 +201,7 @@ export function Chip({ on, onClick, children }: { on: boolean; onClick: () => vo
       onClick={onClick}
       aria-pressed={on}
       className={`shrink-0 rounded-full border px-3 py-1 text-[13px] transition-colors ${
-        on ? "border-accent bg-accent text-white" : "border-line bg-surface text-fg"
+        on ? "border-tint bg-tint text-on-tint" : "border-line bg-surface text-fg"
       }`}
     >
       {children}
@@ -233,7 +273,7 @@ export function NumberInput({
       onKeyDown={(e) => {
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
       }}
-      className={`${width} rounded-lg border border-line bg-surface2 px-2 py-1 text-right text-[16px] outline-none focus:border-accent`}
+      className={`${width} rounded-lg border border-line bg-surface2 px-2 py-1 text-right text-[16px] outline-none focus:border-tint`}
     />
   );
 }
@@ -268,7 +308,7 @@ export function TimeInput({
       aria-label={label}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
-      className="rounded-lg border border-line bg-surface2 px-2 py-1 text-[16px] tabular-nums outline-none focus:border-accent"
+      className="rounded-lg border border-line bg-surface2 px-2 py-1 text-[16px] tabular-nums outline-none focus:border-tint"
     />
   );
 }
@@ -304,7 +344,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="w-full rounded-xl bg-accent py-2.5 text-[16px] font-semibold text-white disabled:opacity-60"
+      className="press w-full rounded-xl bg-tint py-3 text-[16px] font-semibold text-on-tint disabled:opacity-40"
     >
       {children}
     </button>
@@ -318,7 +358,7 @@ export function EmptyNote({ children }: { children: ReactNode }) {
 /** 下に並ぶ、項目を足すボタン（iOS の「＋ 追加」行） */
 export function AddRow({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-[16px] text-accent active:bg-surface2">
+    <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-[16px] font-medium text-tint active:bg-surface2">
       <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
         <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>

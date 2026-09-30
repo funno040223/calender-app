@@ -8,14 +8,12 @@ import { LinkIcon } from "@/components/app/icons";
 import { completeTask } from "@/lib/mock/state";
 import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatDeadline, formatMinutes, formatTime } from "@/lib/mock/jst";
 import { blocksOfTask, eventIndex, formatEventWhen } from "@/lib/mock/related";
-import { Group, ScreenHeader } from "@/components/ui/controls";
-
-const PRIORITY_MARK = { 1: "", 2: "!", 3: "!!" } as const;
+import { Card, ScreenHeader } from "@/components/ui/controls";
 
 const STATUS: Record<OutlookStatus, { label: string; cls: string }> = {
-  ok: { label: "順調", cls: "bg-ok text-white" },
-  tight: { label: "きつい", cls: "bg-[var(--cal-class)] text-white" },
-  late: { label: "間に合わない", cls: "bg-accent text-white" },
+  ok: { label: "順調", cls: "bg-ok/15 text-ok" },
+  tight: { label: "きつい", cls: "bg-[color-mix(in_srgb,var(--cal-class)_16%,transparent)] text-[var(--cal-class)]" },
+  late: { label: "間に合わない", cls: "bg-accent/12 text-accent" },
 };
 
 /** 今週と来週：タスクに使う時間と空き時間、順調かどうか */
@@ -30,7 +28,7 @@ function Outlook() {
     tzOffsetMinutes: TZ,
   });
   return (
-    <Group title="見通し">
+    <Card title="見通し">
       {weeks.map((w, i) => (
         <div key={w.start} className="flex flex-col gap-1 px-4 py-2.5">
           <button type="button" aria-expanded={open === i} onClick={() => setOpen(open === i ? undefined : i)} className="flex items-center gap-3 text-left">
@@ -39,6 +37,9 @@ function Outlook() {
             <span className="ml-auto text-[13px] tabular-nums text-muted">
               タスク {formatMinutes(w.taskMinutes)}・空き {formatMinutes(w.freeMinutes)}
             </span>
+            <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden className={`shrink-0 text-muted transition-transform ${open === i ? "rotate-180" : ""}`}>
+              <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
           {w.late.map((l) => (
             <button key={l.taskId} type="button" onClick={() => openTask(l.taskId)} className="ml-13 truncate text-left text-[13px] text-accent">
@@ -48,7 +49,7 @@ function Outlook() {
           {open === i && <OutlookDays week={w} />}
         </div>
       ))}
-    </Group>
+    </Card>
   );
 }
 
@@ -103,15 +104,23 @@ export default function TasksScreen() {
   const withDeadline = sorted.filter((t) => effectiveDeadline(t) < Infinity);
   const without = sorted.filter((t) => effectiveDeadline(t) === Infinity);
 
-  const row = (t: Task) => {
+  const row = (t: Task, i: number) => {
     const tag = state.planTags.find((g) => g.id === t.tagId);
     const need = estimateMinutes(t, tag);
     const placed = blocksOfTask(state.result.blocks, t.id).reduce((s, b) => s + (b.end - b.start) / MIN, 0);
     const short = state.result.shortfalls.find((s) => s.taskId === t.id);
     const rel = t.relatedEventId ? events.get(t.relatedEventId) : undefined;
-    const ratio = need > 0 ? Math.min(1, placed / need) : 1;
+    // 締切の2週間前になるまでは、予定に入れない
+    const later = t.deadline !== undefined && t.deadline - TASK_LEAD_DAYS * DAY_MS > state.plannedAt && placed === 0;
+    const status = short
+      ? { text: `${formatMinutes(short.shortfallMinutes)}足りない`, cls: "text-accent" }
+      : later
+        ? { text: "まだ先", cls: "text-muted" }
+        : placed < need
+          ? { text: `予定 ${formatMinutes(placed)} / ${formatMinutes(need)}`, cls: "text-muted" }
+          : undefined;
     return (
-      <div key={t.id} className="flex w-full items-start gap-1 pl-2 pr-4 active:bg-surface2">
+      <div key={t.id} className="flex w-full items-start gap-1 pl-2 active:bg-surface2">
         <button
           type="button"
           aria-label={`「${t.title}」を完了にする`}
@@ -119,19 +128,20 @@ export default function TasksScreen() {
             update((d) => completeTask(d, t.id, Date.now()));
             notify(`「${t.title}」を完了`);
           }}
-          className="flex h-11 w-9 shrink-0 items-start justify-center pt-3"
+          className="press flex h-12 w-10 shrink-0 items-start justify-center pt-3"
         >
-          <span className="h-5 w-5 rounded-full border-2" style={{ borderColor: "var(--cal-task)" }} />
+          <span className="h-[22px] w-[22px] rounded-full border-2" style={{ borderColor: "color-mix(in srgb, var(--cal-task) 70%, transparent)" }} />
         </button>
-        <button type="button" onClick={() => openTask(t.id)} className="min-w-0 flex-1 py-2.5 text-left">
-          <p className="flex items-center gap-1 text-[16px]">
-            {PRIORITY_MARK[t.priority] && <span className="shrink-0 font-bold text-accent">{PRIORITY_MARK[t.priority]}</span>}
+        {/* 区切り線は文字の位置から（iOS の一覧と同じ） */}
+        <button type="button" onClick={() => openTask(t.id)} className={`min-w-0 flex-1 py-2.5 pr-4 text-left ${i > 0 ? "border-t border-line" : ""}`}>
+          <p className="flex items-center gap-1 text-[16px] leading-snug">
+            {t.priority === 3 && <span className="shrink-0 font-bold text-accent" aria-label="優先度 高">!</span>}
             <span className="truncate">{t.title}</span>
           </p>
           <p className="truncate text-[13px] text-muted">
-            {t.deadline ? formatDeadline(t.deadline) : rel ? "予定の前まで" : "締切なし"}
-            {tag ? `・${tag.name}` : ""}
-            {t.durationMinutes === undefined && !t.durationRange ? "・時間は目安" : ""}
+            {[t.deadline ? formatDeadline(t.deadline) : rel ? "予定の前まで" : undefined, tag?.name, `${formatMinutes(need)}${t.durationMinutes === undefined && !t.durationRange ? "（目安）" : ""}`]
+              .filter(Boolean)
+              .join("・")}
           </p>
           {t.relatedEventId && (
             <p className={`flex items-center gap-1 truncate text-[13px] ${rel ? "text-muted" : "text-accent"}`}>
@@ -139,19 +149,7 @@ export default function TasksScreen() {
               {rel ? `${rel.event.title} ${formatEventWhen(rel.event)}` : "関連する予定が見つかりません"}
             </p>
           )}
-          {/* 締切の2週間前になるまでは、予定に入れない */}
-          {t.deadline !== undefined && t.deadline - TASK_LEAD_DAYS * DAY_MS > state.plannedAt && placed === 0 ? (
-            <p className="mt-1 text-[12px] text-muted">まだ先</p>
-          ) : (
-            <div className="mt-1.5 flex items-center gap-2">
-              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface2">
-                <div className={`h-full rounded-full ${short ? "bg-accent" : "bg-ok"}`} style={{ width: `${ratio * 100}%` }} />
-              </div>
-              <span className={`shrink-0 text-[12px] tabular-nums ${short ? "text-accent" : "text-muted"}`}>
-                予定 {formatMinutes(placed)} / {formatMinutes(need)}
-              </span>
-            </div>
-          )}
+          {status && <p className={`text-[12px] font-medium tabular-nums ${status.cls}`}>{status.text}</p>}
         </button>
       </div>
     );
@@ -166,20 +164,23 @@ export default function TasksScreen() {
           <button
             type="button"
             onClick={() => openTask()}
-            className="mb-1 rounded-full bg-surface px-3 py-1.5 text-[15px] font-medium text-accent shadow-sm"
+            aria-label="新しいタスク"
+            className="press flex h-8 w-8 items-center justify-center rounded-full bg-tint text-on-tint"
           >
-            ＋ 新規
+            <svg viewBox="0 0 14 14" width="13" height="13" aria-hidden>
+              <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </button>
         }
       />
-      <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 pb-8 sm:px-6">
+      <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-6">
         <Outlook />
         {state.tasks.length === 0 ? (
           <p className="px-4 py-6 text-center text-[15px] text-muted">タスクはありません。</p>
         ) : (
           <>
-            {withDeadline.length > 0 && <Group title="締切が近い順">{withDeadline.map(row)}</Group>}
-            {without.length > 0 && <Group title="締切なし">{without.map(row)}</Group>}
+            {withDeadline.length > 0 && <Card title="締切が近い順" divided={false}>{withDeadline.map(row)}</Card>}
+            {without.length > 0 && <Card title="締切なし" divided={false}>{without.map(row)}</Card>}
           </>
         )}
       </div>

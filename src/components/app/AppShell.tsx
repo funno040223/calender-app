@@ -148,7 +148,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
       else root.removeProperty(`--cal-${c.id}`);
     }
   }, [state.calendarColors]);
-  const showQuickAdd = !pathname.startsWith("/settings");
+  // タスクを足すのは、今日・カレンダー・タスクの画面だけ
+  const showQuickAdd = !pathname.startsWith("/settings") && !pathname.startsWith("/stats");
   const task = editingTask?.id ? state.tasks.find((t) => t.id === editingTask.id) : undefined;
 
   const addTask = (t: Task) => {
@@ -175,7 +176,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // サーバーの状態が確定するまで、入力・記録用の画面を表示しない。
   // 読み込みに失敗した場合は、端末の控えで編集を続けられる。
   if (!store.initialLoaded) {
-    return <div role="status" className="flex h-dvh items-center justify-center text-[15px] text-muted">データを読み込み中…</div>;
+    return (
+      <div role="status" className="flex h-dvh items-center justify-center gap-1.5 bg-grouped">
+        <span className="sr-only">読み込み中</span>
+        {[0, 1, 2].map((i) => (
+          <span key={i} className="h-2 w-2 animate-pulse rounded-full bg-muted/60" style={{ animationDelay: `${i * 150}ms` }} />
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -195,7 +203,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 href={href}
                 aria-current={on ? "page" : undefined}
                 className={`flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[11px] lg:flex-row lg:gap-3 lg:px-3 lg:text-[15px] ${
-                  on ? "bg-surface font-semibold text-accent shadow-sm" : "text-fg hover:bg-surface/60"
+                  on ? "bg-surface font-semibold text-tint shadow-sm" : "text-muted hover:bg-surface/60"
                 }`}
               >
                 <span className="relative">
@@ -213,7 +221,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             {children}
             {toast && (
               <div className="pointer-events-none absolute inset-x-0 bottom-3 z-40 flex justify-center px-4">
-                <div role="status" className="pointer-events-auto flex min-w-0 max-w-md items-center gap-3 rounded-xl bg-fg py-2 pl-4 pr-2 text-[14px] text-bg shadow-lg">
+                <div role="status" className="pointer-events-auto flex min-w-0 max-w-md items-center gap-3 rounded-2xl bg-tint py-2 pl-4 pr-2 text-[14px] text-on-tint shadow-xl">
                   <span className="min-w-0 truncate">{toast.text}</span>
                   {toastPlace && <span className="shrink-0 font-semibold">{toastPlace}</span>}
                   {store.canUndo ? (
@@ -223,7 +231,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                         undo();
                         setToast(undefined);
                       }}
-                      className="shrink-0 rounded-lg bg-bg/15 px-2.5 py-1.5 font-semibold"
+                      className="press shrink-0 rounded-xl bg-on-tint/15 px-3 py-1.5 font-semibold"
                     >
                       元に戻す
                     </button>
@@ -235,33 +243,36 @@ export default function AppShell({ children }: { children: ReactNode }) {
             )}
           </div>
           <OfflineNotice />
-          {showQuickAdd && <QuickAddBar onAdd={addTask} />}
+          {/* 下の欄：タスクの追加とタブをひとまとまりに */}
+          <div className={`shrink-0 border-t border-line/70 bg-surface/90 backdrop-blur-xl ${showQuickAdd ? "" : "sm:hidden"}`}>
+            {showQuickAdd && <QuickAddBar onAdd={addTask} />}
 
-          {/* スマホ：iOS 風の下のタブ */}
-          <nav
-            className="flex shrink-0 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
-            aria-label="画面の切り替え"
-          >
-            {TABS.map(({ href, label, Icon }) => {
-              const on = isActive(pathname, href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  aria-current={on ? "page" : undefined}
-                  className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 pt-1.5 pb-1 text-[10px] font-medium ${
-                    on ? "text-accent" : "text-muted"
-                  }`}
-                >
-                  <span className="relative">
-                    <Icon />
-                    {href === "/" && <Badge n={warnings} />}
-                  </span>
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
+            {/* スマホ：iOS 風の下のタブ */}
+            <nav
+              className="flex pb-[max(4px,env(safe-area-inset-bottom))] sm:hidden"
+              aria-label="画面の切り替え"
+            >
+              {TABS.map(({ href, label, Icon }) => {
+                const on = isActive(pathname, href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={on ? "page" : undefined}
+                    className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 pt-1.5 pb-1 text-[10px] ${
+                      on ? "font-semibold text-tint" : "font-medium text-muted/80"
+                    }`}
+                  >
+                    <span className="relative">
+                      <Icon />
+                      {href === "/" && <Badge n={warnings} />}
+                    </span>
+                    {label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
         </div>
       </div>
 

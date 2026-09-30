@@ -185,7 +185,7 @@ export default function CalendarApp() {
         <button
           type="button"
           onClick={() => setPanelOpen(true)}
-          className="rounded-lg p-1.5 text-accent lg:hidden"
+          className="rounded-lg p-1.5 font-medium text-tint lg:hidden"
           aria-label="表示するカレンダーを選ぶ"
         >
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
@@ -197,13 +197,13 @@ export default function CalendarApp() {
           {title.month}
         </h1>
         <div className="flex shrink-0 items-center">
-          <button type="button" onClick={() => api()?.prev()} className="rounded-lg px-1.5 py-1 text-[20px] text-accent sm:px-2" aria-label="前へ">
+          <button type="button" onClick={() => api()?.prev()} className="rounded-lg px-1.5 py-1 text-[20px] font-medium text-tint sm:px-2" aria-label="前へ">
             ‹
           </button>
-          <button type="button" onClick={() => api()?.today()} className="rounded-lg px-1 py-1 text-[15px] text-accent sm:px-2">
+          <button type="button" onClick={() => api()?.today()} className="rounded-lg px-1 py-1 text-[15px] font-medium text-tint sm:px-2">
             今日
           </button>
-          <button type="button" onClick={() => api()?.next()} className="rounded-lg px-1.5 py-1 text-[20px] text-accent sm:px-2" aria-label="次へ">
+          <button type="button" onClick={() => api()?.next()} className="rounded-lg px-1.5 py-1 text-[20px] font-medium text-tint sm:px-2" aria-label="次へ">
             ›
           </button>
         </div>
@@ -359,7 +359,7 @@ export default function CalendarApp() {
               onClick={() => {
                 if (window.confirm(`${formatDate(viewingClass.start)}の「${viewingClass.title}」を休講にします。よろしいですか？`)) cancelClass(viewingClass.id);
               }}
-              className="rounded-xl py-2.5 text-[16px] text-accent hover:bg-surface2"
+              className="rounded-xl py-2.5 text-[16px] font-medium text-tint hover:bg-surface2"
             >
               この回を休講にする
             </button>
@@ -375,7 +375,7 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
   const { state, update, notify } = useApp();
   // 「今」は組み直した時刻（描くたびに Date.now() を呼ばない）
   const started = block.start <= state.plannedAt;
-  const btn = (on: boolean) => `flex-1 rounded-xl py-2.5 font-medium ${on ? "bg-accent text-white" : "bg-surface2"}`;
+  const btn = (on: boolean) => `flex-1 rounded-xl py-2.5 font-medium ${on ? "bg-tint text-on-tint" : "bg-surface2"}`;
   if (block.kind === "task") {
     // まだ始まっていない枠は、この回だけ外してその時間を空けられる（外した分は別の時間に入れ直す）
     if (!started)
@@ -420,7 +420,7 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
       {(habit?.skippable || habit?.meal) && block.end > state.plannedAt && (
         <button
           type="button"
-          className="rounded-xl py-2.5 text-accent hover:bg-surface2"
+          className="rounded-xl py-2.5 font-medium text-tint hover:bg-surface2"
           onClick={() => {
             update((d) => ({ ...d, habitSkips: { ...d.habitSkips, [day]: [...new Set([...(d.habitSkips[day] ?? []), block.refId])] } }));
             onSkipped();

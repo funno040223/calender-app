@@ -12,7 +12,7 @@ import { contactDaysFor, rainyDayKeys, releaseKeepFree } from "@/lib/mock/state"
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { bedOnTime, keepMarkValues } from "@/lib/mock/stats";
 import { BED_PREP_MINUTES } from "@/lib/notify/build";
-import { Group, Row, ScreenHeader } from "@/components/ui/controls";
+import { Card, Row, ScreenHeader, btnPrimary, btnSecondary } from "@/components/ui/controls";
 import ProgressCard from "./ProgressCard";
 import RecoveryCard from "./RecoveryCard";
 import WorkNowCard from "./WorkNowCard";
@@ -50,28 +50,87 @@ function timeOn(day: number, ms: number) {
   return `${ms >= day + DAY_MS ? "翌" : ""}${formatTime(ms)}`;
 }
 
-function SleepCard({ day, today, now }: { day: DayPlan; today: number; now: number }) {
+/** 「10/1(木)」→「10月1日（木）」 */
+const headerDate = (ms: number) => formatDate(ms).replace(/^(\d+)\/(\d+)\((.)\)$/, "$1月$2日（$3）");
+
+const label = "text-[12px] font-medium text-muted";
+const bigTime = "text-[30px] font-semibold leading-tight tracking-tight tabular-nums";
+const textBtn = "press shrink-0 rounded-full bg-surface2 px-3 py-1 text-[13px] font-medium";
+
+/** 寝る準備の時刻から就寝の3時間後まで（「おやすみ」を出す間） */
+function bedDayOf(days: DayPlan[], now: number): DayPlan | undefined {
+  return days.find((d) => now >= d.bed - BED_PREP_MINUTES * MIN && now < d.bed + 3 * 60 * MIN);
+}
+
+/** 今日の起床・就寝、最初の予定と出発、行動ポイント */
+function DayCard({ day, today, now }: { day: DayPlan; today: number; now: number }) {
   const toLeave = day.leave !== undefined ? Math.round((day.leave - now) / MIN) : undefined;
+  // 始まった予定は今日の流れに出るので、ここでは出さない
+  const first = day.firstEvent && day.firstEvent.start > now ? day.firstEvent : undefined;
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <div className="rounded-xl bg-surface px-4 py-3">
-        <p className="text-[13px] font-medium text-muted">起床</p>
-        <p className="text-[34px] font-semibold leading-tight tabular-nums">{formatTime(day.wake)}</p>
+    <Card>
+      <div className="grid grid-cols-2 px-4 pt-3.5 pb-3">
+        <div>
+          <p className={label}>起床</p>
+          <p className={bigTime}>{formatTime(day.wake)}</p>
+        </div>
+        <div className="border-l border-line pl-4">
+          <p className={label}>就寝</p>
+          <p className={bigTime}>{timeOn(today, day.bed)}</p>
+        </div>
       </div>
-      <div className="rounded-xl bg-surface px-4 py-3">
-        <p className="text-[13px] font-medium text-muted">就寝</p>
-        <p className="text-[34px] font-semibold leading-tight tabular-nums">{timeOn(today, day.bed)}</p>
-      </div>
-      {day.firstEvent && (
-        <p className="col-span-2 px-1 text-[13px] text-muted">
-          最初の予定は{formatTime(day.firstEvent.start)}「{day.firstEvent.title}」
-          {day.leave ? `。${formatTime(day.leave)}に出発` : ""}
-          {toLeave !== undefined && toLeave > 0 && toLeave <= 180 && (
-            <span className="ml-1 font-semibold text-accent">あと{formatMinutes(toLeave)}</span>
+      {first && (
+        <div className="flex items-start gap-3 px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className={label}>最初の予定</p>
+            <p className="truncate text-[15px]">
+              <span className="tabular-nums">{formatTime(first.start)}</span> {first.title}
+            </p>
+          </div>
+          {day.leave !== undefined && (
+            <div className="shrink-0 text-right">
+              <p className={label}>出発</p>
+              <p className="text-[15px] tabular-nums">
+                {formatTime(day.leave)}
+                {toLeave !== undefined && toLeave > 0 && toLeave <= 180 && (
+                  <span className={`ml-1.5 text-[13px] font-semibold ${toLeave <= 30 ? "text-accent" : "text-muted"}`}>あと{formatMinutes(toLeave)}</span>
+                )}
+              </p>
+            </div>
           )}
-        </p>
+        </div>
       )}
       <EnergyLine today={today} />
+    </Card>
+  );
+}
+
+/** 今日の行動ポイント（1行で）。上限を超える日は、発散の時間を提案する */
+function EnergyLine({ today }: { today: number }) {
+  const { state } = useApp();
+  const e = state.result.dayEnergy.find((x) => x.dayStart === today);
+  if (!e) return null;
+  const ratio = Math.min(1, e.used / e.budget);
+  const over = e.used > e.budget;
+  const tired = e.evening === "low";
+  const note = tired
+    ? e.suggestion ? `${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "今夜は休む"
+    : over
+      ? e.suggestion ? `上限超え・${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "上限超え"
+      : undefined;
+  return (
+    <div className="flex flex-col gap-1.5 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span className={`shrink-0 ${label}`}>行動ポイント</span>
+        <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface2" role="meter" aria-valuenow={e.used} aria-valuemin={0} aria-valuemax={e.budget} aria-label="今日の行動ポイント">
+          <div className={`h-full rounded-full ${over ? "bg-accent" : "bg-ok"}`} style={{ width: `${ratio * 100}%` }} />
+        </div>
+        <span className="shrink-0 text-[14px] tabular-nums">
+          <span className="font-semibold">{e.used}</span>
+          <span className="text-muted"> / {e.budget}</span>
+        </span>
+      </div>
+      {note && <p className="text-[14px]">{note}</p>}
     </div>
   );
 }
@@ -79,7 +138,7 @@ function SleepCard({ day, today, now }: { day: DayPlan; today: number; now: numb
 function CheckCircle({ on }: { on: boolean }) {
   return (
     <span
-      className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 ${on ? "border-ok bg-ok" : "border-line"}`}
+      className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 transition-colors ${on ? "border-ok bg-ok" : "border-line"}`}
     >
       {on && (
         <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden>
@@ -94,10 +153,10 @@ function CheckCircle({ on }: { on: boolean }) {
 function SleepInput({ value, fallback, onChange }: { value?: number; fallback: number; onChange: (m: number) => void }) {
   const shown = value ?? fallback;
   const step = (d: number) => onChange(Math.min(16 * 60, Math.max(0, shown + d)));
-  const round = "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-[20px] leading-none";
+  const round = "press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-[20px] leading-none";
   return (
-    <div className="mt-3 flex items-center gap-2">
-      <span className="w-12 shrink-0 text-[13px] text-muted">睡眠</span>
+    <div className="flex items-center gap-2">
+      <span className={`w-12 shrink-0 ${label}`}>睡眠</span>
       <button type="button" aria-label="睡眠を15分減らす" onClick={() => step(-15)} className={round}>
         −
       </button>
@@ -106,7 +165,7 @@ function SleepInput({ value, fallback, onChange }: { value?: number; fallback: n
         ＋
       </button>
       {value === undefined && (
-        <button type="button" onClick={() => onChange(shown)} className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[14px] font-medium text-white">
+        <button type="button" onClick={() => onChange(shown)} className={`${btnPrimary} shrink-0 px-3.5 py-1.5 text-[14px]`}>
           記録
         </button>
       )}
@@ -163,16 +222,17 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
     });
 
   const lateBy = log.wokeAt !== undefined && day ? Math.round((log.wokeAt - day.wake) / MIN) : 0;
+  const streakBadge = streak > 0 && <span className="shrink-0 text-[13px] font-semibold text-ok">連続 {streak}日</span>;
 
   if (compact && !open) {
     return (
-      <Group>
+      <Card>
         <Row
           label={
-            <>
+            <span className="flex items-center gap-2">
               朝ルーティン
-              {streak > 0 && <span className="ml-2 text-[13px] font-semibold text-ok">連続 {streak}日</span>}
-            </>
+              {streakBadge}
+            </span>
           }
           detail={
             log.routineDoneAt !== undefined
@@ -183,79 +243,73 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
           }
           onClick={() => setOpen(true)}
         />
-      </Group>
+      </Card>
     );
   }
 
   return (
-    <Group
-      title={
-        <span className="flex items-center justify-between">
-          朝ルーティン
-          {streak > 0 && <span className="font-semibold text-ok">連続 {streak}日</span>}
-        </span>
-      }
-    >
-      <div className="px-4 py-3">
+    <Card title="朝ルーティン" right={streakBadge}>
+      <div className="flex flex-col gap-3 px-4 pt-2 pb-3.5">
         {log.wokeAt === undefined ? (
           <button
             type="button"
             onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), plannedWake: day?.wake }))}
-            className="w-full rounded-2xl bg-accent py-4 text-[20px] font-bold text-white shadow-sm active:opacity-80"
+            className={`${btnPrimary} h-14 w-full rounded-2xl text-[18px] font-bold`}
           >
             起きた
           </button>
         ) : (
-          <div className="flex items-center gap-3">
-            <CheckCircle on />
-            <p className="min-w-0 flex-1 text-[15px]">
-              {formatTime(log.wokeAt)}に起きました
-              {day && Math.abs(lateBy) >= 5 && (
-                <span className="block text-[13px] text-muted">予定より{formatMinutes(Math.abs(lateBy))}{lateBy > 0 ? "遅く" : "早く"}</span>
-              )}
-            </p>
-            <button
-              type="button"
-              className="shrink-0 text-[13px] text-muted underline"
-              onClick={() =>
-                setLog((l) => {
-                  const next = { ...l };
-                  delete next.wokeAt;
-                  delete next.plannedWake;
-                  return next;
-                })
-              }
-            >
-              取り消す
-            </button>
-          </div>
-        )}
-        {log.wokeAt !== undefined && (
-          <div className="mt-3">
-            <p className="mb-1.5 text-[13px] text-muted">今の疲れ</p>
-            <div className="grid grid-cols-5 gap-1.5">
-              {FATIGUE_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  onClick={() => setLog((l) => ({ ...l, fatigue: o.value }))}
-                  className={`rounded-xl py-2 text-[13px] font-medium ${log.fatigue === o.value ? "bg-accent text-white" : "bg-surface2"}`}
-                >
-                  {o.label}
-                </button>
-              ))}
+          <>
+            <div className="flex items-center gap-3">
+              <CheckCircle on />
+              <p className="min-w-0 flex-1 text-[15px]">
+                <span className="tabular-nums">{formatTime(log.wokeAt)}</span>に起きました
+                {day && Math.abs(lateBy) >= 5 && (
+                  <span className="block text-[13px] text-muted">予定より{formatMinutes(Math.abs(lateBy))}{lateBy > 0 ? "遅く" : "早く"}</span>
+                )}
+              </p>
+              <button
+                type="button"
+                className={`${textBtn} text-muted`}
+                onClick={() =>
+                  setLog((l) => {
+                    const next = { ...l };
+                    delete next.wokeAt;
+                    delete next.plannedWake;
+                    return next;
+                  })
+                }
+              >
+                取り消す
+              </button>
+            </div>
+            <div>
+              <p className={`mb-1.5 ${label}`}>今の疲れ</p>
+              <div className="grid grid-cols-5 gap-1.5">
+                {FATIGUE_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    aria-pressed={log.fatigue === o.value}
+                    onClick={() => setLog((l) => ({ ...l, fatigue: o.value }))}
+                    className={`press rounded-xl py-2 text-[13px] font-medium ${log.fatigue === o.value ? "bg-tint text-on-tint" : "bg-surface2"}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <SleepInput
               value={log.sleepMinutes}
               fallback={state.settings.sleepMinutes}
               onChange={(m) => setLog((l) => ({ ...l, sleepMinutes: m }))}
             />
-          </div>
+          </>
         )}
       </div>
       {steps.length === 0 ? (
         <p className="px-4 py-3 text-[14px] text-muted">
-          手順は<Link href="/settings/routine" className="text-accent">設定</Link>で追加できます。
+          手順は<Link href="/settings/routine" className="font-medium text-tint underline underline-offset-2">設定</Link>で追加できます。
         </p>
       ) : (
         steps.map((s) => {
@@ -278,7 +332,7 @@ function MorningCard({ day, now, compact }: { day?: DayPlan; now: number; compac
       {log.routineDoneAt !== undefined && (
         <p className="px-4 py-2.5 text-[14px] font-medium text-ok">{formatTime(log.routineDoneAt)}に朝ルーティンが終わりました</p>
       )}
-    </Group>
+    </Card>
   );
 }
 
@@ -286,19 +340,21 @@ function TreatCard({ today }: { today: number }) {
   const { state } = useApp();
   const treat = treatFor(today, state.treats);
   return (
-    <Group title="今日の楽しみ">
+    <Card
+      title="今日の楽しみ"
+      right={treat && <span className="shrink-0 text-[12px] font-medium text-muted">{TREAT_CATEGORIES.find((c) => c.id === treat.category)?.label}</span>}
+    >
       {treat ? (
-        <div className="px-4 py-3">
-          <p className="text-[12px] font-medium text-muted">{TREAT_CATEGORIES.find((c) => c.id === treat.category)?.label}</p>
-          <p className="text-[20px] font-semibold leading-snug">{treat.name}</p>
+        <div className="px-4 pt-1 pb-3.5">
+          <p className="text-[18px] font-semibold leading-snug">{treat.name}</p>
           {treat.condition && <p className="mt-0.5 text-[13px] text-muted">{treat.condition}</p>}
         </div>
       ) : (
-        <p className="px-4 py-3 text-[14px] text-muted">
-          <Link href="/settings/treats" className="text-accent">楽しみのリスト</Link>に追加すると、毎日1つ選びます。
+        <p className="px-4 pt-1 pb-3.5 text-[14px] text-muted">
+          <Link href="/settings/treats" className="font-medium text-tint underline underline-offset-2">楽しみのリスト</Link>に追加すると、毎日1つ選びます。
         </p>
       )}
-    </Group>
+    </Card>
   );
 }
 
@@ -313,17 +369,22 @@ interface TimelineItem {
   taskId?: string;
   /** 任意参加で参加しない回など、空き時間として扱うもの */
   dim?: boolean;
+  /** 終わった習慣で、まだ記録していないもの */
+  past?: boolean;
   /** 枠の下に出す小さなボタン（雨の日の散歩の入れ替えなど） */
   action?: { label: string; onClick: () => void };
+  /** 記録する習慣：「5分」「やった」 */
+  record?: { mark?: HabitMark; onMark: (m: HabitMark) => void };
 }
 
 function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: number; limit?: number }) {
-  const { state, openTask, update } = useApp();
+  const { state, openTask, update, notify } = useApp();
   // 狭い画面では、いまと次のいくつかだけ。残りは押すと出す
   const [all, setAll] = useState(false);
   const events = eventIndex(state);
   const related = tasksByEvent(state.tasks, events);
   const items: TimelineItem[] = [];
+  const today = dayStartOf(now);
 
   for (const r of allEventRefs(state)) {
     const ev = r.event;
@@ -352,11 +413,31 @@ function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: number; limit?:
       rainyDays: rainy ? d.rainyDays.filter(keep) : [...d.rainyDays.filter(keep), todayKey],
       notRainyDays: rainy ? [...d.notRainyDays.filter(keep), todayKey] : d.notRainyDays.filter(keep),
     }));
-  for (const b of state.result.blocks) {
-    if (b.end <= now || b.start >= dayEnd) continue;
-    const task = b.kind === "task" ? state.tasks.find((t) => t.id === b.refId) : undefined;
+  // 記録する習慣は、流れの中で「5分」「やった」を押す。同じ習慣の2つ目の枠（干すなど）には出さない
+  const seen = new Set<string>();
+  const mark = (day: string, id: string, m: HabitMark) => {
+    const was = state.habitLogs[day]?.[id];
+    update((d) => {
+      const marks = { ...d.habitLogs[day] };
+      if (marks[id] === m) delete marks[id];
+      else marks[id] = m;
+      return { ...d, habitLogs: { ...d.habitLogs, [day]: marks } };
+    });
+    if (was !== m) notify("記録しました");
+  };
+  const blocks = [...state.result.blocks].sort((a, b) => a.start - b.start);
+  for (const b of blocks) {
+    if (b.start >= dayEnd) continue;
     const habit = b.kind === "habit" ? state.habits.find((h) => h.id === b.refId) : undefined;
-    const rainSwap = habit?.rainAlternative && dateKeyOf(b.start) === todayKey && b.start > now;
+    const day = dateKeyOf(b.start);
+    const tracked = !!habit?.track && !seen.has(`${day}:${b.refId}`);
+    if (tracked) seen.add(`${day}:${b.refId}`);
+    const m = tracked ? state.habitLogs[day]?.[b.refId] : undefined;
+    // 終わった枠は出さない。ただし、今日の記録する習慣でまだ押していないものは残す
+    const past = b.end <= now;
+    if (past && !(tracked && m === undefined && b.start >= today)) continue;
+    const task = b.kind === "task" ? state.tasks.find((t) => t.id === b.refId) : undefined;
+    const rainSwap = habit?.rainAlternative && day === todayKey && b.start > now;
     const rel = task?.relatedEventId ? events.get(task.relatedEventId) : undefined;
     items.push({
       key: `block:${b.kind}:${b.refId}:${b.start}`,
@@ -373,7 +454,9 @@ function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: number; limit?:
             ? "習慣"
             : undefined,
       taskId: task?.id,
+      past,
       action: rainSwap ? { label: rainy ? `晴れたので「${habit!.name}」に戻す` : "雨なので家の中でやる", onClick: toggleRain } : undefined,
+      record: tracked ? { mark: m, onMark: (v) => mark(day, b.refId, v) } : undefined,
     });
   }
   // 枠を外して空けた時間。押すと、また自動で入るように戻せる
@@ -395,83 +478,99 @@ function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: number; limit?:
   const allDay = allEventRefs(state).filter((r) => r.event.allDay && r.event.start < dayEnd && r.event.end > now);
 
   return (
-    <Group title="今日の流れ">
+    <Card title="今日の流れ">
       {allDay.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-4 py-2.5">
+        <div className="flex flex-wrap gap-1.5 px-4 pt-1 pb-2.5">
           {allDay.map((r) => (
-            <span key={r.event.id} className="rounded-md px-2 py-0.5 text-[13px]" style={{ background: `color-mix(in srgb, ${colorOf(r.calendarId)} 18%, transparent)` }}>
-              終日：{r.event.title}
+            <span key={r.event.id} className="rounded-full px-2.5 py-0.5 text-[13px]" style={{ background: `color-mix(in srgb, ${colorOf(r.calendarId)} 16%, transparent)` }}>
+              {r.event.title}
             </span>
           ))}
         </div>
       )}
       {items.length === 0 ? (
-        <p className="px-4 py-3 text-[14px] text-muted">今日の残りの予定はありません。</p>
+        <p className="px-4 pt-1 pb-3.5 text-[14px] text-muted">今日の残りの予定はありません。</p>
       ) : (
-        <ol className="flex flex-col py-1">
+        <ol className="flex flex-col pt-0.5 pb-2">
           {shown.map((it, i) => {
             const current = it.start <= now && it.end > now;
             const next = i === nextIdx;
+            const text = (
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 text-[15px] font-medium leading-snug">
+                  <span className="min-w-0 truncate">{it.title}</span>
+                  {it.relatedCount ? (
+                    <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-normal text-muted" aria-label={`関連するタスク${it.relatedCount}件`}>
+                      <LinkIcon size={11} />
+                      {it.relatedCount}
+                    </span>
+                  ) : null}
+                  {current && <span className="shrink-0 rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-[18px] text-white">いま</span>}
+                  {next && <span className="shrink-0 rounded-full bg-tint px-1.5 text-[11px] font-semibold leading-[18px] text-on-tint">次</span>}
+                </p>
+                <p className="truncate text-[12px] text-muted">
+                  {formatTime(it.start)}〜{formatTime(it.end)}
+                  {it.sub ? `・${it.sub}` : ""}
+                </p>
+                {it.action && (
+                  <button type="button" onClick={it.action.onClick} className={`${textBtn} mt-1.5`}>
+                    {it.action.label}
+                  </button>
+                )}
+              </div>
+            );
             const body = (
               <>
-                <div className="w-12 shrink-0 pt-0.5 text-right text-[13px] tabular-nums text-muted">{formatTime(it.start)}</div>
-                <div className="relative flex w-3 shrink-0 justify-center self-stretch">
-                  <span className="absolute inset-y-0 w-px bg-line" />
-                  <span className="relative mt-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-surface" style={{ background: it.color }} />
-                </div>
-                <div
-                  className={`min-w-0 flex-1 rounded-lg px-2.5 py-1.5 ${next ? "ring-2 ring-accent" : ""}`}
-                  style={{ background: `color-mix(in srgb, ${it.color} ${current || next ? 16 : 9}%, transparent)` }}
-                >
-                  <p className="flex items-center gap-1.5 text-[15px] font-medium">
-                    <span className="min-w-0 truncate">{it.title}</span>
-                    {it.relatedCount ? (
-                      <span className="flex shrink-0 items-center gap-0.5 text-[12px] text-muted" aria-label={`関連するタスク${it.relatedCount}件`}>
-                        <LinkIcon size={11} />
-                        {it.relatedCount}
-                      </span>
-                    ) : null}
-                    {current && <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 text-[11px] leading-[18px] text-white">いま</span>}
-                    {next && <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 text-[11px] leading-[18px] text-white">次</span>}
-                  </p>
-                  <p className="truncate text-[12px] text-muted">
-                    {formatTime(it.start)}〜{formatTime(it.end)}
-                    {it.sub ? `・${it.sub}` : ""}
-                  </p>
-                  {it.action && (
-                    <button
-                      type="button"
-                      onClick={it.action.onClick}
-                      className="mt-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] font-medium text-fg shadow-sm active:bg-surface2"
-                    >
-                      {it.action.label}
-                    </button>
-                  )}
-                </div>
+                <div className={`w-11 shrink-0 pt-px text-right text-[13px] tabular-nums ${current ? "font-semibold text-fg" : "text-muted"}`}>{formatTime(it.start)}</div>
+                <span className={`w-[3px] shrink-0 self-stretch rounded-full ${it.past ? "opacity-40" : ""}`} style={{ background: it.color }} />
+                {text}
               </>
             );
+            const row = "mx-2 flex items-start gap-3 rounded-xl px-2 py-2";
+            const style = current ? { background: `color-mix(in srgb, ${it.color} 9%, transparent)` } : undefined;
             return (
               <li key={it.key} className={it.dim ? "opacity-55" : undefined}>
                 {it.taskId ? (
-                  <button type="button" onClick={() => openTask(it.taskId)} className="flex w-full gap-2 px-3 py-1 text-left">
+                  <button type="button" onClick={() => openTask(it.taskId)} className={`${row} w-[calc(100%-1rem)] text-left active:bg-surface2`} style={style}>
                     {body}
                   </button>
                 ) : (
-                  <div className="flex gap-2 px-3 py-1">{body}</div>
+                  <div className={row} style={style}>
+                    {body}
+                    {it.record && (
+                      <div className="flex shrink-0 gap-1.5 self-center">
+                        {(["five", "done"] as const).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            aria-pressed={it.record!.mark === v}
+                            aria-label={`${it.title}：${v === "five" ? "5分" : "やった"}`}
+                            onClick={() => it.record!.onMark(v)}
+                            className={`press rounded-full px-2.5 py-1 text-[13px] font-medium ${it.record!.mark === v ? "bg-ok text-white" : "bg-surface2"}`}
+                          >
+                            {v === "five" ? "5分" : "やった"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </li>
             );
           })}
           {shown.length < items.length && (
             <li>
-              <button type="button" onClick={() => setAll(true)} className="w-full px-4 py-2 text-left text-[14px] text-accent">
+              <button type="button" onClick={() => setAll(true)} className="flex w-full items-center gap-1 px-4 pt-1.5 pb-1 text-left text-[14px] font-medium text-tint">
                 ほか {items.length - shown.length}件
+                <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden className="text-muted">
+                  <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             </li>
           )}
         </ol>
       )}
-    </Group>
+    </Card>
   );
 }
 
@@ -501,27 +600,27 @@ function EveningCard({ day, now }: { day: DayPlan; now: number }) {
   };
   const picked = EVENING_OPTIONS.find((o) => o.value === answer);
   return (
-    <Group title={day.homeAt !== undefined ? "おかえりなさい" : "おつかれさまです"}>
-      <div className="flex flex-col gap-3 px-4 py-3">
+    <Card title={day.homeAt !== undefined ? "おかえりなさい" : "おつかれさまです"}>
+      <div className="flex flex-col gap-2.5 px-4 pt-1 pb-3.5">
         {picked && !editing ? (
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-[15px]">
               今夜の体力：<span className="font-semibold">{picked.label}</span>
             </p>
-            <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-[14px] text-accent">
+            <button type="button" onClick={() => setEditing(true)} className={textBtn}>
               変える
             </button>
           </div>
         ) : (
           <>
-            <p className="text-[15px]">残りの体力は？</p>
+            <p className="text-[14px] text-muted">残りの体力は？</p>
             <div className="grid grid-cols-3 gap-2">
               {EVENING_OPTIONS.map((o) => (
                 <button
                   key={o.value}
                   type="button"
                   onClick={() => choose(o.value)}
-                  className={`rounded-xl py-2.5 text-[16px] font-semibold ${o.value === answer ? "bg-accent text-white" : "bg-surface2"}`}
+                  className={`press rounded-xl py-2.5 text-[16px] font-semibold ${o.value === answer ? "bg-tint text-on-tint" : "bg-surface2"}`}
                 >
                   {o.label}
                 </button>
@@ -530,37 +629,7 @@ function EveningCard({ day, now }: { day: DayPlan; now: number }) {
           </>
         )}
       </div>
-    </Group>
-  );
-}
-
-/** 今日の行動ポイント（起床・就寝の下に1行で）。上限を超える日は、発散の時間を提案する */
-function EnergyLine({ today }: { today: number }) {
-  const { state } = useApp();
-  const e = state.result.dayEnergy.find((x) => x.dayStart === today);
-  if (!e) return null;
-  const ratio = Math.min(1, e.used / e.budget);
-  const over = e.used > e.budget;
-  const tired = e.evening === "low";
-  const note = tired
-    ? e.suggestion ? `${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "今夜は休む"
-    : over
-      ? e.suggestion ? `上限超え・${formatTime(e.suggestion.start)}〜 ${e.suggestion.name}` : "上限超え"
-      : undefined;
-  return (
-    <div className="col-span-2 flex flex-col gap-1.5 rounded-xl bg-surface px-4 py-2.5">
-      <div className="flex items-center gap-3">
-        <span className="shrink-0 text-[13px] font-medium text-muted">行動ポイント</span>
-        <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-surface2" role="meter" aria-valuenow={e.used} aria-valuemin={0} aria-valuemax={e.budget} aria-label="今日の行動ポイント">
-          <div className={`h-full rounded-full ${over ? "bg-accent" : "bg-ok"}`} style={{ width: `${ratio * 100}%` }} />
-        </div>
-        <span className="shrink-0 text-[14px] tabular-nums">
-          <span className="font-semibold">{e.used}</span>
-          <span className="text-muted"> / {e.budget}</span>
-        </span>
-      </div>
-      {note && <p className="text-[14px]">{note}</p>}
-    </div>
+    </Card>
   );
 }
 
@@ -573,56 +642,6 @@ function countMarks(logs: Record<string, Record<string, HabitMark>>, habit: Habi
     else if (m === "five") n += 0.5;
   }
   return n;
-}
-
-/** 記録する習慣：やった／5分だけ を押す。押さなければ、やっていない */
-function HabitLogCard({ today }: { today: number }) {
-  const { state, update } = useApp();
-  const key = dateKeyOf(today);
-  const marks = state.habitLogs[key] ?? {};
-  const tracked = new Map(state.habits.filter((h) => h.track).map((h) => [h.id, h]));
-  const rows = state.result.blocks
-    .filter((b) => b.kind === "habit" && tracked.has(b.refId) && b.start >= today && b.start < today + DAY_MS)
-    .sort((a, b) => a.start - b.start)
-    .filter((b, i, all) => all.findIndex((x) => x.refId === b.refId) === i);
-  if (rows.length === 0) return null;
-  const mark = (id: string, m: HabitMark) =>
-    update((d) => {
-      const day = { ...d.habitLogs[key] };
-      if (day[id] === m) delete day[id];
-      else day[id] = m;
-      return { ...d, habitLogs: { ...d.habitLogs, [key]: day } };
-    });
-  return (
-    <Group title="今日の記録">
-      <ul className="flex flex-col py-1">
-        {rows.map((b) => {
-          const m = marks[b.refId];
-          const btn = (value: HabitMark, label: string) => (
-            <button
-              type="button"
-              aria-pressed={m === value}
-              onClick={() => mark(b.refId, value)}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-[14px] ${m === value ? "bg-accent font-medium text-white" : "bg-surface2"}`}
-            >
-              {label}
-            </button>
-          );
-          return (
-            <li key={b.refId} className="flex items-center gap-2 px-4 py-2">
-              <span className="w-12 shrink-0 text-[13px] tabular-nums text-muted">{formatTime(b.start)}</span>
-              <span className="min-w-0 flex-1 truncate text-[15px]">{b.title}</span>
-              <span className="shrink-0 text-[12px] tabular-nums text-muted" aria-label="2週間の回数">
-                {countMarks(state.habitLogs, tracked.get(b.refId)!, today)}回
-              </span>
-              {btn("five", "5分")}
-              {btn("done", "やった")}
-            </li>
-          );
-        })}
-      </ul>
-    </Group>
-  );
 }
 
 /** 少しずつ増やす習慣（家での運動）：2週間たったら記録を見て、増やすか・きっかけを変えるかを聞く */
@@ -657,37 +676,36 @@ function ReviewCard({ today }: { today: number }) {
     }));
     notify(grow ? `${habit.name}を${Math.min(p.maxMinutes, habit.durationMinutes + p.stepMinutes)}分に` : "記録しました");
   };
-  const btn = "rounded-lg px-4 py-2 text-[15px]";
   return (
-    <Group title={habit.name}>
-      <div className="flex flex-col gap-3 px-4 py-3">
+    <Card title={habit.name}>
+      <div className="flex flex-col gap-3 px-4 pt-1 pb-3.5">
         <p className="text-[15px] tabular-nums">
-          2週間で {done} / {planned} 回
+          2週間で <span className="font-semibold">{done}</span> / {planned} 回
         </p>
         <div className="flex flex-wrap gap-2">
           {up && (
-            <button type="button" onClick={() => finish(true)} className={`${btn} bg-accent font-medium text-white`}>
+            <button type="button" onClick={() => finish(true)} className={btnPrimary}>
               {habit.durationMinutes + p.stepMinutes}分にする
             </button>
           )}
           {low && (
-            <Link href="/settings/habits" onClick={() => finish(false)} className={`${btn} bg-accent font-medium text-white`}>
+            <Link href="/settings/habits" onClick={() => finish(false)} className={btnPrimary}>
               きっかけを変える
             </Link>
           )}
-          <button type="button" onClick={() => finish(false)} className={`${btn} bg-surface2`}>
+          <button type="button" onClick={() => finish(false)} className={btnSecondary}>
             このまま
           </button>
         </div>
       </div>
-    </Group>
+    </Card>
   );
 }
 
 /** 寝る準備の時刻になったら「寝る」。予定どおりに寝られたかを残す（ご褒美になる） */
 function BedCard({ now }: { now: number }) {
   const { state, patch } = useApp();
-  const day = state.result.dayPlans.find((d) => now >= d.bed - BED_PREP_MINUTES * MIN && now < d.bed + 3 * 60 * MIN);
+  const day = bedDayOf(state.result.dayPlans, now);
   const key = day ? dateKeyOf(day.dayStart) : "";
   const log = state.bedLogs[key];
   const record = () =>
@@ -703,15 +721,8 @@ function BedCard({ now }: { now: number }) {
       };
     });
   if (!day) return null;
-  // 寝る前に、明日の起床と最初の予定を見られるように（アラームを合わせる）
+  // 寝る前に、次の起床と最初の予定を見られるように（アラームを合わせる）
   const next = state.result.dayPlans.find((d) => d.dayStart === day.dayStart + DAY_MS);
-  const tomorrow = next && (
-    <p className="truncate px-4 pb-3 text-[13px] tabular-nums text-muted">
-      明日 {formatTime(next.wake)} 起床
-      {next.firstEvent ? `・${formatTime(next.firstEvent.start)}「${next.firstEvent.title}」` : ""}
-      {next.leave ? `・${formatTime(next.leave)}出発` : ""}
-    </p>
-  );
   const undo = () =>
     patch((d) => {
       const bedLogs = { ...d.bedLogs };
@@ -719,30 +730,48 @@ function BedCard({ now }: { now: number }) {
       return { bedLogs };
     });
   return (
-    <Group title="おやすみ">
-      <div>
-      {log ? (
-        <div className="flex items-center gap-3 px-4 py-3">
-          <CheckCircle on />
-          <p className="min-w-0 flex-1 text-[15px]">
-            {formatTime(log.at)}に寝る
-            {!bedOnTime(log) && <span className="block text-[13px] text-muted">予定より{formatMinutes(Math.round((log.at - log.plannedBed) / MIN))}遅く</span>}
-          </p>
-          <button type="button" className="shrink-0 text-[13px] text-muted underline" onClick={undo}>
-            取り消す
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3 px-4 py-3">
-          <p className="min-w-0 flex-1 text-[15px] tabular-nums">就寝 {formatTime(day.bed)}</p>
-          <button type="button" onClick={record} className="shrink-0 rounded-lg bg-accent px-5 py-2 text-[15px] font-medium text-white">
-            寝る
-          </button>
+    <Card title="おやすみ">
+      <div className="flex items-center gap-3 px-4 pt-1 pb-3.5">
+        {log ? (
+          <>
+            <CheckCircle on />
+            <p className="min-w-0 flex-1 text-[15px]">
+              <span className="tabular-nums">{formatTime(log.at)}</span>に寝る
+              {!bedOnTime(log) && <span className="block text-[13px] text-muted">予定より{formatMinutes(Math.round((log.at - log.plannedBed) / MIN))}遅く</span>}
+            </p>
+            <button type="button" className={`${textBtn} text-muted`} onClick={undo}>
+              取り消す
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="min-w-0 flex-1">
+              <p className={label}>就寝</p>
+              <p className={bigTime}>{formatTime(day.bed)}</p>
+            </div>
+            <button type="button" onClick={record} className={`${btnPrimary} shrink-0 px-7 py-3 text-[16px]`}>
+              寝る
+            </button>
+          </>
+        )}
+      </div>
+      {next && (
+        <div className="flex items-start gap-3 px-4 py-2.5">
+          <div className="shrink-0">
+            <p className={label}>起床</p>
+            <p className="text-[15px] font-semibold tabular-nums">{formatTime(next.wake)}</p>
+          </div>
+          {next.firstEvent && (
+            <div className="min-w-0 flex-1 border-l border-line pl-3">
+              <p className={label}>最初の予定{next.leave ? `・${formatTime(next.leave)}出発` : ""}</p>
+              <p className="truncate text-[15px]">
+                <span className="tabular-nums">{formatTime(next.firstEvent.start)}</span> {next.firstEvent.title}
+              </p>
+            </div>
+          )}
         </div>
       )}
-      {tomorrow}
-      </div>
-    </Group>
+    </Card>
   );
 }
 
@@ -774,29 +803,31 @@ function MealCard({ today, now }: { today: number; now: number }) {
       if (!on) (where === "home" ? h : o).add(id);
       return { ...d, mealsAtHome: { ...d.mealsAtHome, [key]: [...h] }, habitSkips: { ...d.habitSkips, [key]: [...o] } };
     });
-  const btn = (on: boolean) => `shrink-0 rounded-lg px-3 py-1.5 text-[14px] ${on ? "bg-accent font-medium text-white" : "bg-surface2"}`;
+  const seg = (on: boolean) => `press rounded-md px-3 py-1 text-[13px] ${on ? "bg-surface font-semibold text-fg shadow-sm" : "text-muted"}`;
   return (
-    <Group title="今日の食事">
-      <ul className="flex flex-col py-1">
+    <Card title="今日の食事">
+      <ul className="flex flex-col pt-0.5 pb-2">
         {meals.map((m) => {
           const b = blockOf(m.id);
           return (
-            <li key={m.id} className="flex items-center gap-2 px-4 py-2">
+            <li key={m.id} className="flex items-center gap-3 px-4 py-1.5">
               <span className="min-w-0 flex-1 truncate text-[15px]">{m.name}</span>
-              <span className="w-14 shrink-0 text-right text-[13px] tabular-nums text-muted">
+              <span className="shrink-0 text-right text-[13px] tabular-nums text-muted">
                 {b ? formatTime(b.start) : out.has(m.id) ? "" : home.has(m.id) ? "入らない" : "—"}
               </span>
-              <button type="button" aria-pressed={home.has(m.id)} onClick={() => choose(m.id, "home")} className={btn(home.has(m.id))}>
-                家で
-              </button>
-              <button type="button" aria-pressed={out.has(m.id)} onClick={() => choose(m.id, "out")} className={btn(out.has(m.id))}>
-                外で
-              </button>
+              <div className="flex shrink-0 rounded-lg bg-surface2 p-0.5">
+                <button type="button" aria-pressed={home.has(m.id)} onClick={() => choose(m.id, "home")} className={seg(home.has(m.id))}>
+                  家で
+                </button>
+                <button type="button" aria-pressed={out.has(m.id)} onClick={() => choose(m.id, "out")} className={seg(out.has(m.id))}>
+                  外で
+                </button>
+              </div>
             </li>
           );
         })}
       </ul>
-    </Group>
+    </Card>
   );
 }
 
@@ -810,16 +841,16 @@ function ContactCard({ today, now }: { today: number; now: number }) {
     notify("記録しました");
   };
   return (
-    <Group title="連絡してみる？">
-      <div className="flex gap-2 px-4 py-3">
-        <button type="button" onClick={() => answer("done")} className="rounded-lg bg-accent px-4 py-2 text-[15px] font-medium text-white">
+    <Card title="連絡してみる？">
+      <div className="flex gap-2 px-4 pt-1 pb-3.5">
+        <button type="button" onClick={() => answer("done")} className={btnPrimary}>
           連絡した
         </button>
-        <button type="button" onClick={() => answer("skip")} className="rounded-lg bg-surface2 px-4 py-2 text-[15px]">
+        <button type="button" onClick={() => answer("skip")} className={btnSecondary}>
           今週はいい
         </button>
       </div>
-    </Group>
+    </Card>
   );
 }
 
@@ -844,22 +875,26 @@ function SmokeCard({ today }: { today: number }) {
     setUndoAt(undefined);
   };
   return (
-    <Group title="タバコ">
+    <Card>
       <div className="flex items-center gap-3 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold">
+            タバコ
+            {todays.length > 0 && <span className="ml-2 text-[13px] font-normal tabular-nums text-muted">{todays.length}本</span>}
+          </p>
+          {todays.length > 0 && <p className="truncate text-[12px] tabular-nums text-muted">{todays.map(formatTime).join(" ")}</p>}
+        </div>
         {undoAt !== undefined ? (
-          <button type="button" onClick={undo} className="shrink-0 rounded-lg bg-surface2 px-4 py-2 text-[15px]">
+          <button type="button" onClick={undo} className={`${btnSecondary} shrink-0 py-2 text-muted`}>
             取り消す
           </button>
         ) : (
-          <button type="button" onClick={add} className="shrink-0 rounded-lg bg-accent px-4 py-2 text-[15px] font-medium text-white">
+          <button type="button" onClick={add} className={`${btnSecondary} shrink-0 py-2`}>
             吸った
           </button>
         )}
-        <p className="min-w-0 text-[13px] tabular-nums text-muted">
-          {todays.length > 0 ? `${todays.length}本・${todays.map(formatTime).join(" ")}` : ""}
-        </p>
       </div>
-    </Group>
+    </Card>
   );
 }
 
@@ -881,9 +916,10 @@ export default function TodayScreen() {
   const idx = days.findIndex((d) => d.dayStart === today);
   const day = idx >= 0 ? days[idx] : undefined;
   const dayEnd = Math.max(day?.bed ?? 0, today + DAY_MS);
-
   const wide = useWide();
   const morning = isMorning(state, day, now);
+  // 寝る前は「おやすみ」だけにする（起床・就寝と「今から何する？」は出さない）
+  const bedtime = !!bedDayOf(days, now);
 
   const registerPlace = (location: string, minutes: number) =>
     update((d) => ({
@@ -898,7 +934,7 @@ export default function TodayScreen() {
       <ProgressCard now={now} />
       <ReviewCard today={today} />
       {hasNotices(state) && (
-        <Group title="お知らせ">
+        <Card title="お知らせ">
           <Notices
             state={state}
             onRegisterPlace={registerPlace}
@@ -921,16 +957,16 @@ export default function TodayScreen() {
               }))
             }
           />
-        </Group>
+        </Card>
       )}
       <BedCard now={now} />
       {day && <EveningCard day={day} now={now} />}
       {morning && <MorningCard day={day} now={now} />}
     </>
   );
-  const middle = (
+  const middle = !bedtime && (
     <>
-      {day && <SleepCard day={day} today={today} now={now} />}
+      {day && <DayCard day={day} today={today} now={now} />}
       <WorkNowCard now={now} />
     </>
   );
@@ -946,18 +982,17 @@ export default function TodayScreen() {
 
   return (
     <div className="h-full overflow-y-auto bg-grouped">
-      <ScreenHeader title="今日" sub={formatDate(today)} width="max-w-5xl" />
-      {!!state.result.movedBlocks?.length && <div role="status" className="mx-auto max-w-5xl px-4 pb-3 text-[13px] text-muted">予定に合わせて今日の自動枠を{state.result.movedBlocks.length}件変更しました。{state.result.movedBlocks.slice(0, 3).map((b) => `${formatTime(b.start)} ${b.title}`).join("、")}</div>}
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
+      <ScreenHeader title={headerDate(today)} width="max-w-5xl" />
+      {!!state.result.movedBlocks?.length && <div role="status" className="mx-auto max-w-5xl px-4 pb-2 text-[13px] text-muted">予定に合わせて今日の自動枠を{state.result.movedBlocks.length}件変更しました。{state.result.movedBlocks.slice(0, 3).map((b) => `${formatTime(b.start)} ${b.title}`).join("、")}</div>}
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         {wide ? (
           <>
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
               {top}
               {middle}
               {rest}
             </div>
-            <div className="flex flex-col gap-6">
-              <HabitLogCard today={today} />
+            <div className="flex flex-col gap-4">
               <Timeline now={now} dayEnd={dayEnd} />
               <RecoveryCard now={now} />
             </div>
@@ -968,7 +1003,6 @@ export default function TodayScreen() {
             {middle}
             {/* 狭い画面では、今日の流れを上に（いまと次だけ） */}
             <Timeline now={now} dayEnd={dayEnd} limit={5} />
-            <HabitLogCard today={today} />
             {rest}
             {/* 崩れた日の立て直しは、ときどき使うものなので下に */}
             <RecoveryCard now={now} />
@@ -978,7 +1012,7 @@ export default function TodayScreen() {
       {/* 取り消しは目立たせず、いちばん下に */}
       {canUndo && (
         <div className="mx-auto flex max-w-5xl justify-center px-4 pb-8">
-          <button type="button" onClick={undo} className="rounded-lg border border-line px-3 py-1.5 text-[12px] text-muted active:bg-surface2">
+          <button type="button" onClick={undo} className="press rounded-full bg-surface px-3.5 py-1.5 text-[12px] text-muted">
             直前の操作を元に戻す
           </button>
         </div>

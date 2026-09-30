@@ -35,7 +35,7 @@ export function RelatedTasks({ tasks, blocks, onOpenTask }: { tasks: Task[]; blo
                     <span className="block text-[12px] text-accent">まだ配置できていません</span>
                   )}
                 </span>
-                <span className="shrink-0 self-center text-[13px] text-accent">編集</span>
+                <span className="shrink-0 self-center text-[13px] font-medium text-tint">編集</span>
               </button>
             </li>
           );
@@ -88,7 +88,7 @@ export function BlockSheet({
         )}
         {children}
         {block.kind === "task" && (
-          <button type="button" onClick={() => onEditTask(block.refId)} className="rounded-xl py-2.5 text-accent hover:bg-surface2">
+          <button type="button" onClick={() => onEditTask(block.refId)} className="rounded-xl py-2.5 font-medium text-tint hover:bg-surface2">
             タスクを編集
           </button>
         )}

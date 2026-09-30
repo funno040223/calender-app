@@ -8,7 +8,11 @@
   --line: #e5e5ea;
   --surface: #ffffff;
   --surface2: #f2f2f7;
+  /* 赤は「いま」と、足りない・間に合わないなどの知らせだけに使う */
   --accent: #ff3b30;
+  /* ボタン・選んだ状態・文字のボタンの色（落ち着いた墨色） */
+  --tint: #1c1c1e;
+  --on-tint: #ffffff;
   --warn: #fff4e5;
   /* iOS の設定アプリのような、グループ表示の背景 */
   --grouped: #f2f2f7;
@@ -40,6 +44,8 @@
     --surface: #1c1c1e;
     --surface2: #2c2c2e;
     --accent: #ff453a;
+    --tint: #f2f2f7;
+    --on-tint: #000000;
     --warn: #3a2a12;
     --grouped: #000000;
     --ok: #30d158;
@@ -69,6 +75,8 @@
   --color-surface: var(--surface);
   --color-surface2: var(--surface2);
   --color-accent: var(--accent);
+  --color-tint: var(--tint);
+  --color-on-tint: var(--on-tint);
   --color-warn: var(--warn);
   --color-grouped: var(--grouped);
   --color-ok: var(--ok);
@@ -83,6 +91,37 @@ body {
   font-family: var(--font-sans);
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* iPhone の日付・時刻の欄は、そのままだと自分の幅を持って枠からはみ出す */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+}
+input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+/* カードの影（ダークモードでは出さない） */
+.card-shadow {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+@media (prefers-color-scheme: dark) {
+  .card-shadow {
+    box-shadow: none;
+  }
+}
+
+/* 押したときに少し沈む */
+.press {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.press:active {
+  transform: scale(0.97);
+  opacity: 0.85;
 }
 
 /* iOS 風のスイッチ */
@@ -206,6 +245,15 @@ body {
   background: var(--accent);
   left: auto;
   right: 0;
+}
+
+/* 3日・週の終日の欄：日付の空きと下の余白を詰める（予定がない日は1行ぶんだけ） */
+.app-cal .fc .fc-timegrid .fc-daygrid-day-top {
+  display: none;
+}
+.app-cal .fc .fc-timegrid .fc-daygrid-body-natural .fc-daygrid-day-events {
+  min-height: 22px;
+  margin-bottom: 3px;
 }
 
 /* 月表示 */

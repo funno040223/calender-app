@@ -73,7 +73,7 @@ export default function Notifications() {
           <button
             type="button"
             disabled={busy}
-            className="py-2 text-[15px] text-accent disabled:opacity-60"
+            className="py-2 text-[15px] font-medium text-tint disabled:opacity-60"
             onClick={() => void run(async () => (await unsubscribePush(), "この端末の通知をオフにしました。"))}
           >
             この端末の通知をオフにする

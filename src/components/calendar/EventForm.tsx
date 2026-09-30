@@ -48,7 +48,7 @@ function toDraft(ev: OwnEvent): Draft {
 }
 
 const inputCls =
-  "w-full min-w-0 rounded-lg border border-line bg-surface2 px-3 py-2 text-[16px] outline-none focus:border-accent";
+  "w-full min-w-0 rounded-lg border border-line bg-surface2 px-3 py-2 text-[16px] outline-none focus:border-tint";
 
 export default function EventForm({
   initial,
@@ -166,13 +166,13 @@ export default function EventForm({
           </div>
         </div>
         {!d.allDay && (
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[15px]">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[15px]">
             <input className={inputCls} type="time" step={300} aria-label="開始" value={d.startTime} onChange={(e) => setStartTime(e.target.value)} />
             <span className="text-muted">〜</span>
             <input className={inputCls} type="time" step={300} aria-label="終了" value={d.endTime} onChange={(e) => set("endTime", e.target.value)} />
           </div>
         )}
-        <div className="grid grid-cols-[1fr_auto] items-center gap-3 text-[15px]">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-[15px]">
           <input className={inputCls} type="date" aria-label="日付" value={d.date} onChange={(e) => setDate(e.target.value)} />
           <label className="flex items-center gap-2">
             終日
@@ -224,7 +224,7 @@ export default function EventForm({
         />
         {extra}
         {error && <p className="text-[14px] text-accent">{error}</p>}
-        <button type="submit" className="rounded-xl bg-accent py-2.5 text-[16px] font-semibold text-white">
+        <button type="submit" className="press rounded-xl bg-tint py-2.5 text-[16px] font-semibold text-on-tint">
           {isNew ? "追加" : "保存"}
         </button>
         {!isNew && (

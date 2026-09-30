@@ -27,7 +27,7 @@ function PeriodsGroup() {
           <TimeInput label={`${p.number}限の終了`} value={p.end} onCommit={(v) => setPeriod(p.number, { end: v })} />
           <button
             type="button"
-            className="ml-auto shrink-0 px-1 text-[14px] text-accent"
+            className="ml-auto shrink-0 px-1 text-[14px] font-medium text-tint"
             aria-label={`${p.number}限を削除`}
             onClick={() => {
               const n = used(p.number);
@@ -165,7 +165,7 @@ function CourseForm({ course, onClose }: { course?: Course; onClose: () => void 
         )}
       </Field>
       <Field label="学期">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
           <input className={inputCls} type="date" aria-label="学期の開始日" value={d.termStart} onChange={(e) => set("termStart", e.target.value)} />
           <span className="text-muted">〜</span>
           <input className={inputCls} type="date" aria-label="学期の終了日" value={d.termEnd} onChange={(e) => set("termEnd", e.target.value)} />
@@ -187,7 +187,7 @@ function CourseForm({ course, onClose }: { course?: Course; onClose: () => void 
             {d.cancelledDates.map((date) => (
               <li key={date} className="flex items-center justify-between px-3 py-2 text-[15px]">
                 {formatDate(dayStartOfKey(date) ?? 0)}
-                <button type="button" className="text-[14px] text-accent" onClick={() => set("cancelledDates", d.cancelledDates.filter((x) => x !== date))}>
+                <button type="button" className="text-[14px] font-medium text-tint" onClick={() => set("cancelledDates", d.cancelledDates.filter((x) => x !== date))}>
                   休講を取り消す
                 </button>
               </li>

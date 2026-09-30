@@ -63,10 +63,10 @@ export default function Feed() {
             <p className="text-[13px] text-muted">ほかの人に教えないでください。この画面を閉じると、もう表示されません。</p>
             <p className="select-all break-all rounded-lg bg-grouped px-3 py-2 font-mono text-[12px]">{url}</p>
             <div className="flex gap-4 text-[15px]">
-              <button type="button" className="text-accent" onClick={() => void copy()}>
+              <button type="button" className="font-medium text-tint" onClick={() => void copy()}>
                 コピー
               </button>
-              <a className="text-accent" href={url.replace(/^https:/, "webcal:")}>
+              <a className="font-medium text-tint" href={url.replace(/^https:/, "webcal:")}>
                 iPhone のカレンダーに追加
               </a>
             </div>
@@ -84,7 +84,7 @@ export default function Feed() {
         <button
           type="button"
           disabled={busy}
-          className="py-2 text-[15px] text-accent disabled:opacity-60"
+          className="py-2 text-[15px] font-medium text-tint disabled:opacity-60"
           onClick={async () => {
             if (!window.confirm("配信をやめますか？登録したカレンダーから予定が消えます。")) return;
             try {

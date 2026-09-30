@@ -50,7 +50,7 @@ function TravelQuestionRow({
         <span>分</span>
         <button
           type="button"
-          className="ml-auto rounded-lg bg-accent px-3 py-1.5 text-[14px] font-semibold text-white"
+          className="press ml-auto rounded-lg bg-tint px-3 py-1.5 text-[14px] font-semibold text-on-tint"
           onClick={() => {
             const n = Number(minutes);
             if (Number.isFinite(n) && n >= 0) onRegister(location, Math.round(n));
@@ -148,7 +148,7 @@ export default function Notices({
             </p>
             <div className="flex flex-wrap gap-2 pl-5">
               {TRAVEL_CHOICES.map((m) => (
-                <button key={m} type="button" onClick={() => onSetTravel(e.id, m)} className="rounded-lg bg-surface2 px-3 py-1.5 text-[13px] tabular-nums">
+                <button key={m} type="button" onClick={() => onSetTravel(e.id, m)} className="press rounded-full bg-surface2 px-3 py-1.5 text-[13px] tabular-nums">
                   {m === 0 ? "家にいる" : `${m}分`}
                 </button>
               ))}

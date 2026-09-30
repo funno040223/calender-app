@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 開発中の印（左下の「N」）は、iPhone の画面の見た目を確かめるときにじゃまになるので出さない
+  devIndicators: false,
   async headers() {
     return [
       {

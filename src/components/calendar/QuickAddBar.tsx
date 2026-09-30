@@ -15,9 +15,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`shrink-0 rounded-full border px-3 py-1 text-[13px] transition-colors ${
-        on ? "border-accent bg-accent text-white" : "border-line bg-surface text-fg"
-      }`}
+      className={`press shrink-0 rounded-full px-3 py-1 text-[13px] ${on ? "bg-tint font-medium text-on-tint" : "bg-surface2 text-fg"}`}
     >
       {children}
     </button>
@@ -65,11 +63,8 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
   };
 
   return (
-    <form
-      onSubmit={submit}
-      className="border-t border-line bg-surface/95 px-3 pt-2 pb-2 backdrop-blur sm:pb-[max(8px,env(safe-area-inset-bottom))]"
-    >
-      <div className="flex items-center gap-2">
+    <form onSubmit={submit} className="px-3 pt-2 pb-1.5">
+      <div className="relative">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -80,18 +75,22 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
           }}
           // チップを押したときに先に閉じないよう、少し待ってから閉じる
           onBlur={() => (blurTimer.current = window.setTimeout(() => setFocused(false), 250))}
-          placeholder="タスクを追加（例：レポート 明日まで 2時間 重要）"
+          placeholder="タスクを追加"
           aria-label="タスクを追加"
           enterKeyHint="done"
-          className="min-w-0 flex-1 rounded-full border border-line bg-surface2 px-4 py-2 text-[16px] outline-none focus:border-accent"
+          className="h-10 w-full rounded-full bg-surface2 pr-12 pl-4 text-[16px] outline-none placeholder:text-muted"
         />
-        <button
-          type="submit"
-          disabled={!preview}
-          className="shrink-0 rounded-full bg-accent px-4 py-2 text-[15px] font-semibold text-white disabled:opacity-40"
-        >
-          追加
-        </button>
+        {preview && (
+          <button
+            type="submit"
+            aria-label="追加"
+            className="press absolute top-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-tint text-on-tint"
+          >
+            <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden>
+              <path d="M7 12V2M2.5 6.5 7 2l4.5 4.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
       </div>
       {open && (
         <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
@@ -100,7 +99,7 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
               {c}まで
             </Chip>
           ))}
-          <span className="mx-1 h-4 w-px shrink-0 bg-line" />
+          <span className="mx-0.5 h-4 w-px shrink-0 bg-line" />
           {TAGS.map((t) => (
             <Chip key={t.id} on={tagId === t.id} onClick={() => setTagId(tagId === t.id ? undefined : t.id)}>
               {t.name}
@@ -109,7 +108,7 @@ export default function QuickAddBar({ onAdd }: { onAdd: (task: Task) => void }) 
         </div>
       )}
       {preview && (
-        <p className="mt-1.5 truncate px-1 text-[12px] text-muted">
+        <p className="mt-1.5 truncate px-2 text-[12px] text-muted">
           「{preview.title}」・{preview.deadline ? formatDeadline(preview.deadline) : "締切なし"}・
           {formatMinutes(estimateMinutes({ ...preview, id: "" }, planTags.find((t) => t.id === preview.tagId) ?? { defaultMinutes: 60 }))}
           {preview.durationMinutes === undefined ? "（目安）" : ""}・優先度{PRIORITY_LABEL[preview.priority]}

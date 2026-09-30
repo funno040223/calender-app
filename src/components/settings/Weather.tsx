@@ -37,7 +37,7 @@ export default function Weather() {
       <Group title="場所">
         {state.weatherPlace ? (
           <Row label={state.weatherPlace.name}>
-            <button type="button" onClick={() => update((d) => ({ ...d, weatherPlace: undefined, rainForecast: undefined }))} className="text-[14px] text-accent">
+            <button type="button" onClick={() => update((d) => ({ ...d, weatherPlace: undefined, rainForecast: undefined }))} className="text-[14px] font-medium text-tint">
               やめる
             </button>
           </Row>
@@ -52,7 +52,7 @@ export default function Weather() {
           }}
         >
           <input className={inputCls} value={q} onChange={(e) => setQ(e.target.value)} placeholder="市区町村（例：世田谷）" aria-label="市区町村" />
-          <button type="submit" className="shrink-0 rounded-lg bg-accent px-3 py-2 text-[15px] font-medium text-white">
+          <button type="submit" className="press shrink-0 rounded-lg bg-tint px-3 py-2 text-[15px] font-medium text-on-tint">
             検索
           </button>
         </form>

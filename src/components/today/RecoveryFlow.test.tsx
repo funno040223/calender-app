@@ -18,8 +18,11 @@ const block = { kind: "task" as const, refId: task.id, title: task.title, start:
 let last: MockData;
 const openTask = vi.fn();
 const notify = vi.fn();
-function Harness({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState(() => replan({ ...sampleData(now), tasks: [task], courses: [], habits: [], events: [], blocks: [block] }, [], now));
+function Harness({ children, init }: { children: React.ReactNode; init?: (d: MockData) => MockData }) {
+  const [state, setState] = useState(() => {
+    const base = { ...sampleData(now), tasks: [task], courses: [], habits: [], events: [], blocks: [block] };
+    return replan(init ? init(base) : base, [], now);
+  });
   useEffect(() => { last = state; }, [state]);
   const value = { state, update: (f: (d: MockData) => MockData) => setState((s) => replan(f(s), [], now)), patch: vi.fn(), sync: "synced", imports: { state: "idle" }, openTask, notify, initialLoaded: true } as unknown as AppContextValue;
   return <AppContext value={value}>{children}</AppContext>;
@@ -64,4 +67,13 @@ it("旧版の達成リンクを開いても実績や報酬にせずタスクを�
   expect(openTask).toHaveBeenCalledWith("t");
   expect(last.taskBlockLog[`t:${block.start}`].doneAt).toBeUndefined();
   expect(last.tasks[0].remainingMinutes).toBeUndefined();
+});
+it("終わった記録する習慣は今日の流れに残り、「やった」を押すと記録して消える", () => {
+  const walk = sampleData(now).habits.find((h) => h.id === "habit-walk")!;
+  const done = { kind: "habit" as const, refId: walk.id, title: walk.name, start: now - 90 * MIN, end: now - 70 * MIN };
+  render(<Harness init={(d) => ({ ...d, habits: [walk], blocks: [block, done] })}><TodayScreen /></Harness>);
+  fireEvent.click(screen.getByRole("button", { name: `${walk.name}：やった` }));
+  expect(last.habitLogs["2026-10-01"]?.[walk.id]).toBe("done");
+  expect(screen.queryByRole("button", { name: `${walk.name}：やった` })).toBeNull();
+  expect(notify).toHaveBeenCalledWith("記録しました");
 });

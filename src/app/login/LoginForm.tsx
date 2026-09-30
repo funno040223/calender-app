@@ -40,7 +40,7 @@ export default function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="rounded-xl bg-surface2 px-3 py-2.5 text-[16px] outline-none focus:ring-2 focus:ring-accent/40"
+          className="rounded-xl bg-surface2 px-3 py-2.5 text-[16px] outline-none focus:ring-2 focus:ring-tint/30"
         />
       </label>
       <label className="flex flex-col gap-1.5 text-[14px]">
@@ -51,7 +51,7 @@ export default function LoginForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="rounded-xl bg-surface2 px-3 py-2.5 text-[16px] outline-none focus:ring-2 focus:ring-accent/40"
+          className="rounded-xl bg-surface2 px-3 py-2.5 text-[16px] outline-none focus:ring-2 focus:ring-tint/30"
         />
       </label>
       {error && (
@@ -62,7 +62,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={busy}
-        className="rounded-xl bg-accent py-2.5 text-[16px] font-medium text-white disabled:opacity-60"
+        className="press rounded-xl bg-tint py-2.5 text-[16px] font-medium text-on-tint disabled:opacity-60"
       >
         {busy ? "ログイン中…" : "ログイン"}
       </button>

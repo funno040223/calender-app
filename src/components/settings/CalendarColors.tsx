@@ -27,7 +27,7 @@ export default function CalendarColors() {
               <span className="h-3 w-3 rounded-full" style={{ background: c.colorVar }} />
               <span className="flex-1 text-[16px]">{c.name}</span>
               {current && (
-                <button type="button" onClick={() => setColor(c.id, undefined)} className="text-[13px] text-accent">
+                <button type="button" onClick={() => setColor(c.id, undefined)} className="text-[13px] font-medium text-tint">
                   初期の色
                 </button>
               )}

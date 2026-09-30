@@ -141,7 +141,7 @@ export default function Notion() {
                 type="button"
                 disabled={busy}
                 onClick={() => void readColumns()}
-                className="text-[15px] text-accent"
+                className="text-[15px] font-medium text-tint"
               >
                 列を読み込む
               </button>
@@ -257,7 +257,7 @@ export default function Notion() {
         <button
           type="button"
           disabled={busy}
-          className="py-2 text-[15px] text-accent disabled:opacity-60"
+          className="py-2 text-[15px] font-medium text-tint disabled:opacity-60"
           onClick={() =>
             void run(async () => {
               if (

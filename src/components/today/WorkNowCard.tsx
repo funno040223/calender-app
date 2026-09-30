@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/components/app/StoreProvider";
-import { Group } from "@/components/ui/controls";
+import { Card, btnPrimary, btnSecondary, pillCls } from "@/components/ui/controls";
 import { formatMinutes } from "@/lib/mock/jst";
 import { replan } from "@/lib/mock/state";
 import { freeNowMinutes, startHabitNow, startWorkNow, workNowChoices, workNowGap, workNowHabits } from "@/lib/mock/recovery";
@@ -17,22 +17,22 @@ export default function WorkNowCard({ now }: { now: number }) {
   const options = [...new Set([...PRESETS, ...(free !== undefined ? [free] : [])])].sort((a, b) => a - b);
   const choices = minutes ? workNowChoices(state, now, minutes) : [];
   const habits = minutes ? workNowHabits(state, now, minutes) : [];
-  return <Group title="今から何する？">
-    <div className="flex flex-col gap-3 px-4 py-3">
+  return <Card title="今から何する？">
+    <div className="flex flex-col gap-2.5 px-4 pt-1 pb-3.5">
       <div className="flex flex-wrap gap-2">
-        {options.map((m) => <button key={m} type="button" aria-pressed={minutes === m} onClick={() => setMinutes(minutes === m ? undefined : m)} className={`rounded-full px-3.5 py-1.5 text-[14px] tabular-nums ${minutes === m ? "bg-accent font-medium text-white" : "bg-surface2"}`}>
+        {options.map((m) => <button key={m} type="button" aria-pressed={minutes === m} onClick={() => setMinutes(minutes === m ? undefined : m)} className={pillCls(minutes === m)}>
           {m === free ? `空き ${formatMinutes(m)}` : formatMinutes(m)}
         </button>)}
       </div>
-      {minutes !== undefined && !choices.length && !habits.length && <p role="status" className="text-[14px]">次の予定までに入るものがありません</p>}
-      {minutes !== undefined && choices.map((c) => <button key={c.task.id} className="rounded-lg bg-accent px-3 py-3 text-left text-white" onClick={() => {
+      {minutes !== undefined && !choices.length && !habits.length && <p role="status" className="text-[14px] text-muted">次の予定までに入るものがありません</p>}
+      {minutes !== undefined && choices.map((c) => <button key={c.task.id} className={`${btnPrimary} py-3 text-left`} onClick={() => {
         update((d) => startWorkNow(replan(d, state.googleEvents, Date.now()), c.task.id, minutes, Date.now())); setMinutes(undefined);
         notify(`「${c.task.title}」を始めました`);
       }}>{c.task.title}・{formatMinutes(c.minutes)}を始める</button>)}
-      {minutes !== undefined && habits.map((c) => <button key={c.habit.id} className="rounded-lg bg-surface2 px-3 py-3 text-left" onClick={() => {
+      {minutes !== undefined && habits.map((c) => <button key={c.habit.id} className={`${btnSecondary} py-3 text-left`} onClick={() => {
         update((d) => startHabitNow(replan(d, state.googleEvents, Date.now()), c.habit.id, minutes, Date.now())); setMinutes(undefined);
         notify(`「${c.title}」を始めました`);
       }}>{c.title}・{formatMinutes(c.minutes)}を始める</button>)}
     </div>
-  </Group>;
+  </Card>;
 }
