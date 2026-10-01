@@ -50,9 +50,9 @@ it("徹夜後の睡眠を入力し、表示と保存する予定へ反映でき�
   render(<Harness><RecoveryCard now={now} /></Harness>);
   fireEvent.click(screen.getByRole("button", { name: "今から寝る" }));
   fireEvent.change(screen.getByLabelText("立て直しの終了時刻"), { target: { value: "2026-10-01T19:00" } });
-  fireEvent.click(screen.getByRole("button", { name: "この時刻で組み直す" }));
+  fireEvent.click(screen.getByRole("button", { name: "組み直す" }));
   expect(last.rhythmResets?.[0].end).toBe(jst(2026, 10, 1, 19));
-  expect(screen.getByRole("status").textContent).toContain("起床から食事");
+  expect(notify).toHaveBeenCalledWith("組み直しました");
 });
 it("候補を見るだけでは予定を変更しない", () => {
   render(<Harness><WorkNowCard now={now} /></Harness>);
@@ -76,4 +76,14 @@ it("終わった記録する習慣は今日の流れに残り、「やった」�
   expect(last.habitLogs["2026-10-01"]?.[walk.id]).toBe("done");
   expect(screen.queryByRole("button", { name: `${walk.name}：やった` })).toBeNull();
   expect(notify).toHaveBeenCalledWith("記録しました");
+});
+it("終わった記録する習慣は「できなかった」でも消え、あとの時間に入れ直す", () => {
+  const walk = sampleData(now).habits.find((h) => h.id === "habit-walk")!;
+  const missed = { kind: "habit" as const, refId: walk.id, title: walk.name, start: now - 90 * MIN, end: now - 70 * MIN };
+  render(<Harness init={(d) => ({ ...d, habits: [walk], blocks: [block, missed] })}><TodayScreen /></Harness>);
+  fireEvent.click(screen.getByRole("button", { name: `${walk.name}：できなかった` }));
+  expect(last.habitMisses["2026-10-01"]).toEqual([`${walk.id}:${missed.start}`]);
+  expect(last.habitLogs["2026-10-01"]?.[walk.id]).toBeUndefined();
+  expect(screen.queryByRole("button", { name: `${walk.name}：やった` })).toBeNull();
+  expect(notify).toHaveBeenCalledWith("記録しました", { habitId: walk.id });
 });

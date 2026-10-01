@@ -111,6 +111,7 @@ const DATA_KEYS = [
   "importedTravel",
   "tags",
   "habitSkips",
+  "habitMisses",
   "mealsAtHome",
   "calendarColors",
   "taskChecks",
@@ -161,6 +162,7 @@ export function sampleData(now: number): MockData {
     importedTravel: {},
     tags: SAMPLE_TAGS,
     habitSkips: {},
+    habitMisses: {},
     mealsAtHome: {},
     calendarColors: {},
     taskChecks: {},
@@ -437,6 +439,11 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
           Object.entries(d.habitSkips).flatMap(([k, v]) => (Array.isArray(v) ? [[k, v.filter((x): x is string => typeof x === "string")]] : [])),
         )
       : {},
+    habitMisses: isRecord(d.habitMisses)
+      ? Object.fromEntries(
+          Object.entries(d.habitMisses).flatMap(([k, v]) => (Array.isArray(v) ? [[k, v.filter((x): x is string => typeof x === "string")]] : [])),
+        )
+      : {},
     mealsAtHome: isRecord(d.mealsAtHome)
       ? Object.fromEntries(
           Object.entries(d.mealsAtHome).flatMap(([k, v]) => (Array.isArray(v) ? [[k, v.filter((x): x is string => typeof x === "string")]] : [])),
@@ -501,18 +508,26 @@ export function planEvents(data: Pick<MockData, "events" | "importedTravel">, cl
 /** エンジンで組み直す。配置のロジックはすべて plan() に任せる */
 export function replan(data: MockData, googleEvents: CalendarEvent[], now: number): MockState {
   const classEvents = buildClassEvents(data.courses, data.periods);
-  // 間隔で置く習慣は、始まった枠をもって「やった」とみなす（実績の記録は第2段階）
+  const events = planEvents(data, classEvents, googleEvents);
+  // 「寝る」「起きた」の記録から見積もった睡眠（自分で入れた立て直しのほうが優先）
+  const sleeps = bedtimeSleeps(data, events, now);
+  const asleep = [...(data.rhythmResets ?? []).filter((r) => r.mode !== "tired"), ...sleeps];
+  // 「今日は飛ばす」にした習慣：その日には置かず、もう始まっている枠も外す。「できなかった」にした枠も外す（あとに入れ直す）
+  const skipDays = byHabit(data.habitSkips);
+  const missed = new Set(Object.values(data.habitMisses).flat());
+  const isSkipped = (b: MockData["blocks"][number]) =>
+    b.kind === "habit" &&
+    ((skipDays[b.refId] ?? []).some((day) => b.start >= day && b.start < day + DAY_MS) || missed.has(`${b.refId}:${b.start}`));
+  // やっていない枠：飛ばした・できなかった・寝ていた間の枠
+  const notDone = (b: MockData["blocks"][number]) => isSkipped(b) || asleep.some((r) => b.start < r.end && b.end > r.start);
+  // 間隔で置く習慣は、始まった枠をもって「やった」とみなす。やっていない枠で数えていたら取り消す
   const habitLastDone = { ...data.habitLastDone };
   for (const b of data.blocks) {
     const h = data.habits.find((x) => x.id === b.refId);
-    if (b.kind === "habit" && h?.frequency.type === "interval" && b.title === h.name && b.start <= now) {
-      habitLastDone[h.id] = Math.max(habitLastDone[h.id] ?? 0, b.start);
-    }
+    if (b.kind !== "habit" || h?.frequency.type !== "interval" || b.title !== h.name || b.start > now) continue;
+    if (!notDone(b)) habitLastDone[h.id] = Math.max(habitLastDone[h.id] ?? 0, b.start);
+    else if (habitLastDone[h.id] === b.start) delete habitLastDone[h.id];
   }
-  // 「今日は飛ばす」にした習慣：その日には置かず、もう始まっている枠も外す
-  const skipDays = byHabit(data.habitSkips);
-  const isSkipped = (b: MockData["blocks"][number]) =>
-    b.kind === "habit" && (skipDays[b.refId] ?? []).some((day) => b.start >= day && b.start < day + DAY_MS);
   // 週に何回かの習慣は、今週やった日を数える（「記録する」の習慣は記録、ほかは始まった枠）
   const today = dayStartOfKey(dateKeyOf(now))!;
   const habitDoneDays: Record<string, number[]> = {};
@@ -526,7 +541,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     }
     const days = new Set((data.habitDoneDays[h.id] ?? []).filter((t) => t >= recent.at(-1)!));
     for (const b of data.blocks) {
-      if (b.kind === "habit" && b.refId === h.id && b.start <= now && !isSkipped(b) && (b.title === h.name || b.title === h.rainAlternative?.title)) {
+      if (b.kind === "habit" && b.refId === h.id && b.start <= now && !notDone(b) && (b.title === h.name || b.title === h.rainAlternative?.title)) {
         days.add(dayStartOfKey(dateKeyOf(b.start))!);
       }
     }
@@ -535,8 +550,6 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   }
   data = captureTaskBlocks({ ...data, habitLastDone, habitDoneDays }, now);
   const planTags = planTagsOf(data);
-  const events = planEvents(data, classEvents, googleEvents);
-  const sleeps = bedtimeSleeps(data, events, now);
   data = reconcileBedtime(data, sleeps, now);
   const result = plan({
     now,
@@ -625,6 +638,14 @@ export function contactDaysFor(state: MockState, now: number): { weekStart: numb
 export function keepBlockFree(d: MockData, block: { start: number; end: number; refId?: string }, id: string, now: number): MockData {
   const entry = { id, start: block.start, end: block.end, ...(block.refId ? { taskId: block.refId } : {}) };
   return { ...d, keepFree: [...(d.keepFree ?? []).filter((k) => k.end > now - DAY_MS), entry] };
+}
+
+/** 習慣の枠を「できなかった」にする。やっていない扱いにし、入る時間があればあとに入れ直す */
+export function missHabitBlock(d: MockData, block: { refId: string; start: number }): MockData {
+  const day = dateKeyOf(block.start);
+  // 記録は60日ぶんだけ残す
+  const kept = Object.entries(d.habitMisses).filter(([k]) => k >= dateKeyOf(block.start - 60 * DAY_MS));
+  return { ...d, habitMisses: { ...Object.fromEntries(kept), [day]: [...new Set([...(d.habitMisses[day] ?? []), `${block.refId}:${block.start}`])] } };
 }
 
 /** 空けた時間を戻す（また自動で入るようにする） */

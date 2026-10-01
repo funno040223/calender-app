@@ -10,7 +10,7 @@ import { useApp } from "@/components/app/StoreProvider";
 import { eventIndex, formatEventShort, groupKeyOf, tasksByEvent } from "@/lib/mock/related";
 import { dateKeyOf, parseClassEventId, type HabitMark } from "@/lib/mock/model";
 import { formatDate, newId } from "@/lib/mock/jst";
-import { keepBlockFree } from "@/lib/mock/state";
+import { keepBlockFree, missHabitBlock } from "@/lib/mock/state";
 import CalendarView, { type CalendarHandle, type CalendarMode, type EventSource } from "./CalendarView";
 import CalendarToggles from "./CalendarToggles";
 import EventForm from "./EventForm";
@@ -370,7 +370,7 @@ export default function CalendarApp() {
   );
 }
 
-/** 枠の記録：タスクは「やった」、習慣は「やった／5分」と「今日は飛ばす」 */
+/** 枠の記録：タスクは「やった」、習慣は「やった／5分」「できなかった」と「今日は飛ばす」 */
 function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void }) {
   const { state, update, notify } = useApp();
   // 「今」は組み直した時刻（描くたびに Date.now() を呼ばない）
@@ -416,6 +416,19 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
             やった
           </button>
         </div>
+      )}
+      {habit?.track && mark === undefined && block.end <= state.plannedAt && (
+        <button
+          type="button"
+          className="rounded-xl py-2.5 font-medium text-tint hover:bg-surface2"
+          onClick={() => {
+            update((d) => missHabitBlock(d, block));
+            onSkipped();
+            notify("記録しました", { habitId: block.refId });
+          }}
+        >
+          できなかった
+        </button>
       )}
       {(habit?.skippable || habit?.meal) && block.end > state.plannedAt && (
         <button

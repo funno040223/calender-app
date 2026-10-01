@@ -58,3 +58,22 @@ describe("寝るの記録から起床を組み直す", () => {
     expect(state.blocks.some((b) => b.kind === "task" && b.start < at + 420 * MIN)).toBe(false);
   });
 });
+
+describe("「起きた」だけを押した朝", () => {
+  const morning = (wokeAt: number) => ({ ...data(), bedLogs: {}, wakeLogs: [{ date: "2026-10-01", doneStepIds: [], wokeAt }] });
+  it("寝坊したら、起きた時刻から朝ルーティンを置き直す", () => {
+    const wokeAt = jst(2026, 10, 1, 11);
+    const state = replan(morning(wokeAt), [], wokeAt);
+    expect(state.result.dayPlans[0].wake).toBe(wokeAt);
+    expect(state.blocks).toContainEqual(expect.objectContaining({ refId: "sleep:woke:2026-10-01", end: wokeAt }));
+  });
+  it("早く起きた朝も、起きた時刻から始める", () => {
+    const wokeAt = jst(2026, 10, 1, 8);
+    expect(replan(morning(wokeAt), [], wokeAt).result.dayPlans[0].wake).toBe(wokeAt);
+  });
+  it("自分で入れた立て直しがあれば、そちらを使う", () => {
+    const wokeAt = jst(2026, 10, 1, 11);
+    const entered = { id: "r", mode: "woke" as const, start: jst(2026, 10, 1, 4), end: jst(2026, 10, 1, 10, 30) };
+    expect(replan({ ...morning(wokeAt), rhythmResets: [entered] }, [], wokeAt).result.dayPlans[0].wake).toBe(entered.end);
+  });
+});

@@ -5,7 +5,7 @@ import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { DAY_MS, dayStartOf, formatTime } from "@/lib/mock/jst";
 import { dateKeyOf, type HabitMark } from "@/lib/mock/model";
-import { rainyDayKeys, releaseKeepFree } from "@/lib/mock/state";
+import { missHabitBlock, rainyDayKeys, releaseKeepFree } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Card } from "@/components/ui/controls";
 import { colorOf, textBtn } from "./parts";
@@ -21,10 +21,10 @@ interface TimelineItem {
   taskId?: string;
   /** 任意参加で参加しない回など、空き時間として扱うもの */
   dim?: boolean;
-  /** 終わった習慣で、まだ記録していないもの */
+  /** 終わった習慣で、まだ記録していないもの（「5分」「やった」「できなかった」で消える） */
   past?: boolean;
   /** 枠の下に出す小さなボタン（雨の日の散歩の入れ替えなど） */
-  action?: { label: string; onClick: () => void };
+  action?: { label: string; ariaLabel?: string; onClick: () => void };
   /** 記録する習慣：「5分」「やった」 */
   record?: { mark?: HabitMark; onMark: (m: HabitMark) => void };
 }
@@ -77,6 +77,11 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
     });
     if (was !== m) notify("記録しました");
   };
+  // できなかった習慣は、入る時間があればあとに入れ直す
+  const miss = (b: { refId: string; start: number }) => {
+    update((d) => missHabitBlock(d, b));
+    notify("記録しました", { habitId: b.refId });
+  };
   const blocks = [...state.result.blocks].sort((a, b) => a.start - b.start);
   for (const b of blocks) {
     if (b.start >= dayEnd) continue;
@@ -107,7 +112,11 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
             : undefined,
       taskId: task?.id,
       past,
-      action: rainSwap ? { label: rainy ? `晴れたので「${habit!.name}」に戻す` : "雨なので家の中でやる", onClick: toggleRain } : undefined,
+      action: rainSwap
+        ? { label: rainy ? `晴れたので「${habit!.name}」に戻す` : "雨なので家の中でやる", onClick: toggleRain }
+        : past && tracked && m === undefined
+          ? { label: "できなかった", ariaLabel: `${b.title}：できなかった`, onClick: () => miss(b) }
+          : undefined,
       record: tracked ? { mark: m, onMark: (v) => mark(day, b.refId, v) } : undefined,
     });
   }
@@ -165,7 +174,7 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
                   {it.sub ? `・${it.sub}` : ""}
                 </p>
                 {it.action && (
-                  <button type="button" onClick={it.action.onClick} className={`${textBtn} mt-1.5`}>
+                  <button type="button" aria-label={it.action.ariaLabel} onClick={it.action.onClick} className={`${textBtn} mt-1.5`}>
                     {it.action.label}
                   </button>
                 )}

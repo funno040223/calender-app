@@ -69,14 +69,17 @@ export default function BedCard({ now }: { now: number }) {
           </>
         )}
       </div>
-      {log && next && next.wake - log.at < state.settings.sleepMinutes * MIN && (
-        <p role="status" className="px-4 pb-2 text-[13px] text-muted">予定に間に合うように起床を調整しました。睡眠は{formatMinutes(Math.max(0, Math.round((next.wake - log.at) / MIN)))}です。</p>
-      )}
       {next && (
         <div className="flex items-start gap-3 px-4 py-2.5">
           <div className="shrink-0">
             <p className={labelCls}>起床</p>
             <p className="text-[15px] font-semibold tabular-nums">{formatTime(next.wake)}</p>
+            {/* 予定に間に合うように起床を止めて、睡眠が設定より短くなる夜 */}
+            {log && next.wake - log.at < state.settings.sleepMinutes * MIN && (
+              <p role="status" className="text-[12px] text-muted">
+                睡眠 {formatMinutes(Math.max(0, Math.round((next.wake - log.at) / MIN)))}
+              </p>
+            )}
           </div>
           {next.firstEvent && (
             <div className="min-w-0 flex-1 border-l border-line pl-3">

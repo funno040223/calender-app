@@ -38,16 +38,25 @@ const isActive = (pathname: string, href: string) => (href === "/" ? pathname ==
 /** お知らせを出しておく時間 */
 const TOAST_MS = 5000;
 
+/** 枠の始まりを「今日 9:30〜」の形で */
+function whenOf(start: number, now: number): string {
+  const today = dayStartOf(now);
+  const d = dayStartOf(start);
+  return `${d === today ? "今日" : d === today + DAY_MS ? "明日" : formatDate(start)} ${formatTime(start)}〜`;
+}
+
+/** できなかった習慣が次にいつ入るか */
+function habitPlacementOf(state: MockState, habitId: string, now: number): string | undefined {
+  const b = state.result.blocks.filter((x) => x.kind === "habit" && x.refId === habitId && x.start > now).sort((a, c) => a.start - c.start)[0];
+  return b ? `次は${whenOf(b.start, now)}` : undefined;
+}
+
 /** 追加・変更したタスクが次にいつ入るか（入らなければ、その理由を短く） */
 function placementOf(state: MockState, taskId: string, now: number): string | undefined {
   const b = state.result.blocks
     .filter((x) => x.kind === "task" && x.refId === taskId && x.end > now)
     .sort((a, c) => a.start - c.start)[0];
-  if (b) {
-    const today = dayStartOf(now);
-    const d = dayStartOf(b.start);
-    return `${d === today ? "今日" : d === today + DAY_MS ? "明日" : formatDate(b.start)} ${formatTime(b.start)}〜`;
-  }
+  if (b) return whenOf(b.start, now);
   const t = state.tasks.find((x) => x.id === taskId);
   if (!t) return undefined;
   if (state.result.shortfalls.some((s) => s.taskId === taskId)) return "入りきりません";
@@ -69,10 +78,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const store = useMockStore();
   const pathname = usePathname();
   const [editingTask, setEditingTask] = useState<{ id?: string } | null>(null);
-  const [toast, setToast] = useState<{ text: string; taskId?: string; at: number }>();
+  const [toast, setToast] = useState<{ text: string; taskId?: string; habitId?: string; at: number }>();
 
   const openTask = useCallback((id?: string) => setEditingTask({ id }), []);
-  const notify = useCallback((text: string, opts?: { taskId?: string }) => setToast({ text, taskId: opts?.taskId, at: Date.now() }), []);
+  const notify = useCallback(
+    (text: string, opts?: { taskId?: string; habitId?: string }) => setToast({ text, taskId: opts?.taskId, habitId: opts?.habitId, at: Date.now() }),
+    [],
+  );
   useEffect(() => {
     if (!toast) return;
     const t = window.setTimeout(() => setToast(undefined), TOAST_MS);
@@ -201,7 +213,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
     setEditingTask(null);
     notify(`「${title ?? ""}」を削除`);
   };
-  const toastPlace = toast?.taskId ? placementOf(state, toast.taskId, toast.at) : undefined;
+  const toastPlace = toast?.taskId
+    ? placementOf(state, toast.taskId, toast.at)
+    : toast?.habitId
+      ? habitPlacementOf(state, toast.habitId, toast.at)
+      : undefined;
 
   // サーバーの状態が確定するまで、入力・記録用の画面を表示しない。
   // 読み込みに失敗した場合は、端末の控えで編集を続けられる。

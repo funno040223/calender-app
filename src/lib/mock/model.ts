@@ -300,6 +300,8 @@ export interface MockData {
   taskChecks: Record<string, TaskCheck>;
   /** 「今日は飛ばす」にした習慣（日付 → 習慣の ID）。その日には置かない */
   habitSkips: Record<DateKey, string[]>;
+  /** 「できなかった」にした習慣の枠（日付 → "習慣の ID:開始の epoch ミリ秒"）。その枠はやっていない扱いにし、あとの時間に入れ直す */
+  habitMisses: Record<DateKey, string[]>;
   /** 「家で食べる」にした食事（日付 → 習慣の ID）。「外で」は habitSkips */
   mealsAtHome: Record<DateKey, string[]>;
   /** 作業の種類（集中・事務）。1回の長さや休憩を設定で変えられる */
