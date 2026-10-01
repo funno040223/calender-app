@@ -31,6 +31,7 @@
   --cal-habit: #34c759;
   --cal-routine: #30b0c7;
   --cal-google: #5856d6;
+  --cal-travel: #a2845e;
 
   color-scheme: light;
 }
@@ -62,6 +63,7 @@
     --cal-habit: #30d158;
     --cal-routine: #40c8e0;
     --cal-google: #5e5ce6;
+    --cal-travel: #ac8e68;
 
     color-scheme: dark;
   }
@@ -350,6 +352,9 @@ input::-webkit-date-and-time-value {
 .app-cal .fc .ev.cal-google {
   --c: var(--cal-google);
 }
+.app-cal .fc .ev.cal-travel {
+  --c: var(--cal-travel);
+}
 .app-cal .fc .fc-event.ev {
   background: color-mix(in srgb, var(--c) var(--ev-mix), var(--bg));
   border: 0;
@@ -370,6 +375,15 @@ input::-webkit-date-and-time-value {
 .app-cal .fc .fc-event.ev.is-block {
   background: color-mix(in srgb, var(--c) var(--ev-mix-block), var(--bg));
   border-left-style: dotted;
+}
+/* 移動（外出の前後）。予定や枠と見分けられるように、斜めの縞にする */
+.app-cal .fc .fc-event.ev.is-travel {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--c) 24%, var(--bg)) 0 4px,
+    color-mix(in srgb, var(--c) 10%, var(--bg)) 4px 8px
+  );
+  cursor: pointer;
 }
 /* 1回押して選んだ予定・枠（もう1回押すと詳しく開く） */
 .app-cal .fc .fc-event.ev.ev.is-selected {

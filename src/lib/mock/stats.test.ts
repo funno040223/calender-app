@@ -138,3 +138,12 @@ describe("習慣の続き具合", () => {
     expect(p).toEqual({ streak: 2, unit: "日", done: 1.5, expected: 14 });
   });
 });
+
+it("食事は記録だけで、ご褒美にしない（入浴はご褒美にする）", () => {
+  const habits = [
+    { id: "lunch", name: "昼食", meal: true, track: true, skippable: false, durationMinutes: 30, windowStart: 720, windowEnd: 870, frequency: { type: "daily" as const } },
+    { id: "bath", name: "入浴", track: true, skippable: false, durationMinutes: 30, windowStart: -150, windowEnd: -75, anchor: "bed" as const, frequency: { type: "daily" as const } },
+  ];
+  const data = { wakeLogs: [], habits, taskBlockLog: {}, rewardSpends: [], rewardRates: DEFAULT_REWARD_RATES, habitLogs: { "2026-10-01": { lunch: "done" as const, bath: "done" as const } } };
+  expect(rewardBreakdown(data).habit).toBe(DEFAULT_REWARD_RATES.habit);
+});

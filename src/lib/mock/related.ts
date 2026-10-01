@@ -1,7 +1,9 @@
-import type { Block, CalendarEvent, Task } from "@/lib/scheduler";
+import { resolveTravel, type Block, type CalendarEvent, type Task } from "@/lib/scheduler";
+import { merge, subtract } from "@/lib/scheduler/intervals";
 import type { CalendarId } from "./calendars";
 import type { MockState } from "./store";
-import { formatDate, formatTime } from "./jst";
+import { planEvents } from "./state";
+import { MIN, formatDate, formatTime } from "./jst";
 
 /** 予定の出どころ。own は自分で入れた予定（編集できる） */
 export type EventSource = "own" | "class" | "google";
@@ -59,4 +61,37 @@ export const groupKeyOf = (eventId: string) => `ev:${eventId}`;
 export function formatEventShort(ev: CalendarEvent): string {
   const d = formatDate(ev.start).replace(/\(.\)$/, "");
   return ev.allDay ? `${ev.title} ${d}` : `${ev.title} ${d} ${formatTime(ev.start)}`;
+}
+
+/** 移動の時間：その帯と、行き先の予定 */
+export interface TravelBand {
+  start: number;
+  end: number;
+  /** 帯を押したときに開く予定（行きは行き先、帰りは出てきた予定） */
+  ref: EventRef;
+}
+
+/**
+ * 外出する予定の前後の移動。配置と同じく、予定の開始の前と終わりのあとに片道ずつ取る。
+ * 予定の最中には描かず、続く予定の間で重なる移動は1つにまとめる。見えている予定（show が true）の分だけ
+ */
+export function travelBands(
+  state: Pick<MockState, "events" | "classEvents" | "googleEvents" | "importedTravel" | "places" | "settings">,
+  show: (ref: EventRef) => boolean = () => true,
+): TravelBand[] {
+  const index = eventIndex(state);
+  const events = planEvents(state, state.classEvents, state.googleEvents).filter((e) => !e.allDay);
+  const legs: TravelBand[] = [];
+  for (const e of events) {
+    const ref = index.get(e.id);
+    if (!ref || ref.skipped || !show(ref)) continue;
+    const t = resolveTravel(e, state.places, state.settings);
+    if (t.atHome || t.minutes <= 0) continue;
+    legs.push({ start: e.start - t.minutes * MIN, end: e.start, ref }, { start: e.end, end: e.end + t.minutes * MIN, ref });
+  }
+  const during = events.map((e) => ({ start: e.start, end: e.end }));
+  return merge(subtract(merge(legs), during)).map((band) => ({
+    ...band,
+    ref: legs.find((l) => l.start < band.end && l.end > band.start)!.ref,
+  }));
 }

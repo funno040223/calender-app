@@ -87,11 +87,11 @@ it("終わった記録する習慣は「できなかった」でも消え、あ�
   expect(screen.queryByRole("button", { name: `${walk.name}：やった` })).toBeNull();
   expect(notify).toHaveBeenCalledWith("記録しました", { habitId: walk.id });
 });
-it("食事と入浴は「5分」を出さず、「やった」だけで記録する", () => {
+it("食事と入浴は「少しだけ」を出さず、「やった」だけで記録する", () => {
   const lunch = sampleData(now).habits.find((h) => h.id === "habit-lunch")!;
   const ate = { kind: "habit" as const, refId: lunch.id, title: lunch.name, start: now - 60 * MIN, end: now - 30 * MIN };
   render(<Harness init={(d) => ({ ...d, habits: [lunch], blocks: [block, ate] })}><TodayScreen /></Harness>);
-  expect(screen.queryByRole("button", { name: `${lunch.name}：5分` })).toBeNull();
+  expect(screen.queryByRole("button", { name: `${lunch.name}：少しだけ` })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: `${lunch.name}：やった` }));
   expect(last.habitLogs["2026-10-01"]?.[lunch.id]).toBe("done");
 });

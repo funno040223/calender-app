@@ -200,7 +200,7 @@ function HabitDot({ mark, future, today, name }: { mark?: HabitMark; future: boo
   const cls = mark === "done" ? "bg-ok" : mark === "five" ? "bg-ok/40" : future ? "border border-dashed border-line" : today ? "border-[1.5px] border-muted/60" : "border border-line";
   return (
     <span className="flex w-6 justify-center">
-      <span className={`h-3.5 w-3.5 rounded-full ${cls}`} aria-label={`${name}：${mark === "done" ? "やった" : mark === "five" ? "5分" : future ? "これから" : "記録なし"}`} role="img" />
+      <span className={`h-3.5 w-3.5 rounded-full ${cls}`} aria-label={`${name}：${mark === "done" ? "やった" : mark === "five" ? "少しだけ" : future ? "これから" : "記録なし"}`} role="img" />
     </span>
   );
 }

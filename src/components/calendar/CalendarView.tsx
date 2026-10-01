@@ -20,7 +20,7 @@ import type { Block, CalendarEvent } from "@/lib/scheduler";
 import type { CalendarId } from "@/lib/mock/calendars";
 import type { MockState } from "@/lib/mock/store";
 import { DAY_MS, MIN, WEEKDAY_JA, formatTime, fromFc, toFc } from "@/lib/mock/jst";
-import { allEventRefs, eventIndex, formatEventShort, groupKeyOf, tasksByEvent, type EventRef, type EventSource } from "@/lib/mock/related";
+import { allEventRefs, eventIndex, formatEventShort, groupKeyOf, tasksByEvent, travelBands, type EventRef, type EventSource } from "@/lib/mock/related";
 import { LinkIcon } from "@/components/app/icons";
 import { SMOKE_CUTOFF_MINUTES } from "@/lib/notify/build";
 
@@ -30,6 +30,8 @@ type Extended = (
   | { type: "event"; source: EventSource; eventId: string; location?: string; relatedCount?: number }
   | { type: "block"; block: Block; relatedLabel?: string }
   | { type: "sleep" }
+  /** 外出する予定の前後の移動（押すと、その予定を開く） */
+  | { type: "travel"; source: EventSource; eventId: string }
   /** 月表示：タスクの締切（締切の日に出す） */
   | { type: "deadline"; taskId: string }
 ) & {
@@ -164,6 +166,13 @@ function renderEventContent(arg: EventContentArg) {
     return (
       <div className="ev-inner">
         <div className="ev-title">〆 {arg.event.title}</div>
+      </div>
+    );
+  }
+  if (ext.type === "travel") {
+    return (
+      <div className="ev-inner">
+        <div className="ev-title">{arg.event.title}</div>
       </div>
     );
   }
@@ -699,6 +708,20 @@ export default function CalendarView(props: CalendarViewProps) {
       });
     }
 
+    // 外出の前後の移動。予定の色とは分けて、移動だと分かるようにする
+    for (const t of travelBands(state, (ref) => !hidden.has(ref.calendarId))) {
+      out.push({
+        id: `travel:${t.start}`,
+        title: "移動",
+        start: toFc(t.start),
+        end: toFc(t.end),
+        allDay: false,
+        editable: false,
+        classNames: ["ev", "cal-travel", "is-travel"],
+        extendedProps: { type: "travel", source: t.ref.source, eventId: t.ref.event.id } satisfies Extended,
+      });
+    }
+
     // 睡眠（その日の就寝 → 翌日の起床）
     const days = state.result.dayPlans;
     const sleep = state.settings.sleepMinutes * MIN;
@@ -764,6 +787,7 @@ export default function CalendarView(props: CalendarViewProps) {
     if (ext.type === "event") props.onEventClick(ext.source, ext.eventId);
     else if (ext.type === "block") props.onBlockClick(ext.block);
     else if (ext.type === "deadline") props.onDeadlineClick(ext.taskId);
+    else if (ext.type === "travel") props.onEventClick(ext.source, ext.eventId);
   };
 
   const handleChange = (arg: EventDropArg | EventResizeDoneArg) => {

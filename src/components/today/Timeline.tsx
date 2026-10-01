@@ -6,7 +6,7 @@ import { LinkIcon } from "@/components/app/icons";
 import { DAY_MS, dayStartOf, formatTime } from "@/lib/mock/jst";
 import { allowsFive, dateKeyOf, type HabitMark } from "@/lib/mock/model";
 import { missHabitBlock, rainyDayKeys, releaseKeepFree } from "@/lib/mock/state";
-import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
+import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent, travelBands } from "@/lib/mock/related";
 import { Card } from "@/components/ui/controls";
 import { colorOf, textBtn } from "./parts";
 
@@ -21,11 +21,11 @@ interface TimelineItem {
   taskId?: string;
   /** 任意参加で参加しない回など、空き時間として扱うもの */
   dim?: boolean;
-  /** 終わった習慣で、まだ記録していないもの（「5分」「やった」「できなかった」で消える） */
+  /** 終わった習慣で、まだ記録していないもの（「少しだけ」「やった」「できなかった」で消える） */
   past?: boolean;
   /** 枠の下に出す小さなボタン（雨の日の散歩の入れ替えなど） */
   action?: { label: string; ariaLabel?: string; onClick: () => void };
-  /** 記録する習慣：「5分」「やった」 */
+  /** 記録する習慣：「少しだけ」「やった」 */
   record?: { mark?: HabitMark; five: boolean; onMark: (m: HabitMark) => void };
 }
 
@@ -65,7 +65,7 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
       rainyDays: rainy ? d.rainyDays.filter(keep) : [...d.rainyDays.filter(keep), todayKey],
       notRainyDays: rainy ? [...d.notRainyDays.filter(keep), todayKey] : d.notRainyDays.filter(keep),
     }));
-  // 記録する習慣は、流れの中で「5分」「やった」を押す。同じ習慣の2つ目の枠（干すなど）には出さない
+  // 記録する習慣は、流れの中で「少しだけ」「やった」を押す。同じ習慣の2つ目の枠（干すなど）には出さない
   const seen = new Set<string>();
   const mark = (day: string, id: string, m: HabitMark) => {
     const was = state.habitLogs[day]?.[id];
@@ -119,6 +119,11 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
           : undefined,
       record: tracked ? { mark: m, five: allowsFive(habit!), onMark: (v) => mark(day, b.refId, v) } : undefined,
     });
+  }
+  // 外出の前後の移動
+  for (const t of travelBands(state)) {
+    if (t.end <= now || t.start >= dayEnd) continue;
+    items.push({ key: `travel:${t.start}`, title: "移動", start: t.start, end: t.end, color: "var(--cal-travel)" });
   }
   // 枠を外して空けた時間。押すと、また自動で入るように戻せる
   for (const k of state.keepFree ?? []) {
@@ -205,11 +210,11 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
                             key={v}
                             type="button"
                             aria-pressed={it.record!.mark === v}
-                            aria-label={`${it.title}：${v === "five" ? "5分" : "やった"}`}
+                            aria-label={`${it.title}：${v === "five" ? "少しだけ" : "やった"}`}
                             onClick={() => it.record!.onMark(v)}
                             className={`press rounded-full px-2.5 py-1 text-[13px] font-medium ${it.record!.mark === v ? "bg-ok text-white" : "bg-surface2"}`}
                           >
-                            {v === "five" ? "5分" : "やった"}
+                            {v === "five" ? "少しだけ" : "やった"}
                           </button>
                         ))}
                       </div>

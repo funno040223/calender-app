@@ -149,10 +149,10 @@ export function rewardBreakdown(data: Data, from = -Infinity, to = Infinity): Re
   for (const [key, marks] of Object.entries(data.habitLogs)) {
     const day = dayStartOfKey(key);
     if (day === undefined || !inRange(day)) continue;
-    // 「記録する」の習慣だけ。消した習慣の記録も、たまった分として残す
+    // 「記録する」の習慣だけ（食事は記録だけで、ご褒美にしない）。消した習慣の記録も、たまった分として残す
     for (const [id, m] of Object.entries(marks)) {
       const h = data.habits.find((x) => x.id === id);
-      if (h && !h.track) continue;
+      if (h && (!h.track || h.meal)) continue;
       yen.habit += markValue(m, h ?? { durationMinutes: Infinity }) * r.habit;
     }
   }
