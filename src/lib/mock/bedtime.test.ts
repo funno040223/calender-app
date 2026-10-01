@@ -77,3 +77,22 @@ describe("「起きた」だけを押した朝", () => {
     expect(replan({ ...morning(wokeAt), rhythmResets: [entered] }, [], wokeAt).result.dayPlans[0].wake).toBe(entered.end);
   });
 });
+
+describe("「今から寝る」で入れた起きる予定と「起きた」", () => {
+  const planned = { id: "r", mode: "sleep" as const, start: jst(2026, 10, 1, 4, 32), end: jst(2026, 10, 1, 11, 32) };
+  const withTap = (wokeAt: number) => ({ ...data(), bedLogs: {}, rhythmResets: [planned], wakeLogs: [{ date: "2026-10-01", doneStepIds: [], wokeAt }] });
+  it("予定より遅く起きたら、押した時刻から組み直す", () => {
+    const wokeAt = jst(2026, 10, 1, 12, 21);
+    expect(replan(withTap(wokeAt), [], wokeAt).result.dayPlans[0].wake).toBe(wokeAt);
+  });
+  it("予定より早く起きても、押した時刻から始める", () => {
+    const wokeAt = jst(2026, 10, 1, 10);
+    expect(replan(withTap(wokeAt), [], wokeAt).result.dayPlans[0].wake).toBe(wokeAt);
+  });
+  it("昼寝の予定に、ずっとあとの「起きた」を結びつけない", () => {
+    const nap = { id: "nap", mode: "sleep" as const, start: jst(2026, 9, 30, 15), end: jst(2026, 9, 30, 16) };
+    const wokeAt = jst(2026, 10, 1, 9, 30);
+    const state = replan({ ...withTap(wokeAt), rhythmResets: [nap] }, [], wokeAt);
+    expect(state.result.rhythmResets?.find((r) => r.id === "nap")?.end).toBe(nap.end);
+  });
+});

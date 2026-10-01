@@ -45,22 +45,25 @@ export default function WorkNowCard({ now }: { now: number }) {
             <button
               key={c.task.id}
               type="button"
-              className={`${btnPrimary} flex items-baseline gap-2 py-3 text-left`}
+              className={`${btnPrimary} py-3 text-left`}
               onClick={() => {
                 update((d) => startWorkNow(replan(d, state.googleEvents, Date.now()), c.task.id, minutes, Date.now()));
                 setMinutes(undefined);
                 notify(`「${c.task.title}」を始めました`);
               }}
             >
-              <span className="min-w-0 flex-1">
+              <span className="block">
                 {c.task.title}・{formatMinutes(c.minutes)}を始める
               </span>
-              {c.task.deadline !== undefined && <span className="shrink-0 text-[13px] font-normal opacity-75">〆{formatDate(c.task.deadline)}</span>}
+              {c.task.deadline !== undefined && <span className="mt-0.5 block text-[13px] font-normal opacity-75">〆{formatDate(c.task.deadline)}</span>}
             </button>
           ))}
         {minutes !== undefined && shown.length < choices.length && (
-          <button type="button" onClick={() => setAll(true)} className="text-left text-[14px] font-medium text-tint">
+          <button type="button" onClick={() => setAll(true)} className="flex items-center gap-1 text-left text-[14px] font-medium text-tint">
             ほか {choices.length - shown.length}件
+            <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden className="text-muted">
+              <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
         )}
         {minutes !== undefined &&

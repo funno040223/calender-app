@@ -3,6 +3,20 @@ import { computeDayPlans, latestWakeOfDay } from "@/lib/scheduler/rhythm";
 import { dayStartOfKey, type MockData } from "./model";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
 
+/** 「今から寝る」で入れた起きる予定のあと、この時間までに「起きた」を押したら、同じ眠りの起床とみなす */
+const LATE_WAKE_MINUTES = 6 * 60;
+
+/** 自分で入れた立て直し。「今から寝る」の起きる予定は、「起きた」を押したらその時刻で終える */
+export function settledResets(data: Pick<MockData, "rhythmResets" | "wakeLogs">): RhythmReset[] {
+  return (data.rhythmResets ?? []).map((r) => {
+    if (r.mode !== "sleep") return r;
+    const up = data.wakeLogs
+      .flatMap((w) => (w.wokeAt !== undefined && w.wokeAt > r.start && w.wokeAt < r.end + LATE_WAKE_MINUTES * MIN ? [w.wokeAt] : []))
+      .sort((a, b) => a - b)[0];
+    return up === undefined ? r : { ...r, mode: "woke", end: up };
+  });
+}
+
 /**
  * 「寝る」「起きた」の記録から見積もる睡眠。予定が変わったら起床の限界も計算し直す。
  * 「寝る」を押した夜は、設定の睡眠時間を取れる起床へ送る（固定の予定に間に合う時刻まで）。
@@ -11,7 +25,8 @@ import { DAY_MS, MIN, dayStartOf } from "./jst";
 export function bedtimeSleeps(data: MockData, events: CalendarEvent[], now: number): RhythmReset[] {
   const recent = (t: number) => t <= now && t >= now - 2 * DAY_MS;
   // 自分で入れた睡眠・起床のほうを優先する
-  const entered = (start: number, end: number) => (data.rhythmResets ?? []).some((r) => r.mode !== "tired" && r.start < end && r.end > start);
+  const resets = settledResets(data);
+  const entered = (start: number, end: number) => resets.some((r) => r.mode !== "tired" && r.start < end && r.end > start);
   /** その日の予定どおりの起床と、前の晩の就寝 */
   const planned = (day: number) => {
     const days = computeDayPlans(day - 2 * DAY_MS, data.settings.planningDays + 3, events, data.places, data.settings);

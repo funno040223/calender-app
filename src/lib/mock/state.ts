@@ -1,4 +1,4 @@
-import { bedtimeSleeps, reconcileBedtime } from "./bedtime";
+import { bedtimeSleeps, reconcileBedtime, settledResets } from "./bedtime";
 import { captureTaskBlocks, workedByTask } from "./progress";
 import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, resolveTravel, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
 import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
@@ -521,7 +521,8 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   const events = planEvents(data, classEvents, googleEvents);
   // 「寝る」「起きた」の記録から見積もった睡眠（自分で入れた立て直しのほうが優先）
   const sleeps = bedtimeSleeps(data, events, now);
-  const asleep = [...(data.rhythmResets ?? []).filter((r) => r.mode !== "tired"), ...sleeps];
+  const resets = settledResets(data);
+  const asleep = [...resets.filter((r) => r.mode !== "tired"), ...sleeps];
   // 「今日は飛ばす」にした習慣：その日には置かず、もう始まっている枠も外す。「できなかった」にした枠も外す（あとに入れ直す）
   const skipDays = byHabit(data.habitSkips);
   const missed = new Set(Object.values(data.habitMisses).flat());
@@ -563,7 +564,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   data = reconcileBedtime(data, sleeps, now);
   const result = plan({
     now,
-    rhythmResets: [...(data.rhythmResets ?? []), ...sleeps],
+    rhythmResets: [...resets, ...sleeps],
     keepFree: data.keepFree,
     settings: data.settings,
     events,
