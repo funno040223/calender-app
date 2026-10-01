@@ -198,6 +198,8 @@ export type HabitMark = "done" | "five";
 export type ContactAnswer = "done" | "skip";
 export const CONTACT_ANSWERS: ContactAnswer[] = ["done", "skip"];
 export const HABIT_MARKS: HabitMark[] = ["done", "five"];
+/** 「5分」（少しだけやった）を出す習慣。食事と飛ばせない習慣（入浴・洗濯など）は、やったかどうかだけ */
+export const allowsFive = (h: Pick<Habit, "meal" | "skippable">) => !h.meal && !!h.skippable;
 
 export type MorningFatigue = 1 | 2 | 3 | 4 | 5;
 

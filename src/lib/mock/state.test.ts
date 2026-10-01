@@ -66,7 +66,19 @@ it("散歩・自己成長・片付け・洗濯・自炊を「記録する」に�
   old.habits = old.habits.map((h) => ({ ...h, track: h.id === "habit-home-exercise" ? true : undefined }));
   const d = fromStoredV2(old, now)!;
   const tracked = d.habits.filter((h) => h.track).map((h) => h.id).sort();
-  expect(tracked).toEqual(["habit-cook-dinner", "habit-cook-lunch", "habit-growth", "habit-home-exercise", "habit-laundry", "habit-tidy", "habit-walk"]);
+  expect(tracked).toEqual([
+    "habit-bath",
+    "habit-breakfast",
+    "habit-cook-dinner",
+    "habit-cook-lunch",
+    "habit-dinner",
+    "habit-growth",
+    "habit-home-exercise",
+    "habit-laundry",
+    "habit-lunch",
+    "habit-tidy",
+    "habit-walk",
+  ]);
   // 自分でオフにしたあとは、もう一度オンにしない
   const off = { ...d, habits: d.habits.map((h) => (h.id === "habit-walk" ? { ...h, track: undefined } : h)) };
   expect(fromStoredV2(off, now)!.habits.find((h) => h.id === "habit-walk")?.track).toBeUndefined();
@@ -86,11 +98,25 @@ describe("2026-10-01 の生活に合わせた移し替え", () => {
       rewardRates: { ...sampleData(Date.now()).rewardRates, wake: 30 },
     };
     const d = fromStoredV2(JSON.parse(JSON.stringify(old)), Date.now())!;
-    expect(d.routineSteps.map((s) => s.id)).toEqual(["step-stretch-bed", "step-curtain", "step-water", "step-drink"]);
+    expect(d.routineSteps.map((s) => s.id)).toEqual(["step-stretch-bed", "step-curtain", "step-water"]);
     expect(d.settings.routineMinutes).toBe(10);
     expect(d.treats.map((t) => t.id)).toEqual(["mine"]);
     expect(d.places[0]).toMatchObject({ name: "本郷キャンパス", travelMinutes: 12 });
     expect(d.courses.map((c) => [c.name, c.weekday, c.startMinute, c.termStart, c.termEnd])).toEqual([["月3・4限の授業", 1, 13 * 60, "2026-10-02", "2027-02-04"]]);
     expect(d.rewardRates.wake).toBe(50);
   });
+});
+
+it("10/1 の朝ルーティンのままなら「好きな飲み物を作る」を外す。自分で変えた朝ルーティンはそのまま", () => {
+  const now = Date.UTC(2026, 9, 1, 3);
+  const withDrink = [
+    { id: "step-stretch-bed", title: "布団の中で大きく伸びをして起き上がる" },
+    { id: "step-curtain", title: "カーテンを開けて光を浴びる" },
+    { id: "step-water", title: "水を1杯飲む" },
+    { id: "step-drink", title: "好きな飲み物を作る" },
+  ];
+  const old = { ...sampleData(now), routineSteps: withDrink, migrations: sampleData(now).migrations.filter((m) => m !== "2026-10-01-routine-no-drink") };
+  expect(fromStoredV2(old, now)!.routineSteps.map((s) => s.id)).toEqual(["step-stretch-bed", "step-curtain", "step-water"]);
+  const own = { ...old, routineSteps: [...withDrink, { id: "mine", title: "ストレッチ" }] };
+  expect(fromStoredV2(own, now)!.routineSteps).toHaveLength(5);
 });

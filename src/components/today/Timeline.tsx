@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useApp } from "@/components/app/StoreProvider";
 import { LinkIcon } from "@/components/app/icons";
 import { DAY_MS, dayStartOf, formatTime } from "@/lib/mock/jst";
-import { dateKeyOf, type HabitMark } from "@/lib/mock/model";
+import { allowsFive, dateKeyOf, type HabitMark } from "@/lib/mock/model";
 import { missHabitBlock, rainyDayKeys, releaseKeepFree } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent } from "@/lib/mock/related";
 import { Card } from "@/components/ui/controls";
@@ -26,7 +26,7 @@ interface TimelineItem {
   /** 枠の下に出す小さなボタン（雨の日の散歩の入れ替えなど） */
   action?: { label: string; ariaLabel?: string; onClick: () => void };
   /** 記録する習慣：「5分」「やった」 */
-  record?: { mark?: HabitMark; onMark: (m: HabitMark) => void };
+  record?: { mark?: HabitMark; five: boolean; onMark: (m: HabitMark) => void };
 }
 
 export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: number; limit?: number }) {
@@ -117,7 +117,7 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
         : past && tracked && m === undefined
           ? { label: "できなかった", ariaLabel: `${b.title}：できなかった`, onClick: () => miss(b) }
           : undefined,
-      record: tracked ? { mark: m, onMark: (v) => mark(day, b.refId, v) } : undefined,
+      record: tracked ? { mark: m, five: allowsFive(habit!), onMark: (v) => mark(day, b.refId, v) } : undefined,
     });
   }
   // 枠を外して空けた時間。押すと、また自動で入るように戻せる
@@ -200,7 +200,7 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
                     {body}
                     {it.record && (
                       <div className="flex shrink-0 gap-1.5 self-center">
-                        {(["five", "done"] as const).map((v) => (
+                        {(it.record.five ? (["five", "done"] as const) : (["done"] as const)).map((v) => (
                           <button
                             key={v}
                             type="button"

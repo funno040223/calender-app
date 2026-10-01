@@ -8,7 +8,7 @@ import { sameBlock, type OwnEvent } from "@/lib/mock/store";
 import type { CalendarId } from "@/lib/mock/calendars";
 import { useApp } from "@/components/app/StoreProvider";
 import { eventIndex, formatEventShort, groupKeyOf, tasksByEvent } from "@/lib/mock/related";
-import { dateKeyOf, parseClassEventId, type HabitMark } from "@/lib/mock/model";
+import { allowsFive, dateKeyOf, parseClassEventId, type HabitMark } from "@/lib/mock/model";
 import { formatDate, newId } from "@/lib/mock/jst";
 import { keepBlockFree, missHabitBlock } from "@/lib/mock/state";
 import CalendarView, { type CalendarHandle, type CalendarMode, type EventSource } from "./CalendarView";
@@ -409,9 +409,11 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
     <div className="flex flex-col gap-2">
       {started && (
         <div className="flex gap-2">
-          <button type="button" aria-pressed={mark === "five"} className={btn(mark === "five")} onClick={() => setMark("five")}>
-            5分
-          </button>
+          {habit && allowsFive(habit) && (
+            <button type="button" aria-pressed={mark === "five"} className={btn(mark === "five")} onClick={() => setMark("five")}>
+              5分
+            </button>
+          )}
           <button type="button" aria-pressed={mark === "done"} className={btn(mark === "done")} onClick={() => setMark("done")}>
             やった
           </button>

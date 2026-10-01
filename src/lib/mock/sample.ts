@@ -26,6 +26,7 @@ export const BATH = {
   anchor: "bed",
   frequency: { type: "daily" },
   skippable: false,
+  track: true,
 } as const satisfies Habit;
 
 /** 散歩：起床から150分のうち（朝ルーティンのすぐあと）。日の光を浴びて体内時計を合わせる。雨の日は光を浴びるだけ（運動は夜の家での運動にまとめる） */
@@ -66,6 +67,7 @@ export const BREAKFAST_HABIT: Habit = {
   frequency: { type: "daily" },
   skippable: true,
   meal: true,
+  track: true,
 };
 
 /** 散歩は朝食のあと。朝食のない日は朝ルーティンのあと（起きてから空けない） */
@@ -100,6 +102,7 @@ export const SAMPLE_HABITS: Habit[] = [
     skippable: false,
     avoidFocusAfterMinutes: 30,
     meal: true,
+    track: true,
   },
   {
     id: "habit-dinner",
@@ -111,6 +114,7 @@ export const SAMPLE_HABITS: Habit[] = [
     skippable: false,
     avoidFocusAfterMinutes: 60,
     meal: true,
+    track: true,
   },
   // 入浴は就寝の約90分前に終える（体温が下がるときに眠くなる）
   { ...BATH },
@@ -264,7 +268,6 @@ export const SAMPLE_ROUTINE_STEPS: RoutineStep[] = [
   { id: "step-stretch-bed", title: "布団の中で大きく伸びをして起き上がる" },
   { id: "step-curtain", title: "カーテンを開けて光を浴びる" },
   { id: "step-water", title: "水を1杯飲む" },
-  { id: "step-drink", title: "好きな飲み物を作る" },
 ];
 
 /** 今季（2026年度 A セメスター）の授業：月曜3・4限を続けて（名前はあとで直す） */

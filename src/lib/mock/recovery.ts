@@ -59,6 +59,10 @@ export function workNowGap(state: MockState, now: number): { start: number; end:
   return end > now ? { start: now, end } : undefined;
 }
 
+/** 「今から何する？」に出すタスクの締切（今日から3週間まで。自動で置くのは締切の2週間前からなので、それより先も自分で選べる） */
+export const WORK_NOW_DAYS = 21;
+
+/** 「今から何する？」のタスクの候補。締切の近い順にすべて（締切のないものは最後） */
 export function workNowChoices(state: MockState, now: number, minutes: number) {
   if (!Number.isFinite(minutes) || minutes < 5 || minutes > 180) return [];
   const gap = workNowGap(state, now);
@@ -67,9 +71,9 @@ export function workNowChoices(state: MockState, now: number, minutes: number) {
     const tag = state.tags.find((t) => t.id === task.tagId);
     const length = Math.min(minutes, estimateMinutes(task, tag));
     if (length < 5 || now + length * MIN > gap.end) return [];
-    if (task.deadline !== undefined && task.deadline > now + state.settings.planningDays * DAY_MS) return [];
+    if (task.deadline !== undefined && task.deadline > now + WORK_NOW_DAYS * DAY_MS) return [];
     return [{ task, minutes: length, start: now, end: now + length * MIN }];
-  }).slice(0, 3);
+  });
 }
 
 /**

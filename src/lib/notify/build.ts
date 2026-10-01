@@ -19,7 +19,7 @@ export interface NoticeInput {
   places: Place[];
   settings: Settings;
   /** きっかけがあって記録する習慣は、本文を「まず5分」にする */
-  habits?: (Pick<Habit, "id" | "cue" | "track"> & Partial<Pick<Habit, "frequency">>)[];
+  habits?: (Pick<Habit, "id" | "cue" | "track"> & Partial<Pick<Habit, "frequency" | "meal" | "skippable">>)[];
   /** 移動時間を聞く取り込んだ予定（場所のないもの）。登録のない場所は result.travelQuestions から聞く */
   travelAsks?: Pick<CalendarEvent, "id" | "title" | "start">[];
   /** 「連絡してみる？」を朝のまとめに添える日（その日の 0:00） */
@@ -98,8 +98,8 @@ export function buildNotices(input: NoticeInput): Notice[] {
     if (b.kind === "task") add({ key: `check:${b.refId}:${b.start}`, at: b.end, title: b.title, body: "どのくらい進んだ？", url: "/" });
   }
 
-  // 自炊のように、余裕がある日だけの習慣には「まず5分」を出さない
-  const cued = new Set((input.habits ?? []).filter((h) => h.cue && h.track && h.frequency?.type !== "whenEnergy").map((h) => h.id));
+  // 自炊のように余裕がある日だけの習慣と、食事・入浴のように少しだけやる形のない習慣には「まず5分」を出さない
+  const cued = new Set((input.habits ?? []).filter((h) => h.cue && h.track && h.frequency?.type !== "whenEnergy" && !h.meal && h.skippable !== false).map((h) => h.id));
   for (const b of result.blocks) {
     if (b.kind === "routine") continue;
     add({

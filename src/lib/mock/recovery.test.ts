@@ -92,6 +92,12 @@ describe("生活リズムの立て直し", () => {
     expect(next.blocks.filter((b) => b.kind === "task" && b.start < r.end)).toEqual([expect.objectContaining({ start: now, end: now + 30 * MIN, pinned: true })]);
     expect(estimateMinutes(next.tasks[0], undefined)).toBe(180);
   });
+  it("締切が3週間以内のタスクは、自動で置く前でもすべて選べる", () => {
+    const due = (id: string, days: number) => ({ id, title: id, durationMinutes: 60, priority: 2 as const, deadline: now + days * DAY_MS });
+    const tasks = [due("a", 1), due("b", 5), due("c", 10), due("d", 20), due("far", 22)];
+    const state = replan({ ...data(), blocks: [], tasks }, [], now);
+    expect(workNowChoices(state, now, 30).map((c) => c.task.id)).toEqual(["a", "b", "c", "d"]);
+  });
   it("選んだ時間が固定予定に重なるなら追加しない（自分で選んだので、作業のあとの休憩は数えない）", () => {
     const state = replan({ ...data(), blocks: [], events: [{ id: "meeting", title: "約束", start: now + 35 * MIN, end: now + 60 * MIN, atHome: true }] }, [], now);
     expect(workNowChoices(state, now, 30)[0].minutes).toBe(30);

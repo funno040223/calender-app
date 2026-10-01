@@ -190,6 +190,8 @@ const MIGRATIONS = [
   "2026-10-01-utokyo-periods",
   "2026-10-01-personal-setup",
   "2026-10-01-treats-adventure",
+  "2026-10-01-track-meals-bath",
+  "2026-10-01-routine-no-drink",
 ] as const;
 
 /** 以前の初期値のままの朝ルーティン・楽しみ（このままなら 2026-10-01 に聞いた中身に置き換える） */
@@ -209,6 +211,10 @@ const OLD_SAMPLE_PERIODS = [
 ];
 
 const TRACK_MORE = ["habit-walk", GROWTH_HABIT.id, "habit-tidy", "habit-laundry", "habit-cook-lunch", "habit-cook-dinner"];
+/** 食事と入浴も、やったかどうかを記録する（やらない日もあるので、始まっただけでは数えない） */
+const TRACK_MEALS_BATH = [BREAKFAST_HABIT.id, "habit-lunch", "habit-dinner", "habit-bath"];
+/** 2026-10-01 に入れた朝ルーティン。このままなら「好きな飲み物を作る」を外す（飲まない日もあってよい） */
+const DRINK_ROUTINE_IDS = "step-stretch-bed,step-curtain,step-water,step-drink";
 
 function migrate(d: MockData, now: number): MockData {
   const done = new Set(d.migrations);
@@ -250,6 +256,7 @@ function migrate(d: MockData, now: number): MockData {
   if (!done.has("2026-09-30-laundry-avoid-rain")) habits = habits.map((h) => (h.id === "habit-laundry" ? { ...h, avoidRain: true } : h));
   // ご褒美をためる方法を増やす：散歩・自己成長・片付け・洗濯・自炊も「記録する」にする
   if (!done.has("2026-09-30-track-more")) habits = habits.map((h) => (TRACK_MORE.includes(h.id) ? { ...h, track: true } : h));
+  if (!done.has("2026-10-01-track-meals-bath")) habits = habits.map((h) => (TRACK_MEALS_BATH.includes(h.id) ? { ...h, track: true } : h));
   // 散歩のあとに置いていた最初の版を、入浴の直前に移す（自分で変えたきっかけはそのまま）
   if (!done.has("2026-09-29-exercise-before-bath"))
     habits = habits.map((h) => {
@@ -280,6 +287,9 @@ function migrate(d: MockData, now: number): MockData {
     // 起きるのを後押しする（起床のご褒美を 30円 → 50円。自分で変えた額はそのまま）
     if (rewardRates.wake === 30) rewardRates = { ...rewardRates, wake: 50 };
   }
+  // 朝ルーティンは起き上がって光と水まで。好きな飲み物は、飲む日だけ（楽しみのリストにもある）
+  if (!done.has("2026-10-01-routine-no-drink") && routineSteps.map((s) => s.id).join() === DRINK_ROUTINE_IDS)
+    routineSteps = routineSteps.filter((s) => s.id !== "step-drink");
   // 好物だけのリストを、いつもから少し外れた楽しみ（本郷の近くのちょっとした冒険・好物のひとひねり）に広げる
   if (!done.has("2026-10-01-treats-adventure") && treats.map((t) => t.id).join() === FAVORITES_TREAT_IDS) treats = SAMPLE_TREATS;
   return { ...d, habits, periods, routineSteps, treats, places, courses, settings, rewardRates, migrations: [...new Set([...d.migrations, ...MIGRATIONS])] };
