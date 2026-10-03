@@ -574,6 +574,13 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   const result = plan({
     now,
     rhythmResets: [...resets, ...sleeps],
+    // 朝ルーティンを始めた時刻（最初のチェック）。起床の直後でなく、ここから置く
+    routineStarts: Object.fromEntries(
+      data.wakeLogs.flatMap((l) => {
+        const day = dayStartOfKey(l.date);
+        return l.routineStartedAt !== undefined && day !== undefined ? [[day, l.routineStartedAt]] : [];
+      }),
+    ),
     keepFree: data.keepFree,
     settings: data.settings,
     events,

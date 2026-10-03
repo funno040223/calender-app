@@ -19,6 +19,7 @@ import {
   type RewardSource,
 } from "@/lib/mock/stats";
 import { Card, Row, ScreenHeader, btnPrimary, btnSecondary, inputBase } from "@/components/ui/controls";
+import { fallAsleepMinutes, getUpMinutes, nightOf } from "@/lib/mock/night";
 
 const yen = (n: number) => `¥${Math.round(n).toLocaleString("ja-JP")}`;
 
@@ -352,6 +353,70 @@ function Fatigue() {
   );
 }
 
+/**
+ * 夜：寝床に入った〜起きて動き出した（活動。縦の線）と、眠っていた時間（ヘルスケア。帯）を並べる。
+ * その差が、寝つくまでと起き上がるまで
+ */
+function Nights() {
+  const { state } = useApp();
+  const end = dayStartOf(state.plannedAt) + DAY_MS;
+  const days = Array.from({ length: 7 }, (_, i) => end - (7 - i) * DAY_MS);
+  const nights = days.map((d) => nightOf(state, dateKeyOf(d)));
+  if (!nights.some((n) => n.bed || n.up || n.asleep !== undefined)) return null;
+  // 前の日の21時から、その日の15時まで（昼まで寝た日も入るように）
+  const START = -3 * 60 * MIN;
+  const SPAN = 18 * 60 * MIN;
+  const pct = (t: number, d: number) => `${Math.min(100, Math.max(0, ((t - d - START) / SPAN) * 100))}%`;
+  const gap = (m: number | undefined) => (m === undefined ? "—" : formatMinutes(m));
+  const ink = "var(--fg)";
+  const sleep = "var(--cal-google)";
+  return (
+    <Card title="夜" right={<span className="shrink-0 text-[12px] text-muted">寝つくまで・起き上がるまで</span>}>
+      <div className="flex flex-col gap-2 px-4 pt-1 pb-3.5">
+        {nights.map((n, i) => {
+          const d = days[i];
+          return (
+            <div key={n.date} className="flex items-center gap-2">
+              <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-muted">{dayNum(d)}</span>
+              <div className="relative h-4 flex-1 rounded bg-surface2" role="img" aria-label={`${formatDate(d)}の夜`}>
+                {n.asleep !== undefined && n.awake !== undefined && (
+                  <span className="absolute inset-y-0.5 rounded-sm" style={{ left: pct(n.asleep, d), right: `calc(100% - ${pct(n.awake, d)})`, background: sleep, opacity: 0.35 }} />
+                )}
+                {n.bed && <span className="absolute inset-y-0 w-0.5 rounded-full" style={{ left: pct(n.bed.at, d), background: ink }} />}
+                {n.up && <span className="absolute inset-y-0 w-0.5 rounded-full" style={{ left: pct(n.up.at, d), background: ink }} />}
+              </div>
+              <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-muted">
+                {gap(fallAsleepMinutes(n))}・{gap(getUpMinutes(n))}
+              </span>
+            </div>
+          );
+        })}
+        <div className="flex items-center gap-2 text-[10px] tabular-nums text-muted">
+          <span className="w-6 shrink-0" />
+          <div className="relative h-3 flex-1">
+            {[0, 6, 12].map((h) => (
+              <span key={h} className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${((h * 60 * MIN - START) / SPAN) * 100}%` }}>
+                {h}時
+              </span>
+            ))}
+          </div>
+          <span className="w-24 shrink-0" />
+        </div>
+        <div className="flex items-center justify-end gap-3 text-[11px] text-muted">
+          <span className="flex items-center gap-1">
+            <span className="h-3 w-0.5 rounded-full" style={{ background: ink }} />
+            寝る・起きた
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-4 rounded-sm" style={{ background: sleep, opacity: 0.35 }} />
+            眠っていた
+          </span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 /** タバコ：直近14日の吸った時刻（1つの点が1本）。多い少ないは評価しない */
 function Smoking() {
   const { state } = useApp();
@@ -415,6 +480,7 @@ export default function StatsScreen() {
         </div>
         <div className="flex flex-col gap-4">
           <Work />
+          <Nights />
           <Fatigue />
           <Smoking />
         </div>

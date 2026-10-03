@@ -329,6 +329,8 @@ export interface SkippedHabit {
 
 export interface PlanInput {
   rhythmResets?: RhythmReset[];
+  /** 朝ルーティンを始めた時刻（その日の 0:00 → 時刻）。起床の直後でなく、ここから朝ルーティンを置く */
+  routineStarts?: Record<number, number>;
   /** 「この時間は空ける」にした時間。タスクも習慣も自動では入れない（予定と同じく埋まっている扱い） */
   keepFree?: Interval[];
   now: number;

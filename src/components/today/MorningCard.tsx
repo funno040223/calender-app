@@ -7,16 +7,27 @@ import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, MIN, dayStartOf, formatMinutes, formatTime } from "@/lib/mock/jst";
 import { BED_PREP_MINUTES } from "@/lib/notify/build";
 import { SLEEP_SHORTCUT_URL, markHealthAsked } from "@/lib/sync/health";
+import { nightOf } from "@/lib/mock/night";
 import { dateKeyOf, wakeStreak, type MorningFatigue, type WakeLog, type MockData } from "@/lib/mock/model";
 import { Card, Row, btnPrimary } from "@/components/ui/controls";
 import { labelCls, textBtn, CheckCircle, todaysTreat, TreatText } from "./parts";
 
 /**
- * 前の夜の睡眠時間。ヘルスケアから取り込めていればその値、まだなら予定の睡眠時間から − ＋（15分ずつ）で合わせて記録する。
- * 手で直した値は、ヘルスケアより優先する
+ * 前の夜の睡眠時間。夜の記録（ヘルスケア、なければ寝る〜起きた）があればその値、まだなら予定の睡眠時間から − ＋（15分ずつ）で合わせて記録する。
+ * 手で直した値は、ほかより優先する
  */
-function SleepInput({ value, health, fallback, onChange }: { value?: number; health?: number; fallback: number; onChange: (m: number) => void }) {
-  const known = value ?? health;
+function SleepInput({
+  value,
+  auto,
+  fallback,
+  onChange,
+}: {
+  value?: number;
+  auto?: { minutes: number; label: string };
+  fallback: number;
+  onChange: (m: number) => void;
+}) {
+  const known = value ?? auto?.minutes;
   const shown = known ?? fallback;
   const step = (d: number) => onChange(Math.min(16 * 60, Math.max(0, shown + d)));
   const round = "press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface2 text-[20px] leading-none";
@@ -24,7 +35,7 @@ function SleepInput({ value, health, fallback, onChange }: { value?: number; hea
     <div className="flex items-center gap-2">
       <span className={`w-12 shrink-0 ${labelCls}`}>
         睡眠
-        {value === undefined && health !== undefined && <span className="block text-[10px] font-normal">ヘルスケア</span>}
+        {value === undefined && auto && <span className="block text-[10px] font-normal">{auto.label}</span>}
       </span>
       <button type="button" aria-label="睡眠を15分減らす" onClick={() => step(-15)} className={round}>
         −
@@ -89,17 +100,31 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
     else patch(change);
   };
 
-  const toggleStep = (id: string) =>
+  // 最初のチェックの時刻を朝ルーティンの始まりにする（起床の直後にできなかった日も、そこから朝食・散歩を組み直す）。
+  // 「起きた」を押す前に始めたら、そのときの予定の起床も残す（予定どおり起きたかを数える）
+  const toggleStep = (id: string) => {
+    const done = log.doneStepIds.includes(id) ? log.doneStepIds.filter((x) => x !== id) : [...log.doneStepIds, id];
+    const starts = log.routineStartedAt === undefined && done.length > 0;
+    const clears = log.routineStartedAt !== undefined && done.length === 0;
     setLog((l) => {
-      const done = l.doneStepIds.includes(id) ? l.doneStepIds.filter((x) => x !== id) : [...l.doneStepIds, id];
-      const all = steps.length > 0 && steps.every((s) => done.includes(s.id));
       const next: WakeLog = { ...l, doneStepIds: done };
+      const all = steps.length > 0 && steps.every((s) => done.includes(s.id));
       if (all) next.routineDoneAt = l.routineDoneAt ?? Date.now();
       else delete next.routineDoneAt;
+      if (starts) {
+        next.routineStartedAt = Date.now();
+        if (l.plannedWake === undefined && expectedWake !== undefined) next.plannedWake = expectedWake;
+      }
+      if (clears) {
+        delete next.routineStartedAt;
+        if (l.wokeAt === undefined) delete next.plannedWake;
+      }
       return next;
-    });
+    }, starts || clears);
+  };
 
   const plannedWake = log.plannedWake ?? day?.wake;
+  const night = nightOf(state, key);
   // ヘルスケアの起床で組み直した朝も、前の晩に予定していた起床と比べる（予定どおり起きたか）
   const expectedWake = state.result.rhythmResets?.find((r) => r.plannedEnd !== undefined && dateKeyOf(r.end) === key)?.plannedEnd ?? day?.wake;
   const lateBy = log.wokeAt !== undefined && plannedWake !== undefined ? Math.round((log.wokeAt - plannedWake) / MIN) : 0;
@@ -160,7 +185,8 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
                   setLog((l) => {
                     const next = { ...l };
                     delete next.wokeAt;
-                    delete next.plannedWake;
+                    // 朝ルーティンを始めていれば、そのときの予定の起床は残す
+                    if (next.routineStartedAt === undefined) delete next.plannedWake;
                     return next;
                   }, true)
                 }
@@ -192,7 +218,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
             )}
             <SleepInput
               value={log.sleepMinutes}
-              health={state.healthSleep[key]?.minutes}
+              auto={night.sleep && night.sleep.source !== "manual" ? { minutes: night.sleep.minutes, label: night.sleep.source === "health" ? "ヘルスケア" : "寝る〜起きた" } : undefined}
               fallback={state.settings.sleepMinutes}
               onChange={(m) => setLog((l) => ({ ...l, sleepMinutes: m }))}
             />

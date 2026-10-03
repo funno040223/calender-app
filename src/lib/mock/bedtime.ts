@@ -6,23 +6,27 @@ import { DAY_MS, MIN, dayStartOf } from "./jst";
 /** 「今から寝る」で入れた起きる予定のあと、この時間までに「起きた」を押したら、同じ眠りの起床とみなす */
 const LATE_WAKE_MINUTES = 6 * 60;
 
-/** 自分で入れた立て直し。「今から寝る」の起きる予定は、「起きた」を押したらその時刻で終える */
+/** 自分で入れた立て直し。「今から寝る」の起きる予定は、活動開始（「起きた」か朝ルーティンの最初のチェック）でその時刻に終える */
 export function settledResets(data: Pick<MockData, "rhythmResets" | "wakeLogs">): RhythmReset[] {
   return (data.rhythmResets ?? []).map((r) => {
     if (r.mode !== "sleep") return r;
     const up = data.wakeLogs
-      .flatMap((w) => (w.wokeAt !== undefined && w.wokeAt > r.start && w.wokeAt < r.end + LATE_WAKE_MINUTES * MIN ? [w.wokeAt] : []))
+      .flatMap((w) => {
+        const at = w.wokeAt ?? w.routineStartedAt;
+        return at !== undefined && at > r.start && at < r.end + LATE_WAKE_MINUTES * MIN ? [at] : [];
+      })
       .sort((a, b) => a - b)[0];
     return up === undefined ? r : { ...r, mode: "woke", end: up };
   });
 }
 
 /**
- * 「寝る」「起きた」とヘルスケアの記録から見積もる睡眠（朝ごとに1つ）。予定が変わったら起床の限界も計算し直す。
- * - 「起きた」を押した朝は、その時刻から組み直す（いちばん優先）
- * - 押していなくても、ヘルスケアの起床が予定より遅ければ（寝坊）、その時刻から組み直す。早い起床では前へは動かさない
+ * 「寝る」「起きた」とヘルスケアの記録から見積もる、組み直しのための睡眠（朝ごとに1つ）。夜の記録（night.ts）と同じ順で値を使う。
+ * - 活動開始（「起きた」、押していなければ朝ルーティンの最初のチェック）がある朝は、その時刻から組み直す
+ * - なくても、ヘルスケアの目覚めが予定より遅ければ（寝坊）、その時刻から組み直す。早い目覚めでは前へは動かさない
  * - 「寝る」を押した夜は、設定の睡眠時間を取れる起床へ送る（固定の予定に間に合う時刻まで）
- * 寝ついた時刻は ヘルスケア → 「寝る」 → 予定の就寝 の順。自分で入れた立て直しがあれば、そちらを使う
+ * 睡眠の始まりは 活動終了（「寝る」） → ヘルスケアの入眠 → 予定の就寝 の順（組み直しで使えないのは、寝床に入ってからなので）。
+ * 自分で入れた立て直しがあれば、そちらを使う
  */
 export function bedtimeSleeps(data: MockData, events: CalendarEvent[], now: number): RhythmReset[] {
   const recent = (t: number) => t <= now && t >= now - 2 * DAY_MS;
@@ -44,7 +48,11 @@ export function bedtimeSleeps(data: MockData, events: CalendarEvent[], now: numb
     if (limit > log.at) end = Math.min(end, limit);
     return [{ key, at: log.at, end, morning: dateKeyOf(end) }];
   });
-  const taps = data.wakeLogs.flatMap((w) => (w.wokeAt !== undefined && recent(w.wokeAt) ? [{ morning: w.date, at: w.wokeAt }] : []));
+  // 活動開始：「起きた」、押していなければ朝ルーティンの最初のチェック
+  const taps = data.wakeLogs.flatMap((w) => {
+    const at = w.wokeAt ?? w.routineStartedAt;
+    return at !== undefined && recent(at) ? [{ morning: w.date, at }] : [];
+  });
   const nights = Object.entries(data.healthSleep ?? {}).flatMap(([morning, h]) => (h.end > h.start && recent(h.end) ? [{ morning, start: h.start, end: h.end }] : []));
   const mornings = [...new Set([...beds.map((b) => b.morning), ...taps.map((t) => t.morning), ...nights.map((n) => n.morning)])];
 
@@ -57,7 +65,7 @@ export function bedtimeSleeps(data: MockData, events: CalendarEvent[], now: numb
     const plan = planned(day);
     // 前の晩に予定していた起床（「寝る」を押した夜は見積もり）
     const expected = bed?.end ?? plan.wake;
-    const start = night?.start ?? bed?.at ?? plan.bed;
+    const start = bed?.at ?? night?.start ?? plan.bed;
     const id = bed ? `bed:${bed.key}` : tap ? `woke:${morning}` : `health:${morning}`;
     let r: RhythmReset | undefined;
     if (tap) r = { id, mode: "woke", start, end: tap.at, plannedEnd: expected };

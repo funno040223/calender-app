@@ -2,56 +2,34 @@ import type { Habit } from "@/lib/scheduler";
 import { DAY_MS, MIN, TZ } from "./jst";
 import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData } from "./model";
 import { usedSlotMinutes } from "./progress";
-
-/** 予定の起床から、この分数までに「起きた」を押せたら予定どおり */
-export const WAKE_GRACE_MINUTES = 30;
+import { ON_TIME_GRACE_MINUTES, allNights, bedOnTimeOf, bedTimeOf, upOnTime } from "./night";
 
 type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" | "rewardSpends" | "rewardRates"> &
-  Partial<Pick<MockData, "bedLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings">>;
+  Partial<Pick<MockData, "bedLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings" | "rhythmResets">>;
 
-/** 予定の就寝から、この分数までに「寝る」を押せたら予定どおり */
-export const BED_GRACE_MINUTES = 15;
-export const bedOnTime = (l: { at: number; plannedBed: number }) => l.at <= l.plannedBed + BED_GRACE_MINUTES * MIN;
-/**
- * ヘルスケアの寝ついた時刻が、予定の就寝からこの分数までなら予定どおり。
- * 床に入ってから寝つくまでと、Apple Watch が眠りを見分けるまでのずれがあるので、「寝る」のボタンよりゆるめにする
- */
-export const HEALTH_BED_GRACE_MINUTES = 30;
+/** 「寝る」を押した夜が予定どおりか（おやすみのカードで、遅れを出すかどうか）。判定は夜の記録と同じ猶予 */
+export const bedOnTime = (l: { at: number; plannedBed: number }) => l.at <= l.plannedBed + ON_TIME_GRACE_MINUTES * MIN;
 
 export interface BedNight {
   /** その夜の計画の日（寝る前の日） */
   key: string;
   day: number;
-  /** 寝ついた時刻（ヘルスケア）か、「寝る」を押した時刻 */
+  /** 活動終了（「寝る」・手で入れた時刻）か、なければヘルスケアの入眠 */
   at: number;
   onTime: boolean;
-  source: "health" | "button";
+  source: "health" | "button" | "manual" | "routine";
 }
 
-/**
- * 夜ごとの就寝。ヘルスケアの記録と予定の就寝があれば寝ついた時刻で、なければ「寝る」を押した時刻で見る。
- * 予定の就寝は「寝る」を押したときの予定、その日の計画の控え、翌朝「起きた」を押したときの予定の起床 − 睡眠時間の順に探す
- * （アプリを開かなかった日は控えが残らないため）
- */
-export function bedNights(data: Partial<Pick<MockData, "bedLogs" | "healthSleep" | "dayLogs" | "wakeLogs" | "settings">>): BedNight[] {
-  const out = new Map<string, BedNight>();
-  for (const [key, log] of Object.entries(data.bedLogs ?? {})) {
-    const day = dayStartOfKey(key);
-    if (day !== undefined) out.set(key, { key, day, at: log.at, onTime: bedOnTime(log), source: "button" });
-  }
-  for (const [wakeKey, h] of Object.entries(data.healthSleep ?? {})) {
-    const wakeDay = dayStartOfKey(wakeKey);
-    if (wakeDay === undefined) continue;
-    // 起きた日の前の日の計画の就寝と比べる（0時を過ぎて寝る日も同じ）
+/** 夜ごとの就寝。夜の記録（night.ts）の活動終了、なければヘルスケアの入眠で、予定の就寝と比べる */
+export function bedNights(data: Partial<Pick<MockData, "bedLogs" | "healthSleep" | "dayLogs" | "wakeLogs" | "settings" | "rhythmResets">>): BedNight[] {
+  const nights = allNights({ wakeLogs: data.wakeLogs ?? [], bedLogs: data.bedLogs ?? {}, ...data });
+  return nights.flatMap((n) => {
+    const b = bedTimeOf(n);
+    const wakeDay = dayStartOfKey(n.date);
+    if (!b || n.plannedBed === undefined || wakeDay === undefined) return [];
     const day = wakeDay - DAY_MS;
-    const key = dateKeyOf(day);
-    const wake = data.wakeLogs?.find((l) => l.date === wakeKey)?.plannedWake;
-    const fromWake = wake !== undefined && data.settings ? wake - data.settings.sleepMinutes * MIN : undefined;
-    const planned = data.bedLogs?.[key]?.plannedBed ?? data.dayLogs?.[key]?.bed ?? fromWake;
-    if (planned === undefined) continue;
-    out.set(key, { key, day, at: h.start, onTime: h.start <= planned + HEALTH_BED_GRACE_MINUTES * MIN, source: "health" });
-  }
-  return [...out.values()].sort((a, b) => a.day - b.day);
+    return [{ key: dateKeyOf(day), day, at: b.at, onTime: bedOnTimeOf(n), source: b.source }];
+  });
 }
 
 /** 習慣の1回ぶん。5分だけは、5分以下の習慣なら1回、ほかは半分 */
@@ -69,8 +47,6 @@ export function keepMarkValues(logs: Data["habitLogs"], habit: Pick<Habit, "id" 
   );
 }
 
-const wakeOk = (l: MockData["wakeLogs"][number]) =>
-  l.wokeAt !== undefined && l.plannedWake !== undefined && l.wokeAt <= l.plannedWake + WAKE_GRACE_MINUTES * MIN;
 
 export interface PeriodStats {
   wake: { done: number; total: number };
@@ -83,7 +59,7 @@ export interface PeriodStats {
 function startsOf(data: Data) {
   const min = (xs: (number | undefined)[]) => Math.min(Infinity, ...xs.map((x) => x ?? Infinity));
   return {
-    wake: min(data.wakeLogs.filter((l) => l.plannedWake !== undefined).map((l) => dayStartOfKey(l.date))),
+    wake: min(allNights({ bedLogs: {}, ...data }).filter((n) => n.plannedWake !== undefined).map((n) => dayStartOfKey(n.date))),
     routine: min(data.wakeLogs.map((l) => dayStartOfKey(l.date))),
     habit: min(Object.keys(data.habitLogs).map((k) => dayStartOfKey(k))),
     task: min(Object.values(data.taskBlockLog).map((b) => dayStartOfKey(dateKeyOf(b.start)))),
@@ -113,7 +89,7 @@ export function periodStats(data: Data, from: number, to: number, now: number): 
   }
   const blocks = Object.values(data.taskBlockLog).filter((b) => b.start >= from && b.start < to && b.start <= now);
   return {
-    wake: { done: logs.filter(wakeOk).length, total: daysFrom(st.wake) },
+    wake: { done: allNights({ bedLogs: {}, ...data }).filter((n) => inRange(n.date) && upOnTime(n)).length, total: daysFrom(st.wake) },
     routine: { done: logs.filter((l) => l.routineDoneAt !== undefined).length, total: daysFrom(st.routine) },
     habit: { done: habitDone, expected: Math.round(expected) },
     task: { done: blocks.filter((b) => b.doneAt !== undefined).length, total: blocks.length },
@@ -136,8 +112,9 @@ export function rewardBreakdown(data: Data, from = -Infinity, to = Infinity): Re
   const r = data.rewardRates;
   const inRange = (t: number | undefined) => t !== undefined && t >= from && t < to;
   const yen: Record<RewardSource, number> = { wake: 0, routine: 0, bed: 0, habit: 0, task: 0, log: 0 };
+  // 予定どおり起きた：夜の記録の活動開始で見る（「起きた」か、押す前の朝ルーティンの最初のチェック）
+  for (const n of allNights({ bedLogs: {}, ...data })) if (upOnTime(n) && inRange(n.up?.at)) yen.wake += r.wake;
   for (const l of data.wakeLogs) {
-    if (wakeOk(l) && inRange(l.wokeAt)) yen.wake += r.wake;
     if (inRange(l.routineDoneAt)) yen.routine += r.routine;
     // 記録をつけた（朝の疲れ・睡眠時間）。その日の分として数える
     const day = dayStartOfKey(l.date);

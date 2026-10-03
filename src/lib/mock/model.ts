@@ -103,8 +103,10 @@ export interface WakeLog {
   date: DateKey;
   /** 「起きた」を押した時刻 */
   wokeAt?: number;
-  /** 「起きた」を押したときの、予定の起床時刻（予定どおり起きられたかを数える） */
+  /** 「起きた」を押したとき（押す前に朝ルーティンを始めたときは、その最初のチェックのとき）の、前の晩に予定していた起床時刻（予定どおり起きられたかを数える） */
   plannedWake?: number;
+  /** 朝ルーティンの最初のチェックの時刻。朝ルーティンはここから始めたものとして組み直す（「起きた」がなければ活動開始にもする） */
+  routineStartedAt?: number;
   /** 朝ルーティンの手順をすべて終えた時刻 */
   routineDoneAt?: number;
   doneStepIds: string[];

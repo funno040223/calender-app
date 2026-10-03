@@ -41,7 +41,7 @@ describe("ご褒美のお金", () => {
     expect(rewardEarned(data, jst(2026, 10, 2), jst(2026, 10, 3))).toBe(30);
   });
 
-  it("就寝（予定の15分後まで）・記録をつけたことも足す", () => {
+  it("就寝（予定の30分後まで）・記録をつけたことも足す", () => {
     const d = {
       ...data,
       rewardSpends: [],
@@ -49,7 +49,7 @@ describe("ご褒美のお金", () => {
       eveningEnergy: { "2026-10-02": "normal" as const },
       bedLogs: {
         "2026-10-01": { at: jst(2026, 10, 2, 2, 10), plannedBed: jst(2026, 10, 2, 2) },
-        "2026-10-02": { at: jst(2026, 10, 3, 2, 30), plannedBed: jst(2026, 10, 3, 2) },
+        "2026-10-02": { at: jst(2026, 10, 3, 2, 40), plannedBed: jst(2026, 10, 3, 2) },
       },
       habitLogs: {},
       taskBlockLog: {},
@@ -94,18 +94,18 @@ describe("週のまとめ", () => {
     expect(bedStats({ bedLogs }, jst(2026, 9, 28), jst(2026, 10, 5), now)).toEqual({ done: 1, total: 3 });
   });
 
-  it("ヘルスケアの記録がある夜は、寝ついた時刻が予定の就寝から30分以内なら予定どおり", () => {
+  it("「寝る」を押した夜はその時刻、押していない夜はヘルスケアの入眠で、予定の就寝から30分以内なら予定どおり", () => {
     const dayLogs = { "2026-09-29": { events: 0, away: false, habits: [], meals: {}, bed: jst(2026, 9, 30, 1) }, "2026-09-30": { events: 0, away: false, habits: [], meals: {}, bed: jst(2026, 10, 1, 1) } };
     const healthSleep = {
-      // 予定 1:00 に 1:25 に寝ついた → 予定どおり。「寝る」を押したのが遅くても、ヘルスケアで見る
+      // 予定 1:00。「寝る」を 1:30 に押した夜は、寝床に入った時刻（活動終了）で見る → 予定どおり
       "2026-09-30": { start: jst(2026, 9, 30, 1, 25), end: jst(2026, 9, 30, 8), minutes: 390 },
-      // 予定 1:00 に 1:40 → 予定どおりではない
+      // 予定 1:00。押していない夜は入眠 1:40 で見る → 予定どおりではない
       "2026-10-01": { start: jst(2026, 10, 1, 1, 40), end: jst(2026, 10, 1, 9), minutes: 430 },
     };
     const bedLogs = { "2026-09-29": { at: jst(2026, 9, 30, 1, 30), plannedBed: jst(2026, 9, 30, 1) } };
     const nights = bedNights({ bedLogs, healthSleep, dayLogs });
     expect(nights.map((n) => [n.key, n.source, n.onTime])).toEqual([
-      ["2026-09-29", "health", true],
+      ["2026-09-29", "button", true],
       ["2026-09-30", "health", false],
     ]);
     expect(rewardBreakdown({ ...data, bedLogs, healthSleep, dayLogs }).bed).toBe(DEFAULT_REWARD_RATES.bed);

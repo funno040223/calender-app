@@ -160,17 +160,18 @@ export function plan(input: PlanInput): PlanResult {
   /** 残した枠のうち、その日の習慣があるか */
   const keptOn = (habitId: string, d: DayPlan) => kept.some((b) => b.kind === "habit" && b.refId === habitId && wakingDayOf(b.start) === d.dayStart);
   const dayIndex = (d: DayPlan) => Math.max(0, Math.round((d.dayStart - firstDay) / DAY_MS));
-  /** 朝ルーティン（人に会う日は身支度も）が終わる時刻 */
+  /** 朝ルーティンを始める時刻：ふつうは起床。最初のチェックを付けた日は、その時刻（起床より前にはしない） */
+  const routineStartOf = (d: DayPlan) => Math.max(d.wake, input.routineStarts?.[d.dayStart] ?? d.wake);
   /** 身支度を始める時刻：家を出る（人に会う予定が始まる）直前。朝ルーティンの終わりより前にはしない */
   const prepStartOf = (d: DayPlan): number | undefined => {
     if (!d.prep) return undefined;
     const goal = d.leave ?? d.firstEvent?.start;
-    const routineEnd = d.wake + s.routineMinutes * MIN;
+    const routineEnd = routineStartOf(d) + s.routineMinutes * MIN;
     return goal === undefined ? routineEnd : Math.max(routineEnd, goal - s.prepMinutes * MIN);
   };
   /** 朝の準備が終わる時刻（身支度が朝ルーティンに続く日は身支度まで） */
   const morningEnd = (d: DayPlan) => {
-    const routineEnd = d.wake + s.routineMinutes * MIN;
+    const routineEnd = routineStartOf(d) + s.routineMinutes * MIN;
     return prepStartOf(d) === routineEnd ? routineEnd + s.prepMinutes * MIN : routineEnd;
   };
 
@@ -264,10 +265,11 @@ export function plan(input: PlanInput): PlanResult {
     const cap = d.leave ?? d.firstEvent?.start ?? Infinity;
     // 身支度は、人に会う予定がある日だけ。出発が遅い日は、朝ルーティンとは分けて出発の直前に置く
     const prepStart = prepStartOf(d);
-    const together = prepStart !== undefined && prepStart === d.wake + s.routineMinutes * MIN;
+    const routineStart = routineStartOf(d);
+    const together = prepStart !== undefined && prepStart === routineStart + s.routineMinutes * MIN;
     const end = Math.min(morningEnd(d), cap);
-    if (end > d.wake && end > now && !busy.some((v) => overlaps(v, { start: d.wake, end }))) {
-      routineBlocks.push({ kind: "routine", refId: "routine", title: together ? "朝ルーティン・身支度" : "朝ルーティン", start: d.wake, end });
+    if (end > routineStart && end > now && !busy.some((v) => overlaps(v, { start: routineStart, end }))) {
+      routineBlocks.push({ kind: "routine", refId: "routine", title: together ? "朝ルーティン・身支度" : "朝ルーティン", start: routineStart, end });
     }
     if (prepStart !== undefined && !together) {
       const prepEnd = Math.min(prepStart + s.prepMinutes * MIN, cap);
