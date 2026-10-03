@@ -531,11 +531,20 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     ((skipDays[b.refId] ?? []).some((day) => b.start >= day && b.start < day + DAY_MS) || missed.has(`${b.refId}:${b.start}`));
   // やっていない枠：飛ばした・できなかった・寝ていた間の枠
   const notDone = (b: MockData["blocks"][number]) => isSkipped(b) || asleep.some((r) => b.start < r.end && b.end > r.start);
-  // 間隔で置く習慣は、始まった枠をもって「やった」とみなす。やっていない枠で数えていたら取り消す
+  // 間隔で置く習慣（洗濯など）の最後にやった日。「記録する」ものは「やった」を押した日だけ
+  // （時刻が過ぎただけで数えると、寝坊して過ぎた枠も「やった」になり、次が何日も先へ送られる）。
+  // 記録しないものは、始まった枠をもって「やった」とみなす。やっていない枠で数えていたら取り消す
   const habitLastDone = { ...data.habitLastDone };
+  for (const h of data.habits) {
+    if (h.frequency.type !== "interval" || !h.track) continue;
+    const last = Object.keys(data.habitLogs).filter((k) => data.habitLogs[k]?.[h.id]).sort().at(-1);
+    const day = last === undefined ? undefined : dayStartOfKey(last);
+    if (day === undefined) delete habitLastDone[h.id];
+    else habitLastDone[h.id] = day;
+  }
   for (const b of data.blocks) {
     const h = data.habits.find((x) => x.id === b.refId);
-    if (b.kind !== "habit" || h?.frequency.type !== "interval" || b.title !== h.name || b.start > now) continue;
+    if (b.kind !== "habit" || h?.frequency.type !== "interval" || h.track || b.title !== h.name || b.start > now) continue;
     if (!notDone(b)) habitLastDone[h.id] = Math.max(habitLastDone[h.id] ?? 0, b.start);
     else if (habitLastDone[h.id] === b.start) delete habitLastDone[h.id];
   }
