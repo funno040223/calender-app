@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { HEALTH_TOKEN, inspectSleepBody, summarizeSleep } from "@/lib/health/sleep";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { replanPush } from "@/lib/server/push";
 
 /** 本文の大きさの上限（2日ぶんの睡眠の記録なら十分） */
 const MAX_BODY = 300_000;
@@ -11,7 +12,7 @@ const json = (body: unknown, status = 200) =>
 /**
  * iPhone のショートカットが送るヘルスケアの睡眠を受け取り、夜ごとのまとめを保存する。
  * ログインの代わりに Authorization: Bearer <合言葉> で本人を見分ける（DB には SHA-256 だけ）。proxy.ts はこの道を通す。
- * 保存するのは health_sleep だけで、アプリのデータ（app_state）には書かない（開いているアプリの保存とぶつからないように）
+ * 保存するのは health_sleep と通知の一覧（push_schedule）だけで、アプリのデータ（app_state）には書かない（開いているアプリの保存とぶつからないように）
  */
 export async function POST(request: Request) {
   const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
@@ -40,11 +41,22 @@ export async function POST(request: Request) {
     );
     if (error) return json({ error: "保存できませんでした。" }, 500);
   }
+  // 睡眠が届いたら、通知の一覧をすぐ組み直す（寝坊した朝も、アプリを開く前から通知が合うように）。失敗しても受け取りは成功にする
+  let replanned = false;
+  if (nights.length) {
+    try {
+      const { data: row } = await db.from("app_state").select("data").eq("user_id", owner.user_id).maybeSingle();
+      if (row) replanned = (await replanPush(db, owner.user_id, row.data, Date.now())).planned;
+    } catch (e) {
+      console.warn("睡眠のあとの組み直しに失敗しました", e instanceof Error ? e.message : e);
+    }
+  }
   // ショートカットの画面に出ても分かるように、受け取った夜と、読めた数・読めなかった最初の行を返す
   const kinds = { asleep: 0, awake: 0, inBed: 0 };
   for (const x of read.samples) kinds[x.kind]++;
   return json({
     ok: true,
+    replanned,
     nights: nights.map((n) => ({ night: n.night, minutes: n.minutes })),
     read: { lines: read.lines, samples: read.samples.length, ...kinds },
     // 中身が空のときに、本文が空か・項目の名前がちがうかを見分けるため

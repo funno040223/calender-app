@@ -380,4 +380,6 @@ export interface PlanResult {
 export interface RhythmReset extends Interval {
   id: string;
   mode: "sleep" | "woke" | "tired";
+  /** 記録（ヘルスケア・「起きた」）で起床を決めたとき、その前に予定していた起床。「予定どおり起きた」に使う（配置には使わない） */
+  plannedEnd?: number;
 }

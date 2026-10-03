@@ -1,7 +1,5 @@
-import { buildNotices } from "@/lib/notify/build";
-import { contactDaysFor, travelAsks, planEvents } from "@/lib/mock/state";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { planOnServer } from "@/lib/server/plan";
+import { replanPush, type PushReplan } from "@/lib/server/push";
 import { authorized } from "@/lib/push/cron";
 
 /**
@@ -18,30 +16,11 @@ export async function POST(request: Request) {
   const { data: rows, error } = await db.from("app_state").select("user_id, data");
   if (error) return Response.json({ error: "app_state を読めませんでした。" }, { status: 500 });
 
-  const results: { planned: boolean; notices?: number; reason?: string }[] = [];
+  const results: PushReplan[] = [];
   for (const row of rows ?? []) {
     // 1人のデータが壊れていても、ほかの人の組み直しは続ける
     try {
-      const p = await planOnServer(db, row.user_id, row.data, now);
-      if (!p.ok) {
-        results.push({ planned: false, reason: p.reason });
-        continue;
-      }
-      const { state } = p;
-      const items = buildNotices({
-        now,
-        result: state.result,
-        events: planEvents(state, state.classEvents, state.googleEvents),
-        places: state.places,
-        settings: state.settings,
-        habits: state.habits,
-        travelAsks: travelAsks(state, now),
-        contactDays: contactDaysFor(state, now).map((c) => c.dayStart),
-      });
-      const { error: e } = await db
-        .from("push_schedule")
-        .upsert({ user_id: row.user_id, items, updated_at: new Date().toISOString() });
-      results.push(e ? { planned: false, reason: "save" } : { planned: true, notices: items.length });
+      results.push(await replanPush(db, row.user_id, row.data, now));
     } catch (e) {
       console.warn("組み直しに失敗しました", e instanceof Error ? e.message : e);
       results.push({ planned: false, reason: "error" });

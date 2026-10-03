@@ -1,5 +1,5 @@
 import { MIN, TZ } from "@/lib/mock/jst";
-import { dateKeyOf } from "@/lib/mock/model";
+import { dateKeyOf, type HealthSleep } from "@/lib/mock/model";
 import { merge } from "@/lib/scheduler/intervals";
 
 /**
@@ -147,4 +147,13 @@ export function summarizeSleep(samples: SleepSample[]): SleepNight[] {
     if (!prev || s.minutes > prev.minutes) nights.set(night, { night, start: s.start, end: s.end, minutes: Math.round(s.minutes) });
   }
   return [...nights.values()].sort((a, b) => a.night.localeCompare(b.night));
+}
+
+/** health_sleep の行 → 夜ごとのまとめ（起きた日の日付ごと）。画面とサーバーの両方で使う */
+export function nightsFromRows(
+  rows: { night: string; sleep_start: string; sleep_end: string; asleep_minutes: number | string }[],
+): Record<string, HealthSleep> {
+  return Object.fromEntries(
+    rows.map((r) => [String(r.night), { start: Date.parse(r.sleep_start), end: Date.parse(r.sleep_end), minutes: Number(r.asleep_minutes) }]),
+  );
 }

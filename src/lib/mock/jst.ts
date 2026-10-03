@@ -50,6 +50,23 @@ export function fromInputDateTime(s: string): number | undefined {
   return jstTime(Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0));
 }
 
+/** <input type="time"> 用（日本時間の HH:MM） */
+export function toInputTime(ms: number): string {
+  const p = parts(ms);
+  return `${pad(p.h)}:${pad(p.mi)}`;
+}
+/**
+ * 時刻だけの入力（HH:MM）を日時にする。日付は基準の時刻から決める：
+ * "before" は基準と同じかそれより前でいちばん近い日時、"after" は基準より後でいちばん近い日時
+ */
+export function fromInputTime(s: string, ref: number, side: "before" | "after"): number | undefined {
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return undefined;
+  const at = dayStartOf(ref) + (Number(m[1]) * 60 + Number(m[2])) * MIN;
+  if (side === "before") return at > ref ? at - DAY_MS : at;
+  return at <= ref ? at + DAY_MS : at;
+}
+
 export function formatTime(ms: number): string {
   const p = parts(ms);
   return `${p.h}:${pad(p.mi)}`;

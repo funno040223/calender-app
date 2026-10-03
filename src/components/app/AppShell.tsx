@@ -10,7 +10,7 @@ import { DAY_MS, dayStartOf, formatDate, formatTime, newId } from "@/lib/mock/js
 import { CALENDARS } from "@/lib/mock/calendars";
 import { fetchRainChance } from "@/lib/weather/openMeteo";
 import { fetchNotionRows } from "@/lib/sync/notion";
-import { loadSleepNights } from "@/lib/sync/health";
+import { loadSleepNights, takeHealthAsked } from "@/lib/sync/health";
 import { dateKeyOf } from "@/lib/mock/model";
 import { applyNotionRows, deleteTask as removeTask } from "@/lib/mock/notion";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
@@ -157,8 +157,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const healthTried = useRef(0);
   useEffect(() => {
     if (store.sync === "loading") return;
-    const check = () => {
-      if (Date.now() - healthTried.current < 10 * 60 * 1000) return;
+    const check = (force = false) => {
+      if (!force && Date.now() - healthTried.current < 10 * 60 * 1000) return;
       healthTried.current = Date.now();
       const from = dateKeyOf(Date.now() - 60 * 24 * 60 * 60 * 1000);
       loadSleepNights(dateKeyOf(Date.now() - 21 * 24 * 60 * 60 * 1000))
@@ -172,12 +172,20 @@ export default function AppShell({ children }: { children: ReactNode }) {
         .catch((e) => console.warn("ヘルスケアの睡眠を読めませんでした", e instanceof Error ? e.message : e));
     };
     check();
-    const onVisible = () => document.visibilityState === "visible" && check();
+    // ショートカットで睡眠を送って戻ってきたら、すぐ読む（届くのが少し遅れることもあるので、もう一度）
+    let again = 0;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!takeHealthAsked()) return check();
+      check(true);
+      again = window.setTimeout(() => check(true), 8000);
+    };
     document.addEventListener("visibilitychange", onVisible);
     const t = window.setInterval(check, 10 * 60 * 1000);
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(t);
+      window.clearTimeout(again);
     };
   }, [store.sync, update]);
 

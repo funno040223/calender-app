@@ -49,7 +49,7 @@ it("できなかったを1回押すだけで確認を終え、進捗を増やさ
 it("徹夜後の睡眠を入力し、表示と保存する予定へ反映できる", () => {
   render(<Harness><RecoveryCard now={now} /></Harness>);
   fireEvent.click(screen.getByRole("button", { name: "今から寝る" }));
-  fireEvent.change(screen.getByLabelText("立て直しの終了時刻"), { target: { value: "2026-10-01T19:00" } });
+  fireEvent.change(screen.getByLabelText("立て直しの終了時刻"), { target: { value: "19:00" } });
   fireEvent.click(screen.getByRole("button", { name: "組み直す" }));
   expect(last.rhythmResets?.[0].end).toBe(jst(2026, 10, 1, 19));
   expect(notify).toHaveBeenCalledWith("組み直しました");
@@ -94,4 +94,12 @@ it("食事と入浴は「少しだけ」を出さず、「やった」だけで�
   expect(screen.queryByRole("button", { name: `${lunch.name}：少しだけ` })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: `${lunch.name}：やった` }));
   expect(last.habitLogs["2026-10-01"]?.[lunch.id]).toBe("done");
+});
+it("起きたところは時刻だけで入れ、日付は今から決める（昨夜寝て、今朝起きた）", () => {
+  render(<Harness><RecoveryCard now={now} /></Harness>);
+  fireEvent.click(screen.getByRole("button", { name: "起きたところ" }));
+  fireEvent.change(screen.getByLabelText("寝た時刻"), { target: { value: "03:30" } });
+  fireEvent.change(screen.getByLabelText("立て直しの終了時刻"), { target: { value: "11:15" } });
+  fireEvent.click(screen.getByRole("button", { name: "組み直す" }));
+  expect(last.rhythmResets?.at(-1)).toMatchObject({ mode: "woke", start: jst(2026, 10, 1, 3, 30), end: jst(2026, 10, 1, 11, 15) });
 });

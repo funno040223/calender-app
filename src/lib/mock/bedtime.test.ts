@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
 import type { CalendarEvent } from "@/lib/scheduler";
 import { replan, sampleData, toData } from "./state";
+import type { MockData } from "./model";
 import { DAY_MS, MIN } from "./jst";
 
 const at = jst(2026, 10, 1, 3);
@@ -94,5 +95,32 @@ describe("「今から寝る」で入れた起きる予定と「起きた」", (
     const wokeAt = jst(2026, 10, 1, 9, 30);
     const state = replan({ ...withTap(wokeAt), rhythmResets: [nap] }, [], wokeAt);
     expect(state.result.rhythmResets?.find((r) => r.id === "nap")?.end).toBe(nap.end);
+  });
+});
+
+describe("ヘルスケアの睡眠から組み直す", () => {
+  const night = (start: number, end: number) => ({ "2026-10-01": { start, end, minutes: Math.round((end - start) / MIN) } });
+  const base = (healthSleep: MockData["healthSleep"], extra: Partial<MockData> = {}) => ({ ...data(), bedLogs: {}, healthSleep, ...extra });
+  it("「起きた」を押していなくても、寝坊したら起きた時刻から組み直す", () => {
+    const end = jst(2026, 10, 1, 11, 20);
+    const state = replan(base(night(jst(2026, 10, 1, 3), end)), [], end + 10 * MIN);
+    expect(state.result.dayPlans[0].wake).toBe(end);
+    expect(state.result.rhythmResets).toContainEqual(expect.objectContaining({ id: "health:2026-10-01", start: jst(2026, 10, 1, 3), plannedEnd: jst(2026, 10, 1, 9) }));
+  });
+  it("予定より早く起きた記録では、予定を前へは動かさない", () => {
+    const end = jst(2026, 10, 1, 7);
+    expect(replan(base(night(jst(2026, 10, 1, 1), end)), [], end + 60 * MIN).result.dayPlans[0].wake).toBe(jst(2026, 10, 1, 9));
+  });
+  it("「起きた」を押したら、押した時刻を使い、寝ついた時刻はヘルスケアから取る", () => {
+    const wokeAt = jst(2026, 10, 1, 11, 40);
+    const state = replan(base(night(jst(2026, 10, 1, 3, 10), jst(2026, 10, 1, 11, 20)), { wakeLogs: [{ date: "2026-10-01", doneStepIds: [], wokeAt }] }), [], wokeAt);
+    expect(state.result.dayPlans[0].wake).toBe(wokeAt);
+    expect(state.result.rhythmResets).toContainEqual(expect.objectContaining({ start: jst(2026, 10, 1, 3, 10), end: wokeAt }));
+  });
+  it("「寝る」を押した夜は、見積もりの起床を予定の起床として残す", () => {
+    const end = jst(2026, 10, 1, 10, 30);
+    const state = replan({ ...data(), healthSleep: night(jst(2026, 10, 1, 3, 20), end) }, [], end + 10 * MIN);
+    expect(state.result.dayPlans[0].wake).toBe(end);
+    expect(state.result.rhythmResets).toContainEqual(expect.objectContaining({ plannedEnd: jst(2026, 10, 1, 10) }));
   });
 });

@@ -1,6 +1,6 @@
 import type { CalendarEvent, RhythmReset } from "@/lib/scheduler";
 import { computeDayPlans, latestWakeOfDay } from "@/lib/scheduler/rhythm";
-import { dayStartOfKey, type MockData } from "./model";
+import { dateKeyOf, dayStartOfKey, type MockData } from "./model";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
 
 /** 「今から寝る」で入れた起きる予定のあと、この時間までに「起きた」を押したら、同じ眠りの起床とみなす */
@@ -18,13 +18,14 @@ export function settledResets(data: Pick<MockData, "rhythmResets" | "wakeLogs">)
 }
 
 /**
- * 「寝る」「起きた」の記録から見積もる睡眠。予定が変わったら起床の限界も計算し直す。
- * 「寝る」を押した夜は、設定の睡眠時間を取れる起床へ送る（固定の予定に間に合う時刻まで）。
- * 「起きた」だけ押した朝は、予定の就寝から起きた時刻までを睡眠とし、起きた時刻からその日を組み直す。
+ * 「寝る」「起きた」とヘルスケアの記録から見積もる睡眠（朝ごとに1つ）。予定が変わったら起床の限界も計算し直す。
+ * - 「起きた」を押した朝は、その時刻から組み直す（いちばん優先）
+ * - 押していなくても、ヘルスケアの起床が予定より遅ければ（寝坊）、その時刻から組み直す。早い起床では前へは動かさない
+ * - 「寝る」を押した夜は、設定の睡眠時間を取れる起床へ送る（固定の予定に間に合う時刻まで）
+ * 寝ついた時刻は ヘルスケア → 「寝る」 → 予定の就寝 の順。自分で入れた立て直しがあれば、そちらを使う
  */
 export function bedtimeSleeps(data: MockData, events: CalendarEvent[], now: number): RhythmReset[] {
   const recent = (t: number) => t <= now && t >= now - 2 * DAY_MS;
-  // 自分で入れた睡眠・起床のほうを優先する
   const resets = settledResets(data);
   const entered = (start: number, end: number) => resets.some((r) => r.mode !== "tired" && r.start < end && r.end > start);
   /** その日の予定どおりの起床と、前の晩の就寝 */
@@ -32,8 +33,8 @@ export function bedtimeSleeps(data: MockData, events: CalendarEvent[], now: numb
     const days = computeDayPlans(day - 2 * DAY_MS, data.settings.planningDays + 3, events, data.places, data.settings);
     return { wake: days[2].wake, bed: days[1].bed };
   };
-  const woke = data.wakeLogs.flatMap((w) => (w.wokeAt !== undefined && recent(w.wokeAt) ? [{ date: w.date, at: w.wokeAt }] : []));
-  const fromBed = Object.entries(data.bedLogs).flatMap(([key, log]): RhythmReset[] => {
+  // 「寝る」を押した夜：起きる日と、見積もった起床
+  const beds = Object.entries(data.bedLogs).flatMap(([key, log]) => {
     if (!recent(log.at)) return [];
     const desired = log.at + data.settings.sleepMinutes * MIN;
     const day = dayStartOf(desired);
@@ -41,20 +42,30 @@ export function bedtimeSleeps(data: MockData, events: CalendarEvent[], now: numb
     // すでに間に合わない場合は、睡眠を負の長さにせず衝突として表示する
     let end = Math.max(planned(day).wake, desired);
     if (limit > log.at) end = Math.min(end, limit);
-    const up = woke.filter((w) => w.at > log.at && w.at < log.at + 2 * DAY_MS).sort((a, b) => a.at - b.at)[0];
-    if (up) end = up.at;
-    if (entered(log.at, end)) return [];
-    return [{ id: `bed:${key}`, mode: up ? "woke" : "sleep", start: log.at, end }];
+    return [{ key, at: log.at, end, morning: dateKeyOf(end) }];
   });
-  const fromWake = woke.flatMap(({ date, at }): RhythmReset[] => {
-    if (fromBed.some((r) => r.end === at)) return [];
-    const day = dayStartOfKey(date);
+  const taps = data.wakeLogs.flatMap((w) => (w.wokeAt !== undefined && recent(w.wokeAt) ? [{ morning: w.date, at: w.wokeAt }] : []));
+  const nights = Object.entries(data.healthSleep ?? {}).flatMap(([morning, h]) => (h.end > h.start && recent(h.end) ? [{ morning, start: h.start, end: h.end }] : []));
+  const mornings = [...new Set([...beds.map((b) => b.morning), ...taps.map((t) => t.morning), ...nights.map((n) => n.morning)])];
+
+  return mornings.flatMap((morning): RhythmReset[] => {
+    const day = dayStartOfKey(morning);
     if (day === undefined) return [];
-    const start = planned(day).bed;
-    if (start >= at || entered(start, at)) return [];
-    return [{ id: `woke:${date}`, mode: "woke", start, end: at }];
+    const bed = beds.find((b) => b.morning === morning);
+    const tap = taps.find((t) => t.morning === morning && (!bed || t.at > bed.at));
+    const night = nights.find((n) => n.morning === morning);
+    const plan = planned(day);
+    // 前の晩に予定していた起床（「寝る」を押した夜は見積もり）
+    const expected = bed?.end ?? plan.wake;
+    const start = night?.start ?? bed?.at ?? plan.bed;
+    const id = bed ? `bed:${bed.key}` : tap ? `woke:${morning}` : `health:${morning}`;
+    let r: RhythmReset | undefined;
+    if (tap) r = { id, mode: "woke", start, end: tap.at, plannedEnd: expected };
+    else if (night && night.end > expected) r = { id, mode: "woke", start, end: night.end, plannedEnd: expected };
+    else if (bed) r = { id, mode: "sleep", start: bed.at, end: bed.end };
+    if (!r || r.start >= r.end || entered(r.start, r.end)) return [];
+    return [r];
   });
-  return [...fromBed, ...fromWake];
 }
 
 /** 見積もった睡眠と重なる自動の枠を外す。途中までの作業はその時間だけ確認に残す */

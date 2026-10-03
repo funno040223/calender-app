@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { HealthSleep } from "@/lib/mock/model";
+import { nightsFromRows } from "@/lib/health/sleep";
 import { newSecret } from "./feed";
 
 /** ヘルスケアの睡眠の取り込み：ショートカットの合言葉（SHA-256 だけ保存）と、サーバーがまとめた夜ごとの睡眠 */
@@ -33,7 +34,27 @@ export async function deleteHealthToken(): Promise<void> {
 export async function loadSleepNights(fromKey: string): Promise<Record<string, HealthSleep>> {
   const { data, error } = await db().from("health_sleep").select("night, sleep_start, sleep_end, asleep_minutes").gte("night", fromKey);
   if (error) throw new Error(error.message);
-  return Object.fromEntries(
-    (data ?? []).map((r) => [String(r.night), { start: Date.parse(r.sleep_start), end: Date.parse(r.sleep_end), minutes: Number(r.asleep_minutes) }]),
-  );
+  return nightsFromRows(data ?? []);
+}
+
+/** iPhone のショートカット「睡眠を送る」を動かす。ロック中はヘルスケアを読めないので、アプリを開いているときに動かせるように */
+export const SLEEP_SHORTCUT_URL = `shortcuts://run-shortcut?name=${encodeURIComponent("睡眠を送る")}`;
+const ASKED_KEY = "task-rhythm:health-asked";
+/** ショートカットを動かしたことを覚えておく（戻ってきたら、間をあけずに読み直す） */
+export function markHealthAsked(): void {
+  try {
+    sessionStorage.setItem(ASKED_KEY, String(Date.now()));
+  } catch {
+    // 読めない環境では、いつもの間隔で読む
+  }
+}
+/** 10分以内にショートカットを動かしていたら true（1回だけ） */
+export function takeHealthAsked(): boolean {
+  try {
+    const at = Number(sessionStorage.getItem(ASKED_KEY));
+    sessionStorage.removeItem(ASKED_KEY);
+    return Date.now() - at < 10 * 60 * 1000;
+  } catch {
+    return false;
+  }
 }

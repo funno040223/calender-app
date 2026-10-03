@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useApp } from "@/components/app/StoreProvider";
 import { Card, btnPrimary } from "@/components/ui/controls";
-import { MIN, formatDateTime, fromInputDateTime, newId, toInputDateTime } from "@/lib/mock/jst";
+import { MIN, formatDateTime, fromInputTime, newId, toInputTime } from "@/lib/mock/jst";
 import { defaultPauseEnd, resetConflicts, resetRhythm } from "@/lib/mock/recovery";
 import type { RhythmReset } from "@/lib/scheduler";
 
@@ -21,13 +21,24 @@ export default function RecoveryCard({ now }: { now: number }) {
   const [end, setEnd] = useState("");
   const choose = (value: RhythmReset["mode"]) => {
     setMode(value);
-    setStart(toInputDateTime(value === "woke" ? now - state.settings.sleepMinutes * MIN : now));
-    setEnd(toInputDateTime(value === "sleep" ? now + state.settings.sleepMinutes * MIN : value === "woke" ? now : defaultPauseEnd(state, now)));
+    setStart(toInputTime(value === "woke" ? now - state.settings.sleepMinutes * MIN : now));
+    setEnd(toInputTime(value === "sleep" ? now + state.settings.sleepMinutes * MIN : value === "woke" ? now : defaultPauseEnd(state, now)));
   };
-  const st = fromInputDateTime(start);
-  const en = fromInputDateTime(end);
-  const valid = mode && st !== undefined && en !== undefined && en > st && en - st <= 48 * 60 * MIN && st <= now && (mode !== "woke" || en <= now);
-  const draft = valid ? { id: "preview", mode, start: st, end: en } : undefined;
+  // 入れるのは時刻だけ。日付は今から決める：起きたところ＝今までに起きて、その前に寝た／今から寝る＝寝てから起きる／疲れている＝今から休む
+  let st: number | undefined;
+  let en: number | undefined;
+  if (mode === "woke") {
+    en = fromInputTime(end, now, "before");
+    st = en === undefined ? undefined : fromInputTime(start, en - MIN, "before");
+  } else if (mode === "sleep") {
+    st = fromInputTime(start, now, "before");
+    en = st === undefined ? undefined : fromInputTime(end, st, "after");
+  } else if (mode === "tired") {
+    st = now;
+    en = fromInputTime(end, now, "after");
+  }
+  const valid = mode && st !== undefined && en !== undefined && en > st;
+  const draft = valid ? { id: "preview", mode, start: st!, end: en! } : undefined;
   const conflicts = draft ? resetConflicts(state, draft) : [];
   const apply = () => {
     if (!draft) return;
@@ -64,16 +75,16 @@ export default function RecoveryCard({ now }: { now: number }) {
             {mode !== "tired" && (
               <label className="text-[14px]">
                 {mode === "woke" ? "寝た" : "寝る"}
-                <input aria-label="寝た時刻" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className={input} />
+                <input aria-label="寝た時刻" type="time" value={start} onChange={(e) => setStart(e.target.value)} className={input} />
               </label>
             )}
             <label className="text-[14px]">
               {mode === "tired" ? "休む（終わり）" : mode === "woke" ? "起きた" : "起きる"}
-              <input aria-label="立て直しの終了時刻" type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={input} />
+              <input aria-label="立て直しの終了時刻" type="time" value={end} onChange={(e) => setEnd(e.target.value)} className={input} />
             </label>
             {!valid && (
               <p role="alert" className="text-[13px] text-accent">
-                {mode === "woke" ? "今までの、48時間以内の時刻" : "始まりより後、48時間以内の時刻"}
+                時刻を入れてください
               </p>
             )}
             {conflicts.length > 0 && (

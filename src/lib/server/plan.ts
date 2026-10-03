@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CalendarEvent } from "@/lib/scheduler";
 import { fetchIcsText } from "@/lib/ical/fetch";
 import { parseIcs } from "@/lib/ical/import";
+import { nightsFromRows } from "@/lib/health/sleep";
+import { dateKeyOf } from "@/lib/mock/model";
 import { fromStoredV2, replan, type MockState } from "@/lib/mock/state";
 
 const DAY_MS = 24 * 60 * 60_000;
@@ -16,8 +18,11 @@ export type ServerPlan =
  * 1つでも取り込めなければ組み直さない（予定が欠けたまま組むと、枠がずれるため）
  */
 export async function planOnServer(db: SupabaseClient, userId: string, raw: unknown, now: number): Promise<ServerPlan> {
-  const data = fromStoredV2(raw, now);
-  if (!data) return { ok: false, reason: "data" };
+  const stored = fromStoredV2(raw, now);
+  if (!stored) return { ok: false, reason: "data" };
+  // ヘルスケアの睡眠は health_sleep にだけ届く。アプリを開く前でも寝坊に合わせて組み直せるように、直近の夜を重ねる
+  const nights = await recentNights(db, userId, now);
+  const data = nights ? { ...stored, healthSleep: { ...stored.healthSleep, ...nights } } : stored;
 
   const { data: sources, error } = await db.from("ical_sources").select("id, url").eq("user_id", userId);
   if (error || !sources) return { ok: false, reason: "ical", data };
@@ -38,4 +43,18 @@ export async function planOnServer(db: SupabaseClient, userId: string, raw: unkn
   }
   if (failed) return { ok: false, reason: "ical", data };
   return { ok: true, state: replan(data, events, now) };
+}
+
+/** 直近3日のヘルスケアの睡眠。読めなければ、アプリが持っている分だけで組み直す */
+async function recentNights(db: SupabaseClient, userId: string, now: number) {
+  try {
+    const { data, error } = await db
+      .from("health_sleep")
+      .select("night, sleep_start, sleep_end, asleep_minutes")
+      .eq("user_id", userId)
+      .gte("night", dateKeyOf(now - 3 * DAY_MS));
+    return !error && data?.length ? nightsFromRows(data) : undefined;
+  } catch {
+    return undefined;
+  }
 }
