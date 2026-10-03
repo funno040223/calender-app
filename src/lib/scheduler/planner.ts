@@ -372,34 +372,25 @@ export function plan(input: PlanInput): PlanResult {
         : -minDays;
     // 今日から先の日だけ（夜中に前の日の続きがあっても、洗濯などは置かない）
     const list = days.filter((d) => dayIdx(d.dayStart) >= 0);
+    const open = (d: DayPlan) => windowOf(d).end > now;
+    // 条件の悪さ（小さいほどよい）：家にいられる日を優先し、少しでも出かける日・雨の日（避けるものだけ）・外出の日の順に悪い。
+    // 洗濯は間をあけすぎると着る服がなくなるので、悪い日も外さずに候補に残す
+    const penalty = (d: DayPlan) =>
+      (outingDays.has(d.dayStart) ? 4 : 0) +
+      (habit.avoidRain && rainyDays.has(d.dayStart) ? 2 : 0) +
+      (intersect(mergedAway, { start: d.wake, end: d.bed }).length ? 1 : 0);
+    const better = (a: DayPlan, b: DayPlan) => penalty(a) - penalty(b) || energyOn(a) - energyOn(b) || a.dayStart - b.dayStart;
     for (let guard = 0; guard < list.length; guard++) {
       const from = Math.max(0, last + minDays);
       const to = last + maxDays;
       if (from >= list.length) break;
-      const inWindow = list.filter((d) => {
-        const i = dayIdx(d.dayStart);
-        return i >= from && i <= to && windowOf(d).end > now;
-      });
-      if (inWindow.length === 0) {
-        last = to;
-        continue;
-      }
-      // 洗濯などは雨の日を避ける（外出の日と同じく、最後の日だけの手段にする）
-      const unfit = (d: DayPlan) => outingDays.has(d.dayStart) || (!!habit.avoidRain && rainyDays.has(d.dayStart));
-      const home = inWindow.filter((d) => !unfit(d));
-      const lighter = (a: DayPlan, b: DayPlan) => energyOn(a) - energyOn(b) || a.dayStart - b.dayStart;
-      const holidays = home.filter((d) => d.holiday).sort(lighter);
-      const late = home.filter((d) => dayIdx(d.dayStart) >= to - 1).sort(lighter);
-      const rest = home.filter((d) => !holidays.includes(d) && !late.includes(d)).sort(lighter);
-      // 最後の日が範囲の中にあるときだけ、外出の日も最後の手段にする
-      const lastResort = inWindow.filter((d) => unfit(d) && dayIdx(d.dayStart) === to);
-      // 休日がなければ、間隔の終わりまで待ってから（間隔の終わりが先なら今は置かない）
-      const order = holidays.length || to < list.length ? [...holidays, ...late, ...rest, ...lastResort] : [];
-      const placed = order.find((d) => tryPlaceOn(d));
+      // 間隔の中から、入れられる日を条件のいい順に
+      const inWindow = list.filter((d) => dayIdx(d.dayStart) >= from && dayIdx(d.dayStart) <= to && open(d)).sort(better);
+      // 間隔の中に入らなければ、飛ばさずに、そのあとで入れられるいちばん早い日に
+      const placed = inWindow.find((d) => tryPlaceOn(d)) ?? list.filter((d) => dayIdx(d.dayStart) > to && open(d)).find((d) => tryPlaceOn(d));
       if (!placed) {
         if (to < list.length) skippedHabits.push({ habitId: habit.id, dayStart: list[Math.min(to, list.length - 1)].dayStart, reason: "no_room" });
-        last = to;
-        continue;
+        break;
       }
       last = dayIdx(placed.dayStart);
     }

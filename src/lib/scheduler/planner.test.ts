@@ -374,11 +374,37 @@ describe("洗濯の間隔と外出の日", () => {
     expect(dayNo(starts(r)[0])).toBe(4);
   });
 
-  it("休日がなければ、間隔の終わりごろの軽い日にする", () => {
-    // 前回は 9/28 → 10/2〜10/5。どの日もオンの日
+  it("家にいられる日なら、家での予定がある日にも入れる（行動ポイントの軽い順、同じなら早い日）", () => {
+    // 前回は 9/28 → 10/2〜10/5。どの日も家でのオンライン授業がある
     const events = [1, 2, 3, 4, 5, 6, 7].map(onDay);
     const r = plan(baseInput(now, { events, habits: [laundry], habitLastDone: { laundry: jst(2026, 9, 28, 10) } }));
-    expect(dayNo(starts(r)[0])).toBeGreaterThanOrEqual(3);
+    expect(dayNo(starts(r)[0])).toBe(1);
+  });
+
+  // 大学など、少しだけ出かける日（外出の日ではない）
+  const campus = (day: number) => ({ id: `c${day}`, title: "ゼミ", start: jst(2026, 10, day, 13), end: jst(2026, 10, day, 15), location: "大学", travelMinutes: 10 });
+  // 洗濯の時間帯（9〜16時）がまるごと外出でふさがる日
+  const allDay = (day: number) => ({ ...outing(day), id: `all${day}`, start: jst(2026, 10, day, 8, 30), end: jst(2026, 10, day, 17) });
+  const last = { laundry: jst(2026, 9, 28, 10) };
+
+  it("家にいられる日を、少しでも出かける日より先に選ぶ", () => {
+    const events = [2, 3, 5].map(campus);
+    const r = plan(baseInput(now, { events, habits: [laundry], habitLastDone: last }));
+    expect(dayNo(starts(r)[0])).toBe(3);
+  });
+
+  it("間隔の中が雨の日と外出の日だけでも飛ばさず、条件のいい日（家にいられる雨の日）に入れる", () => {
+    const rainy = { ...laundry, avoidRain: true };
+    const events = [outing(2), outing(3)];
+    const rainyDays = [2, 3, 4, 5].map((d) => jst(2026, 10, d));
+    const r = plan(baseInput(now, { events, rainyDays, habits: [rainy], habitLastDone: last }));
+    expect(dayNo(starts(r)[0])).toBe(3);
+  });
+
+  it("間隔の中にどうしても入らなければ、そのあとで入れられるいちばん早い日に入れる", () => {
+    const events = [2, 3, 4, 5].map(allDay);
+    const r = plan(baseInput(now, { events, habits: [laundry], habitLastDone: last }));
+    expect(dayNo(starts(r)[0])).toBe(5);
   });
 
   it("外出の日には、自炊も洗濯も入れない", () => {
