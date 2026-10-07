@@ -1,11 +1,11 @@
 import type { Habit } from "@/lib/scheduler";
 import { DAY_MS, MIN, TZ } from "./jst";
-import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData } from "./model";
+import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData, type RewardBank, type RewardSource } from "./model";
 import { usedSlotMinutes } from "./progress";
 import { ON_TIME_GRACE_MINUTES, allNights, bedOnTimeOf, bedTimeOf, upOnTime } from "./night";
 
 type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" | "rewardSpends" | "rewardRates"> &
-  Partial<Pick<MockData, "bedLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings" | "rhythmResets">>;
+  Partial<Pick<MockData, "bedLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings" | "rhythmResets" | "rewardBank">>;
 
 /** 「寝る」を押した夜が予定どおりか（おやすみのカードで、遅れを出すかどうか）。判定は夜の記録と同じ猶予 */
 export const bedOnTime = (l: { at: number; plannedBed: number }) => l.at <= l.plannedBed + ON_TIME_GRACE_MINUTES * MIN;
@@ -97,18 +97,45 @@ export function periodStats(data: Data, from: number, to: number, now: number): 
 }
 
 /** ご褒美がたまったもと */
-export type RewardSource = "wake" | "routine" | "bed" | "habit" | "task" | "log";
+export type { RewardSource } from "./model";
 export const REWARD_SOURCES: { id: RewardSource; label: string }[] = [
   { id: "wake", label: "起床" },
   { id: "routine", label: "朝ルーティン" },
   { id: "bed", label: "就寝" },
-  { id: "habit", label: "習慣" },
-  { id: "task", label: "タスク" },
+  { id: "habit", label: "習慣（食事を除く）" },
+  { id: "task", label: "タスクの枠" },
   { id: "log", label: "記録" },
 ];
 
-/** ご褒美のお金の、もとごとのたまった額（円）。[from, to) を渡せばその間だけ */
+export const EMPTY_REWARD_BANK: RewardBank = { until: 0, yen: { wake: 0, routine: 0, bed: 0, habit: 0, task: 0, log: 0 } };
+
+/** 繰り越しにする境目：今日の3週間前。記録のいちばん短い保存期限（60日）より十分に新しい */
+const BANK_LAG_DAYS = 21;
+
+/**
+ * ご褒美のお金の、もとごとのたまった額（円）。[from, to) を渡せばその間だけ。
+ * 繰り越し（rewardBank）に入っている分は、全期間（from を渡さない）のときだけ足す。週ごとの内訳は記録から数える
+ */
 export function rewardBreakdown(data: Data, from = -Infinity, to = Infinity): Record<RewardSource, number> {
+  const bank = data.rewardBank ?? EMPTY_REWARD_BANK;
+  const yen = rewardBreakdownOfLogs(data, Math.max(from, bank.until), to);
+  if (from === -Infinity) for (const k of Object.keys(yen) as RewardSource[]) yen[k] += bank.yen[k] ?? 0;
+  return yen;
+}
+
+/**
+ * 3週間より前の分を繰り越しに移す（記録が期限で消えても、たまった額が減らないように）。
+ * 変わらなければ同じものを返す
+ */
+export function bankRewards(data: Data, now: number): RewardBank {
+  const bank = data.rewardBank ?? EMPTY_REWARD_BANK;
+  const cutoff = (dayStartOfKey(dateKeyOf(now)) ?? now) - BANK_LAG_DAYS * DAY_MS;
+  if (cutoff <= bank.until) return bank;
+  const add = rewardBreakdownOfLogs(data, bank.until, cutoff);
+  return { until: cutoff, yen: Object.fromEntries((Object.keys(bank.yen) as RewardSource[]).map((k) => [k, (bank.yen[k] ?? 0) + add[k]])) as RewardBank["yen"] };
+}
+
+function rewardBreakdownOfLogs(data: Data, from: number, to: number): Record<RewardSource, number> {
   const r = data.rewardRates;
   const inRange = (t: number | undefined) => t !== undefined && t >= from && t < to;
   const yen: Record<RewardSource, number> = { wake: 0, routine: 0, bed: 0, habit: 0, task: 0, log: 0 };
@@ -212,10 +239,11 @@ export function habitProgress(
   for (let i = 0; i < 14; i++) done += markValue(data.habitLogs[dateKeyOf(today - i * DAY_MS)]?.[habit.id], habit);
   if (habit.frequency.type === "weekly") {
     const times = habit.frequency.times;
-    // 今週はまだ途中なので、先週から数える（今週もう達していれば今週も入れる）
-    const countWeek = (end: number) => Array.from({ length: 7 }, (_, i) => end - i * DAY_MS).filter(marked).length;
-    let streak = countWeek(today) >= times ? 1 : 0;
-    for (let w = 1; w < 52 && countWeek(today - w * 7 * DAY_MS) >= times; w++) streak++;
+    // 月曜始まりの週で数える。今週はまだ途中なので、先週から数える（今週もう達していれば今週も入れる）
+    const countWeek = (monday: number) => Array.from({ length: 7 }, (_, i) => monday + i * DAY_MS).filter(marked).length;
+    const thisMonday = mondayOf(today);
+    let streak = countWeek(thisMonday) >= times ? 1 : 0;
+    for (let w = 1; w < 52 && countWeek(thisMonday - w * 7 * DAY_MS) >= times; w++) streak++;
     return { streak, unit: "週", done, expected: times * 2 };
   }
   // 今日まだなら昨日から数える

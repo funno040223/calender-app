@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { DayPlan } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, MIN, dayStartOf, formatMinutes, formatTime } from "@/lib/mock/jst";
-import { BED_PREP_MINUTES } from "@/lib/notify/build";
 import { SLEEP_SHORTCUT_URL, markHealthAsked } from "@/lib/sync/health";
 import { nightOf } from "@/lib/mock/night";
 import { dateKeyOf, wakeStreak, type MorningFatigue, type WakeLog, type MockData } from "@/lib/mock/model";
@@ -70,7 +69,7 @@ export function isMorning(state: ReturnType<typeof useApp>["state"], day: DayPla
   const wake = day?.wake ?? today + 9 * 60 * MIN;
   if (now < wake - 2 * 60 * MIN) return false;
   const log = state.wakeLogs.find((l) => l.date === dateKeyOf(today));
-  if (log?.wokeAt === undefined) return now < (day?.bed ?? today + DAY_MS) - BED_PREP_MINUTES * MIN;
+  if (log?.wokeAt === undefined) return now < (day?.bed ?? today + DAY_MS) - state.settings.windDownMinutes * MIN;
   if (now >= wake + 4 * 60 * MIN) return false;
   const finished =
     log?.wokeAt !== undefined && log.fatigue !== undefined && (state.routineSteps.length === 0 || log.routineDoneAt !== undefined);
@@ -128,6 +127,12 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
   // ヘルスケアの起床で組み直した朝も、前の晩に予定していた起床と比べる（予定どおり起きたか）
   const expectedWake = state.result.rhythmResets?.find((r) => r.plannedEnd !== undefined && dateKeyOf(r.end) === key)?.plannedEnd ?? day?.wake;
   const lateBy = log.wokeAt !== undefined && plannedWake !== undefined ? Math.round((log.wokeAt - plannedWake) / MIN) : 0;
+  // ヘルスケアを取り込んでいて、今朝の分がまだ届いていないとき（ロック中は読めないので、ここから送る）。「起きた」を押す前から出す
+  const healthLink = Object.keys(state.healthSleep).length > 0 && !state.healthSleep[key] && log.sleepMinutes === undefined && (
+    <a href={SLEEP_SHORTCUT_URL} onClick={markHealthAsked} className={`${textBtn} self-start`}>
+      ヘルスケアから読む
+    </a>
+  );
   const streakBadge = streak > 0 && <span className="shrink-0 text-[13px] font-semibold text-ok">連続 {streak}日</span>;
 
   if (compact && !open) {
@@ -167,6 +172,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
             </button>
             {/* 今日の楽しみは伏せておき、起きたら開く（起き上がるきっかけに） */}
             {treat && <p className="text-center text-[13px] text-muted">起きると、今日の楽しみが開きます</p>}
+            {healthLink}
           </>
         ) : (
           <>
@@ -222,12 +228,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
               fallback={state.settings.sleepMinutes}
               onChange={(m) => setLog((l) => ({ ...l, sleepMinutes: m }))}
             />
-            {/* ヘルスケアを取り込んでいて、今朝の分がまだ届いていないとき（ロック中は読めないので、ここから送る） */}
-            {Object.keys(state.healthSleep).length > 0 && !state.healthSleep[key] && log.sleepMinutes === undefined && (
-              <a href={SLEEP_SHORTCUT_URL} onClick={markHealthAsked} className={`${textBtn} self-start`}>
-                ヘルスケアから読む
-              </a>
-            )}
+            {healthLink}
           </>
         )}
       </div>

@@ -18,8 +18,9 @@ import type {
 import { CUE_GAP_MINUTES, CUE_SLACK_MINUTES, MEAL_GAP_MINUTES, MEAL_LATE_MINUTES } from "./types";
 import { DAY_MS, MIN, ceilToStep, floorMinutesToStep, floorToStep, localDayStart, localWeekday } from "./time";
 import { intersect, lengthMinutes, merge, subtract } from "./intervals";
-import { DAY_BEGINS_AT_MINUTE, computeDayPlans, latestWakeOfDay } from "./rhythm";
+import { computeDayPlans, latestWakeOfDay, wakingDayStart } from "./rhythm";
 import { resolveTravel } from "./travel";
+import { dayLoadOf } from "./dayload";
 
 const FALLBACK_TASK_MINUTES = 60;
 const FALLBACK_TAG: Omit<Tag, "id" | "name"> = {
@@ -156,7 +157,7 @@ export function plan(input: PlanInput): PlanResult {
 
   const dayOf = (t: number): DayPlan | undefined => days.find((d) => t >= d.wake && t < d.bed);
   /** その時刻が、どの日（起きている時間）の分か。計画の日の外なら、夜中0時〜4時は前の日の分 */
-  const wakingDayOf = (t: number) => dayOf(t)?.dayStart ?? localDayStart(t - DAY_BEGINS_AT_MINUTE * MIN, s.tzOffsetMinutes);
+  const wakingDayOf = (t: number) => wakingDayStart(t, days, s.tzOffsetMinutes);
   /** 残した枠のうち、その日の習慣があるか */
   const keptOn = (habitId: string, d: DayPlan) => kept.some((b) => b.kind === "habit" && b.refId === habitId && wakingDayOf(b.start) === d.dayStart);
   const dayIndex = (d: DayPlan) => Math.max(0, Math.round((d.dayStart - firstDay) / DAY_MS));
@@ -165,7 +166,7 @@ export function plan(input: PlanInput): PlanResult {
   /** 身支度を始める時刻：家を出る（人に会う予定が始まる）直前。朝ルーティンの終わりより前にはしない */
   const prepStartOf = (d: DayPlan): number | undefined => {
     if (!d.prep) return undefined;
-    const goal = d.leave ?? d.firstEvent?.start;
+    const goal = d.prepAt;
     const routineEnd = routineStartOf(d) + s.routineMinutes * MIN;
     return goal === undefined ? routineEnd : Math.max(routineEnd, goal - s.prepMinutes * MIN);
   };
@@ -262,7 +263,7 @@ export function plan(input: PlanInput): PlanResult {
   const movable = previous.filter((b) => !kept.includes(b));
   const routineBlocks: Block[] = sleep.filter((r) => r.end > firstDay && r.start < horizonEnd).map((r) => ({ kind: "routine", refId: "sleep:" + r.id, title: r.mode === "sleep" ? "睡眠（予定）" : "睡眠（記録）", start: r.start, end: r.end }));
   for (const d of days) {
-    const cap = d.leave ?? d.firstEvent?.start ?? Infinity;
+    const cap = Math.min(d.leave ?? Infinity, d.firstEvent?.start ?? Infinity);
     // 身支度は、人に会う予定がある日だけ。出発が遅い日は、朝ルーティンとは分けて出発の直前に置く
     const prepStart = prepStartOf(d);
     const routineStart = routineStartOf(d);
@@ -272,7 +273,7 @@ export function plan(input: PlanInput): PlanResult {
       routineBlocks.push({ kind: "routine", refId: "routine", title: together ? "朝ルーティン・身支度" : "朝ルーティン", start: routineStart, end });
     }
     if (prepStart !== undefined && !together) {
-      const prepEnd = Math.min(prepStart + s.prepMinutes * MIN, cap);
+      const prepEnd = Math.min(prepStart + s.prepMinutes * MIN, d.prepAt ?? cap);
       if (prepEnd > prepStart && prepEnd > now && !busy.some((v) => overlaps(v, { start: prepStart, end: prepEnd }))) {
         routineBlocks.push({ kind: "routine", refId: "prep", title: "身支度", start: prepStart, end: prepEnd });
       }
@@ -327,23 +328,14 @@ export function plan(input: PlanInput): PlanResult {
   // ---- 外出の日 ----
   // 家にいない時間（移動を含む）が長い日は、自炊や洗濯を入れず、食事は外食・お弁当にする
   const mergedAway = merge(away);
-  const outingDays = new Set(
-    days
-      .filter(
-        (d) =>
-          intersect(mergedAway, { start: d.wake, end: d.bed }).reduce((sum, i) => sum + lengthMinutes(i), 0) >=
-          s.outingDayAwayMinutes,
-      )
-      .map((d) => d.dayStart),
-  );
+  for (const d of days) Object.assign(d, dayLoadOf(input.events, places, s, d.wake, d.bed));
+  const outingDays = new Set(days.filter((d) => d.outing).map((d) => d.dayStart));
   const dayIdx = (dayStart: number) => Math.round((dayStart - firstDay) / DAY_MS);
 
-  // 予定の多い日（外出の日・予定が3つ以上・合わせて4時間以上）で、最後の予定が夕方以降に終わる日は、そこからを夜とする
+  // 予定の多い日で、最後の予定が夕方以降に終わる日は、そこからを夜とする
   for (const d of days) {
-    const timed = input.events.filter((ev) => !ev.allDay && ev.start < d.bed && ev.end > d.wake);
-    const hours = timed.reduce((sum, ev) => sum + (Math.min(ev.end, d.bed) - Math.max(ev.start, d.wake)), 0) / (60 * MIN);
-    if (!(outingDays.has(d.dayStart) || timed.length >= 3 || hours >= 4)) continue;
-    const ends = timed.map((ev) => {
+    if (!d.heavy) continue;
+    const ends = input.events.filter((ev) => !ev.allDay && ev.start < d.bed && ev.end > d.wake).map((ev) => {
       const t = resolveTravel(ev, places, s);
       return ev.end + (t.atHome ? 0 : t.minutes * MIN);
     });

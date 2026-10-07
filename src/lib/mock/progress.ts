@@ -1,4 +1,4 @@
-import { estimateMinutes } from "@/lib/scheduler";
+import { estimateMinutes, type Tag } from "@/lib/scheduler";
 import { MIN } from "./jst";
 import { taskBlockKey, type MockData, type TaskBlockLog } from "./model";
 
@@ -27,6 +27,37 @@ export function workedByTask(log: Record<string, TaskBlockLog>): Map<string, num
   return spent;
 }
 
+/** 実績の目安を使うのに必要な、終わったタスクの数 */
+export const LEARN_MIN_SAMPLES = 3;
+
+/**
+ * 作業の種類ごとの、実際にかかった時間の中央値（分）と件数。
+ * 終わったタスクについて、作業したと確かめた枠の長さを足したものを「かかった時間」とする
+ */
+export function learnedMinutes(data: Pick<MockData, "doneTasks" | "taskBlockLog">): Record<string, { minutes: number; samples: number }> {
+  // 「予定どおりできた」「完了」で確かめた枠と、以前の版で残り時間から引いた枠だけを、作業した時間として数える
+  const spent = workedByTask(data.taskBlockLog);
+  const byTag = new Map<string, number[]>();
+  for (const t of data.doneTasks) {
+    const m = spent.get(t.id);
+    if (!t.tagId || !m) continue;
+    byTag.set(t.tagId, [...(byTag.get(t.tagId) ?? []), m]);
+  }
+  return Object.fromEntries(
+    [...byTag].map(([tag, xs]) => {
+      const s = [...xs].sort((a, b) => a - b);
+      const mid = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
+      return [tag, { minutes: Math.round(mid / 15) * 15 || 15, samples: s.length }];
+    }),
+  );
+}
+
+/** 配置に使う作業の種類：実績が LEARN_MIN_SAMPLES 件以上あれば、所要時間の目安を実績の中央値にする */
+export function planTagsOf(data: Pick<MockData, "tags" | "doneTasks" | "taskBlockLog">): Tag[] {
+  const learned = learnedMinutes(data);
+  return data.tags.map((t) => (learned[t.id]?.samples >= LEARN_MIN_SAMPLES ? { ...t, defaultMinutes: learned[t.id].minutes } : t));
+}
+
 /** 予定の経過は実行とは区別する。未回答の枠を翌日以降も残す。 */
 export function captureTaskBlocks(d: MockData, now: number): MockData {
   const logs = { ...d.taskBlockLog };
@@ -40,12 +71,14 @@ export function captureTaskBlocks(d: MockData, now: number): MockData {
 
 export function pendingWork(d: MockData, now: number) {
   const logs = captureTaskBlocks(d, now).taskBlockLog;
+  // 所要時間の目安は配置と同じ（実績が3件以上あれば実績の中央値）
+  const tags = planTagsOf(d);
   return d.tasks.flatMap((task) => {
     const entries = Object.entries(logs).filter(([key, l]) =>
       key.slice(0, key.lastIndexOf(":")) === task.id && l.end <= now && !l.counted && l.reviewedAt === undefined,
     );
     if (!entries.length) return [];
-    const before = estimateMinutes(task, d.tags.find((t) => t.id === task.tagId));
+    const before = estimateMinutes(task, tags.find((t) => t.id === task.tagId));
     const minutes = entries.reduce((sum, [, l]) => sum + Math.round((l.end - l.start) / MIN), 0);
     return [{ task, entries, before, minutes, expected: Math.max(0, before - minutes) }];
   });
@@ -61,7 +94,7 @@ export function confirmWork(d: MockData, taskId: string, keys: string[], outcome
     return l && key.slice(0, key.lastIndexOf(":")) === taskId && l.end <= now && !l.counted && l.reviewedAt === undefined ? [[key, l] as const] : [];
   });
   if (!entries.length) return d;
-  const before = estimateMinutes(task, d.tags.find((t) => t.id === task.tagId));
+  const before = estimateMinutes(task, planTagsOf(d).find((t) => t.id === task.tagId));
   const minutes = entries.reduce((sum, [, l]) => sum + Math.round((l.end - l.start) / MIN), 0);
   const after = outcome === "done" ? 0 : outcome === "none" ? before
     : outcome === "partial" && remaining !== undefined && Number.isFinite(remaining) ? Math.max(0, remaining)

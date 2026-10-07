@@ -1,7 +1,8 @@
 import { bedtimeSleeps, reconcileBedtime, settledResets } from "./bedtime";
-import { captureTaskBlocks, workedByTask } from "./progress";
-import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, resolveTravel, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
+import { captureTaskBlocks, planTagsOf } from "./progress";
+import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, wakingDayStart, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardBank, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
+import { EMPTY_REWARD_BANK, bankRewards } from "./stats";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
 import { UTOKYO_TERMS } from "./utokyo";
 import {
@@ -38,42 +39,13 @@ export interface MockState extends MockData {
   planTags: Tag[];
 }
 
-/** 実績の目安を使うのに必要な、終わったタスクの数 */
-export const LEARN_MIN_SAMPLES = 3;
-
-/**
- * 作業の種類ごとの、実際にかかった時間の中央値（分）と件数。
- * 終わったタスクについて、作業したと確かめた枠の長さを足したものを「かかった時間」とする
- */
-export function learnedMinutes(data: Pick<MockData, "doneTasks" | "taskBlockLog">): Record<string, { minutes: number; samples: number }> {
-  // 「予定どおりできた」「完了」で確かめた枠と、以前の版で残り時間から引いた枠だけを、作業した時間として数える
-  const spent = workedByTask(data.taskBlockLog);
-  const byTag = new Map<string, number[]>();
-  for (const t of data.doneTasks) {
-    const m = spent.get(t.id);
-    if (!t.tagId || !m) continue;
-    byTag.set(t.tagId, [...(byTag.get(t.tagId) ?? []), m]);
-  }
-  return Object.fromEntries(
-    [...byTag].map(([tag, xs]) => {
-      const s = [...xs].sort((a, b) => a - b);
-      const mid = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
-      return [tag, { minutes: Math.round(mid / 15) * 15 || 15, samples: s.length }];
-    }),
-  );
-}
-
-/** 配置に使う作業の種類：実績が LEARN_MIN_SAMPLES 件以上あれば、所要時間の目安を実績の中央値にする */
-export function planTagsOf(data: Pick<MockData, "tags" | "doneTasks" | "taskBlockLog">): Tag[] {
-  const learned = learnedMinutes(data);
-  return data.tags.map((t) => (learned[t.id]?.samples >= LEARN_MIN_SAMPLES ? { ...t, defaultMinutes: learned[t.id].minutes } : t));
-}
+export { LEARN_MIN_SAMPLES, learnedMinutes, planTagsOf } from "./progress";
 
 /** タスクの種類の初期値 */
 /** 作業の種類の初期値（保存したデータの tags がなければこれ） */
 export const TAGS = SAMPLE_TAGS;
 
-const DATA_KEYS = [
+export const DATA_KEYS = [
   "version",
   "rhythmResets",
   "keepFree",
@@ -116,8 +88,12 @@ const DATA_KEYS = [
   "calendarColors",
   "taskChecks",
   "rewardRates",
+  "rewardBank",
   "migrations",
 ] as const satisfies readonly (keyof MockData)[];
+
+/** MockData の項目を足して DATA_KEYS に入れ忘れると、ここで型エラーになる（黙って保存されなくなるのを防ぐ） */
+export const ALL_DATA_KEYS_LISTED: [Exclude<keyof MockData, (typeof DATA_KEYS)[number]>] extends [never] ? true : never = true;
 
 /** 日本時間で動かすので、タイムゾーンは設定で変えられない */
 const normalizeSettings = (s: Partial<Settings> | undefined): Settings => ({
@@ -131,7 +107,8 @@ export function sampleData(now: number): MockData {
     version: 2,
     rhythmResets: [],
     keepFree: [],
-    settings: normalizeSettings(undefined),
+    // 新しいアカウント（見本）も、本人の使い方に合わせた初期値で始める：朝ルーティン10分・起床のご褒美50円
+    settings: { ...normalizeSettings(undefined), routineMinutes: 10 },
     places: SAMPLE_PLACES,
     periods: SAMPLE_PERIODS,
     courses: buildSampleCourses(now),
@@ -166,7 +143,8 @@ export function sampleData(now: number): MockData {
     mealsAtHome: {},
     calendarColors: {},
     taskChecks: {},
-    rewardRates: DEFAULT_REWARD_RATES,
+    rewardRates: { ...DEFAULT_REWARD_RATES, wake: 50 },
+    rewardBank: EMPTY_REWARD_BANK,
     migrations: [...MIGRATIONS],
   };
 }
@@ -472,6 +450,7 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
       isRecord(x) && typeof x.id === "string" && ["sleep", "woke", "tired"].includes(String(x.mode)) && typeof x.start === "number" && Number.isFinite(x.start) && typeof x.end === "number" && Number.isFinite(x.end) && x.end > x.start && x.end - x.start <= 48 * 60 * MIN),
     keepFree: arr<unknown>(d.keepFree, []).filter((x): x is NonNullable<MockData["keepFree"]>[number] =>
       isRecord(x) && typeof x.id === "string" && typeof x.start === "number" && Number.isFinite(x.start) && typeof x.end === "number" && Number.isFinite(x.end) && x.end > x.start && (x.taskId === undefined || typeof x.taskId === "string")),
+    rewardBank: parseRewardBank(d.rewardBank),
     rewardRates: { ...DEFAULT_REWARD_RATES, ...(isRecord(d.rewardRates) ? (d.rewardRates as Partial<RewardRates>) : {}) },
     contactLogs: isRecord(d.contactLogs)
       ? Object.fromEntries(Object.entries(d.contactLogs).filter((e): e is [string, ContactAnswer] => CONTACT_ANSWERS.includes(e[1] as ContactAnswer)))
@@ -562,7 +541,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     const days = new Set((data.habitDoneDays[h.id] ?? []).filter((t) => t >= recent.at(-1)!));
     for (const b of data.blocks) {
       if (b.kind === "habit" && b.refId === h.id && b.start <= now && !notDone(b) && (b.title === h.name || b.title === h.rainAlternative?.title)) {
-        days.add(dayStartOfKey(dateKeyOf(b.start))!);
+        days.add(dayStartOfKey(dateKeyOf(wakingDayStart(b.start, [], data.settings.tzOffsetMinutes)))!);
       }
     }
     habitDoneDays[h.id] = [...days].sort((a, b) => a - b);
@@ -599,12 +578,48 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
         return day === undefined ? [] : [[day, v]];
       }),
     ),
-    rainyDays: rainyDayKeys(data).flatMap((k) => dayStartOfKey(k) ?? []),
+    rainyDays: rainyDayKeys(data, now).flatMap((k) => dayStartOfKey(k) ?? []),
     skipHabitDays: skipDays,
     mealAtHomeDays: byHabit(data.mealsAtHome),
   });
   data = captureDayLog(data, result, events, now);
+  data = pruneOldLogs({ ...data, rewardBank: bankRewards(data, now) }, now);
   return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now, planTags };
+}
+
+/** 日ごとの記録を残す日数。ご褒美は3週間より前の分を繰り越してあるので、消えても減らない */
+const LOG_KEEP_DAYS = 400;
+
+/** 上限なく増える記録の、古い分を捨てる（1行の JSON を小さく保つ）。何も捨てなければ同じものを返す */
+export function pruneOldLogs(d: MockData, now: number): MockData {
+  const from = now - LOG_KEEP_DAYS * DAY_MS;
+  const fromKey = dateKeyOf(from);
+  const byKey = <T,>(r: Record<string, T>) => {
+    const entries = Object.entries(r);
+    const kept = entries.filter(([k]) => k >= fromKey);
+    return kept.length === entries.length ? r : Object.fromEntries(kept);
+  };
+  const upTo = <T,>(xs: T[], keep: (x: T) => boolean) => (xs.every(keep) ? xs : xs.filter(keep));
+  const next: MockData = {
+    ...d,
+    habitLogs: byKey(d.habitLogs),
+    eveningEnergy: byKey(d.eveningEnergy),
+    energyChecks: byKey(d.energyChecks),
+    bedLogs: byKey(d.bedLogs),
+    contactLogs: byKey(d.contactLogs),
+    smokeLogs: upTo(d.smokeLogs, (t) => t >= from),
+    wakeLogs: upTo(d.wakeLogs, (l) => l.date >= fromKey),
+    doneTasks: upTo(d.doneTasks, (t) => t.doneAt >= from),
+    taskBlockLog: Object.values(d.taskBlockLog).every((b) => b.start >= from) ? d.taskBlockLog : Object.fromEntries(Object.entries(d.taskBlockLog).filter(([, b]) => b.start >= from)),
+  };
+  return (Object.keys(next) as (keyof MockData)[]).every((k) => next[k] === d[k]) ? d : next;
+}
+
+function parseRewardBank(v: unknown): RewardBank {
+  if (!isRecord(v) || typeof v.until !== "number" || !Number.isFinite(v.until) || !isRecord(v.yen)) return EMPTY_REWARD_BANK;
+  const y = v.yen;
+  const num = (k: string) => (typeof y[k] === "number" && Number.isFinite(y[k]) ? (y[k] as number) : 0);
+  return { until: v.until, yen: { wake: num("wake"), routine: num("routine"), bed: num("bed"), habit: num("habit"), task: num("task"), log: num("log") } };
 }
 
 /** 計画の控えを残す日数 */
@@ -619,9 +634,6 @@ export function captureDayLog(data: MockData, result: PlanResult, events: Calend
   const end = today + DAY_MS;
   const key = dateKeyOf(today);
   const todays = events.filter((e) => !e.allDay && e.start >= today && e.start < end);
-  const away =
-    todays.some((e) => !resolveTravel(e, data.places, data.settings).atHome) ||
-    events.some((e) => e.allDay && e.awayFromHome && e.start < end && e.end > today);
   const energy = result.dayEnergy.find((x) => x.dayStart === today);
   const plan = result.dayPlans.find((x) => x.dayStart === today);
   const prev = data.dayLogs[key];
@@ -635,8 +647,9 @@ export function captureDayLog(data: MockData, result: PlanResult, events: Calend
   }
   const next: DayLog = {
     events: todays.length,
-    away,
-    rainy: rainyDayKeys(data).includes(key),
+    away: plan?.outing ?? false,
+    ...(plan?.heavy !== undefined ? { heavy: plan.heavy } : {}),
+    rainy: rainyDayKeys(data, now).includes(key),
     ...(energy ? { points: energy.used, budget: energy.budget } : {}),
     ...(plan ? { bed: plan.bed } : {}),
     habits: [...habits].sort(),
@@ -705,9 +718,13 @@ export function travelAsks(state: Pick<MockState, "googleEvents" | "importedTrav
   );
 }
 
-/** 雨の日：手で雨にした日と、予報の雨の確率が RAIN_THRESHOLD 以上の日。晴れたので戻した日は除く */
-export function rainyDayKeys(data: Pick<MockData, "rainyDays" | "notRainyDays" | "rainForecast">): string[] {
-  const forecast = Object.entries(data.rainForecast?.days ?? {})
+/** 予報がこれより古いときは使わない（アプリを開かない間に、外れているかもしれない） */
+export const FORECAST_FRESH_MS = 24 * 60 * 60_000;
+
+/** 雨の日：手で雨にした日と、予報の雨の確率が RAIN_THRESHOLD 以上の日。晴れたので戻した日は除く。古い予報は使わない */
+export function rainyDayKeys(data: Pick<MockData, "rainyDays" | "notRainyDays" | "rainForecast">, now = Date.now()): string[] {
+  const fresh = data.rainForecast && now - data.rainForecast.fetchedAt <= FORECAST_FRESH_MS;
+  const forecast = Object.entries(fresh ? (data.rainForecast?.days ?? {}) : {})
     .filter(([, p]) => p >= RAIN_THRESHOLD)
     .map(([k]) => k);
   const not = new Set(data.notRainyDays);

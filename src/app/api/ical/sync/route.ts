@@ -14,7 +14,7 @@ const DAY_MS = 24 * 60 * 60_000;
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as { from?: unknown; to?: unknown };
   const now = Date.now();
-  const from = typeof body.from === "number" ? body.from : now - DAY_MS;
+  const from = typeof body.from === "number" ? body.from : now - 8 * DAY_MS;
   const to = typeof body.to === "number" ? body.to : now + 16 * DAY_MS;
 
   const { data: auth } = await (await createClient()).auth.getUser();

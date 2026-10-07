@@ -51,7 +51,7 @@ export default function RecoveryCard({ now }: { now: number }) {
   const active = resets.filter((r) => r.end > now).at(-1);
   const remainingConflicts = [
     ...resets.flatMap((r) => resetConflicts(state, r)),
-    ...state.result.dayPlans.flatMap((d) => (d.firstEvent && (d.leave ?? d.firstEvent.start) < d.wake ? [d.firstEvent] : [])),
+    ...state.result.dayPlans.flatMap((d) => (d.firstEvent && Math.min(d.leave ?? Infinity, d.firstEvent.start) < d.wake ? [d.firstEvent] : [])),
   ].filter((c, i, all) => c.end > now && all.findIndex((x) => x.title === c.title && x.start === c.start) === i);
   const input = "mt-1 w-full min-w-0 rounded-lg border border-line bg-surface2 p-2";
   return (

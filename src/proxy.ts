@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { LOCAL_DEBUG } from "@/lib/localDebug";
 
 /**
  * すべてのページの前に動き、ログインを確かめる。
@@ -12,6 +13,8 @@ export async function proxy(request: NextRequest) {
   if (path === "/api/push/dispatch" || path === "/api/push/replan" || path.startsWith("/api/ical/feed/") || path === "/api/health/sleep") {
     return NextResponse.next();
   }
+  // ローカル検証モード（開発サーバーのみ）：ログインを確かめない
+  if (LOCAL_DEBUG) return request.nextUrl.pathname === "/login" ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next();
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

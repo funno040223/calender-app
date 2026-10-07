@@ -9,6 +9,11 @@ export interface Notice {
   body: string;
   /** 押したときに開く画面 */
   url: string;
+  /**
+   * この時刻までは、遅れても送る（定期実行や公開先が止まっていた間の通知を、復旧後に届ける）。
+   * 予定が始まる・出発する・枠が終わるなど、知らせる意味がなくなる時刻。なければ at から10分
+   */
+  until?: number;
 }
 
 export interface NoticeInput {
@@ -35,8 +40,6 @@ export const NOTICE_LEAD_MINUTES = 15;
 export const NOTICE_HORIZON_MS = 48 * 60 * MIN;
 /** タバコの区切り（就寝の何分前）。就寝前4時間以内の喫煙は睡眠を悪くする（Spadola 2019）。まずは3時間から */
 export const SMOKE_CUTOFF_MINUTES = 180;
-/** 寝る準備の合図（就寝の何分前） */
-export const BED_PREP_MINUTES = 30;
 /** Apple Watch の充電を始める合図（就寝の何分前）。寝るときに満タンにして、睡眠を記録する。外出から帰るのがこれより遅い日は、帰宅の時刻に */
 export const WATCH_CHARGE_MINUTES = 120;
 
@@ -74,6 +77,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
     add({
       key: `event:${ev.id}:${ev.start}`,
       at: (leave ?? ev.start) - lead,
+      until: leave ?? ev.start,
       title: leave ? `${formatTime(leave)} に出発：${ev.title}` : `${formatTime(ev.start)} から：${ev.title}`,
       body: leave
         ? `あと${lead / MIN}分で家を出る時刻です（移動 ${travel.minutes}分）。`
@@ -105,6 +109,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
     add({
       key: `block:${b.kind}:${b.refId}:${b.start}`,
       at: b.start,
+      until: Math.min(b.end, b.start + 60 * MIN),
       title: b.title,
       body: b.kind === "habit" && cued.has(b.refId) ? "まず5分" : `${formatTime(b.start)}〜${formatTime(b.end)}`,
       // 通知を開くことと実行の確認は別にする
@@ -124,18 +129,21 @@ export function buildNotices(input: NoticeInput): Notice[] {
       result.shortfalls.length ? `締切に間に合わないタスクが${result.shortfalls.length}件あります` : "",
       input.contactDays?.includes(d.dayStart) ? "連絡してみる？" : "",
     ].filter(Boolean);
-    add({ key: `morning:${d.dayStart}`, at: d.wake, title: "おはようございます", body: parts.join("・"), url: "/" });
+    add({ key: `morning:${d.dayStart}`, at: d.wake, until: d.wake + 2 * 60 * MIN, title: "おはようございます", body: parts.join("・"), url: "/" });
   }
 
   for (const d of days) {
-    // 身支度：朝ルーティンが終わったら始める（家を出る時刻・顔を出す予定の開始まで）
-    const goal = d.leave ?? d.firstEvent?.start;
-    if (d.prep && goal !== undefined) {
+    // 身支度（1日1回）：置いた身支度の枠の始まり。朝ルーティンに続けて置いた日は、朝ルーティンが終わる時刻
+    const goal = d.prepAt;
+    const placed = result.blocks.find((b) => b.kind === "routine" && b.start >= d.dayStart && b.start < d.dayStart + 24 * 60 * MIN && (b.refId === "prep" || b.title === "朝ルーティン・身支度"));
+    const prepStart = placed ? (placed.refId === "prep" ? placed.start : placed.start + settings.routineMinutes * MIN) : goal === undefined ? undefined : goal - settings.prepMinutes * MIN;
+    if (d.prep && goal !== undefined && prepStart !== undefined) {
       add({
         key: `prep:${d.dayStart}`,
-        at: goal - settings.prepMinutes * MIN,
+        at: prepStart,
+        until: goal,
         title: "身支度を始める",
-        body: d.leave ? `出発 ${formatTime(d.leave)}` : `${formatTime(goal)} から：${d.firstEvent?.title ?? ""}`,
+        body: d.prepAway ? `出発 ${formatTime(goal)}` : `${formatTime(goal)} から：${d.prepEvent?.title ?? ""}`,
         url: "/",
       });
     }
@@ -147,7 +155,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
         at: eveningAt,
         title: d.homeAt !== undefined ? "おかえりなさい" : "おつかれさまです",
         body: "残りの体力は？",
-        url: "/?checkin=1",
+        url: "/",
       });
     }
     add({
@@ -167,7 +175,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
     });
     add({
       key: `bedprep:${d.dayStart}`,
-      at: d.bed - BED_PREP_MINUTES * MIN,
+      at: d.bed - settings.windDownMinutes * MIN,
       title: "寝る準備の時間です",
       // 起床の時刻も出して、アラームをその時刻に合わせられるようにする（睡眠アラームはショートカットで時刻を変えられない）
       body: `Apple Watch をつける・スマホは充電場所へ。就寝 ${formatTime(d.bed)}・起床 ${formatTime(days[days.indexOf(d) + 1]?.wake ?? d.bed + settings.sleepMinutes * MIN)}`,

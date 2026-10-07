@@ -1,4 +1,4 @@
-import { resolveTravel, type AvoidWindow, type CalendarEvent, type TaskStrategy } from "@/lib/scheduler";
+import { dayLoadOf, resolveTravel, type AvoidWindow, type CalendarEvent, type TaskStrategy } from "@/lib/scheduler";
 import { DAY_MS, MIN, TZ, dayStartOf } from "./jst";
 import { dateKeyOf, dayStartOfKey, type MockData } from "./model";
 import { planEvents, type MockState } from "./state";
@@ -149,15 +149,8 @@ function busyDays(state: MockState, events: CalendarEvent[], days: number[]): Se
   const out = new Set<number>();
   for (const d of days) {
     const log = state.dayLogs[dateKeyOf(d)];
-    if (log) {
-      if (log.away || log.events >= 3) out.add(d);
-      continue;
-    }
-    const todays = events.filter((e) => !e.allDay && e.start >= d && e.start < d + DAY_MS);
-    const away =
-      todays.some((e) => !resolveTravel(e, state.places, state.settings).atHome) ||
-      events.some((e) => e.allDay && e.awayFromHome && e.start < d + DAY_MS && e.end > d);
-    if (away || todays.length >= 3) out.add(d);
+    const heavy = log ? (log.heavy ?? (log.away || log.events >= 3)) : dayLoadOf(events, state.places, state.settings, d, d + DAY_MS).heavy;
+    if (heavy) out.add(d);
   }
   return out;
 }

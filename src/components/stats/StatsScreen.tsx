@@ -82,7 +82,7 @@ function Summary() {
   const tiles = [
     { label: "予定どおり起きた", value: ratio(cur.wake), prev: ratio(prev.wake) },
     { label: "予定どおり寝た", value: ratio(cur.bed), prev: ratio(prev.bed) },
-    { label: "習慣", value: `${fmtN(cur.habit)}回`, prev: `${fmtN(prev.habit)}回` },
+    { label: "習慣（食事を含む）", value: `${fmtN(cur.habit)}回`, prev: `${fmtN(prev.habit)}回` },
     { label: "作業した時間", value: cur.work ? formatMinutes(cur.work) : "0分", prev: prev.work ? formatMinutes(prev.work) : "0分" },
   ];
   return (

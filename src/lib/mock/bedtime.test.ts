@@ -107,6 +107,16 @@ describe("ヘルスケアの睡眠から組み直す", () => {
     expect(state.result.dayPlans[0].wake).toBe(end);
     expect(state.result.rhythmResets).toContainEqual(expect.objectContaining({ id: "health:2026-10-01", start: jst(2026, 10, 1, 3), plannedEnd: jst(2026, 10, 1, 9) }));
   });
+  it("遅れて届いた睡眠と重なる作業の枠は、自動で「できなかった」にせず、確認に残す", () => {
+    const end = jst(2026, 10, 1, 11, 20);
+    const block = { title: "レポート", start: jst(2026, 10, 1, 9), end: jst(2026, 10, 1, 10) };
+    const state = replan(base(night(jst(2026, 10, 1, 3), end), { taskBlockLog: { "t:1": block } }), [], end + 10 * MIN);
+    expect(state.taskBlockLog["t:1"].outcome).toBeUndefined();
+    expect(state.taskBlockLog["t:1"].reviewedAt).toBeUndefined();
+    // 「起きた」を押した朝は、これまでどおり自動で「できなかった」
+    const pressed = replan(base(night(jst(2026, 10, 1, 3), end), { taskBlockLog: { "t:1": block }, wakeLogs: [{ date: "2026-10-01", doneStepIds: [], wokeAt: end }] }), [], end + 10 * MIN);
+    expect(pressed.taskBlockLog["t:1"].outcome).toBe("none");
+  });
   it("予定より早く起きた記録では、予定を前へは動かさない", () => {
     const end = jst(2026, 10, 1, 7);
     expect(replan(base(night(jst(2026, 10, 1, 1), end)), [], end + 60 * MIN).result.dayPlans[0].wake).toBe(jst(2026, 10, 1, 9));

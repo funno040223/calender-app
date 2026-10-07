@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/components/app/StoreProvider";
+import { wakingDayStart } from "@/lib/scheduler";
 import { LinkIcon } from "@/components/app/icons";
 import { DAY_MS, dayStartOf, formatTime } from "@/lib/mock/jst";
 import { allowsFive, dateKeyOf, type HabitMark } from "@/lib/mock/model";
@@ -86,7 +87,7 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
   for (const b of blocks) {
     if (b.start >= dayEnd) continue;
     const habit = b.kind === "habit" ? state.habits.find((h) => h.id === b.refId) : undefined;
-    const day = dateKeyOf(b.start);
+    const day = dateKeyOf(wakingDayStart(b.start, state.result.dayPlans, state.settings.tzOffsetMinutes));
     const tracked = !!habit?.track && !seen.has(`${day}:${b.refId}`);
     if (tracked) seen.add(`${day}:${b.refId}`);
     const m = tracked ? state.habitLogs[day]?.[b.refId] : undefined;

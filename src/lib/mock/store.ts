@@ -9,6 +9,7 @@ import { buildNotices } from "@/lib/notify/build";
 import type { Block, CalendarEvent } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
 import type { MockData } from "./model";
+import { fingerprints, mergeConflict, type Fingerprints } from "./merge";
 import { contactDaysFor, travelAsks, fromStoredV2, migrateV1, planEvents, replan, sampleData, toData, type MockState } from "./state";
 
 export type { OwnEvent } from "./model";
@@ -103,6 +104,22 @@ export interface ImportStatus {
   error?: string;
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = window.setTimeout(() => reject(new Error("サーバーの応答が遅いので、この端末の控えで始めます")), ms);
+    p.then(
+      (v) => {
+        window.clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        window.clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
 /** Supabase との同期の状態（画面に出す） */
 export type SyncStatus = "loading" | "synced" | "saving" | "offline";
 
@@ -110,6 +127,46 @@ const EDITED_AT_KEY = `${STORAGE_KEY}:editedAt`;
 const SAVE_DELAY_MS = 800;
 /** 通知の一覧は、組み直しが落ち着いてから送る */
 const NOTICE_DELAY_MS = 3000;
+
+/** サーバーに送った（読んだ）時点の、サーバーの保存時刻・この端末の時計・項目ごとの指紋。2台で変えたときの合わせ方に使う */
+const REMOTE_AT_KEY = `${STORAGE_KEY}:remoteAt`;
+const SYNCED_AT_KEY = `${STORAGE_KEY}:syncedAt`;
+const BASE_KEY = `${STORAGE_KEY}:base`;
+/** サーバーの読み込みを待つ長さ。電波が弱いときは、この時間で端末の控えのまま使い始める */
+const LOAD_TIMEOUT_MS = 6000;
+
+function readNumber(key: string): number {
+  try {
+    return Number(window.localStorage.getItem(key) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
+function writeNumber(key: string, v: number) {
+  try {
+    window.localStorage.setItem(key, String(v));
+  } catch {
+    // 保存できない環境では、次に開いたときに項目ごとに合わせ直す
+  }
+}
+function readBase(): Fingerprints | undefined {
+  try {
+    const raw = window.localStorage.getItem(BASE_KEY);
+    return raw ? (JSON.parse(raw) as Fingerprints) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+/** 合わせ終えた内容を、次に2台で変えたときの比べ元として残す */
+function markSynced(data: MockData, serverAt: number, localAt: number) {
+  writeNumber(REMOTE_AT_KEY, serverAt);
+  writeNumber(SYNCED_AT_KEY, localAt);
+  try {
+    window.localStorage.setItem(BASE_KEY, JSON.stringify(fingerprints(data)));
+  } catch {
+    // 比べ元が残せなければ、次は両方で変えた扱いで、足した記録だけ残して合わせる
+  }
+}
 
 function readEditedAt(): number {
   try {
@@ -158,7 +215,7 @@ export function useMockStore() {
     setImports((p) => ({ ...p, state: "loading" }));
     try {
       const now = Date.now();
-      const r = await syncImports(now - DAY, now + 16 * DAY);
+      const r = await syncImports(now - 8 * DAY, now + 16 * DAY);
       const failed = r.sources.find((x) => x.error);
       if (failed) {
         setImports({ state: "error", at: now, sources: r.sources, error: failed.error });
@@ -178,8 +235,11 @@ export function useMockStore() {
   const push = useCallback(async () => {
     setSync("saving");
     dirty.current = false;
+    const startedAt = Date.now();
+    const sent = toData(stateRef.current);
     try {
-      remoteAt.current = await saveRemote(toData(stateRef.current));
+      remoteAt.current = await saveRemote(sent);
+      markSynced(sent, remoteAt.current, startedAt);
       setSync("synced");
     } catch (e) {
       dirty.current = true;
@@ -208,18 +268,29 @@ export function useMockStore() {
         // 前からある端末（まだ記録していない）は、今ログインしている人の控えとみなす
         if (uid) writeOwner(uid);
       }
-      const row = await loadRemote();
-      const newer = row && (initial ? row.updatedAt >= readEditedAt() : row.updatedAt > remoteAt.current);
-      const remote = row && newer ? fromStoredV2(row.data, Date.now()) : undefined;
+      const row = await withTimeout(loadRemote(), LOAD_TIMEOUT_MS);
+      // サーバーが、前に合わせたあとで変わったか／この端末にまだ送っていない変更があるか
+      const remoteChanged = !!row && row.updatedAt > Math.max(remoteAt.current, readNumber(REMOTE_AT_KEY));
+      const localEdited = dirty.current || readEditedAt() > readNumber(SYNCED_AT_KEY);
+      const remote = row && remoteChanged ? fromStoredV2(row.data, Date.now()) : undefined;
       if (row) remoteAt.current = Math.max(remoteAt.current, row.updatedAt);
-      if (remote) {
+      if (remote && localEdited) {
+        // どちらも変えていた：項目ごとに合わせ、この端末で足した記録を失わない。合わせたものをサーバーにも送る
         undoData.current = undefined;
         setCanUndo(false);
-        // ほかの端末で後から保存した内容を使う（まだ送っていないこの端末の変更は捨てる）
+        const merged = mergeConflict(readBase(), toData(stateRef.current), remote);
+        fromRemote.current = false;
+        dirty.current = true;
+        setState(replan(merged, stateRef.current.googleEvents, Date.now()));
+        setSync("saving");
+      } else if (remote) {
+        undoData.current = undefined;
+        setCanUndo(false);
         dirty.current = false;
         fromRemote.current = true;
         const now = Date.now();
         setState(replan(remote, stateRef.current.googleEvents, now));
+        markSynced(remote, row!.updatedAt, now);
         setSync("synced");
       } else if (initial) {
         // サーバーにまだ無いか、この端末のほうが新しい → この端末の内容を送る

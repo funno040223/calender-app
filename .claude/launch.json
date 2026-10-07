@@ -20,6 +20,19 @@
         "3001"
       ],
       "port": 3001
+    },
+    {
+      "name": "dev-local",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NEXT_PUBLIC_LOCAL_DEBUG=1",
+        "npx",
+        "next",
+        "dev",
+        "-p",
+        "3002"
+      ],
+      "port": 3002
     }
   ]
 }

@@ -5,20 +5,19 @@ import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, MIN, formatMinutes, formatTime } from "@/lib/mock/jst";
 import { dateKeyOf } from "@/lib/mock/model";
 import { bedOnTime } from "@/lib/mock/stats";
-import { BED_PREP_MINUTES } from "@/lib/notify/build";
 import { Card, btnPrimary } from "@/components/ui/controls";
 import { labelCls, bigTime, textBtn, CheckCircle } from "./parts";
 
 /** 寝る準備の時刻から就寝の3時間後まで（「おやすみ」を出す間）。就寝を過ぎて前の日の計画が外れたら、昨夜の就寝で見る */
-export function bedDayOf(result: PlanResult, now: number): { dayStart: number; bed: number } | undefined {
-  const on = (d: { bed: number }) => now >= d.bed - BED_PREP_MINUTES * MIN && now < d.bed + 3 * 60 * MIN;
+export function bedDayOf(result: PlanResult, now: number, windDownMinutes: number): { dayStart: number; bed: number } | undefined {
+  const on = (d: { bed: number }) => now >= d.bed - windDownMinutes * MIN && now < d.bed + 3 * 60 * MIN;
   return result.dayPlans.find(on) ?? (result.lastNight && on(result.lastNight) ? result.lastNight : undefined);
 }
 
 /** 寝る準備の時刻になったら「寝る」。予定どおりに寝られたかを残す（ご褒美になる） */
 export default function BedCard({ now }: { now: number }) {
   const { state, update } = useApp();
-  const day = bedDayOf(state.result, now);
+  const day = bedDayOf(state.result, now, state.settings.windDownMinutes);
   const key = day ? dateKeyOf(day.dayStart) : "";
   const log = state.bedLogs[key];
   const record = () =>

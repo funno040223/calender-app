@@ -67,7 +67,7 @@ export default function TodayScreen() {
   const wide = useWide();
   const morning = isMorning(state, day, now);
   // 寝る前は「おやすみ」だけにする（起床・就寝と「今から何する？」は出さない）
-  const bedtime = !!bedDayOf(state.result, now);
+  const bedtime = !!bedDayOf(state.result, now, state.settings.windDownMinutes);
 
   const registerPlace = (location: string, minutes: number) =>
     update((d) => ({

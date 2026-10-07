@@ -76,14 +76,20 @@ export function bedtimeSleeps(data: MockData, events: CalendarEvent[], now: numb
   });
 }
 
-/** 見積もった睡眠と重なる自動の枠を外す。途中までの作業はその時間だけ確認に残す */
+/**
+ * 見積もった睡眠と重なる自動の枠を外す。途中までの作業はその時間だけ確認に残す。
+ * 睡眠の始まりを「寝る」や「起きた」で自分が答えた夜は、その間に始まった枠を「できなかった」にする。
+ * ヘルスケアだけから見積もった睡眠（遅れて届くことがある）では、自動で決めずに「作業の進み具合」で確認する
+ */
 export function reconcileBedtime(data: MockData, sleeps: RhythmReset[], now: number): MockData {
   const taskBlockLog = { ...data.taskBlockLog };
   for (const sleep of sleeps) {
     for (const [key, b] of Object.entries(taskBlockLog)) {
       if (b.start > now || b.end <= sleep.start || b.start >= sleep.end || b.reviewedAt !== undefined || b.counted) continue;
       if (data.blocks.some((x) => x.pinned && `${x.refId}:${x.start}` === key)) continue;
-      taskBlockLog[key] = b.start >= sleep.start ? { ...b, reviewedAt: now, outcome: "none" } : { ...b, end: sleep.start };
+      if (b.start >= sleep.start) {
+        if (!sleep.id.startsWith("health:")) taskBlockLog[key] = { ...b, reviewedAt: now, outcome: "none" };
+      } else taskBlockLog[key] = { ...b, end: sleep.start };
     }
   }
   return { ...data, taskBlockLog, blocks: data.blocks.filter((b) => b.pinned || !sleeps.some((r) => b.start < r.end && b.end > r.start)) };

@@ -57,7 +57,16 @@ export function cleanNotices(raw: unknown): Notice[] {
       title: n.title.slice(0, 100),
       body: typeof n.body === "string" ? n.body.slice(0, 300) : "",
       url,
+      ...(typeof n.until === "number" && Number.isFinite(n.until) ? { until: n.until } : {}),
     });
   }
   return out;
+}
+
+/** 遅れて届いた一覧でも、at から10分までは送る */
+export const GRACE_MS = 10 * 60_000;
+
+/** いま送る通知か。時刻が来ていて、期限（until、なければ at から10分）を過ぎていない */
+export function isDue(n: Pick<Notice, "at" | "until">, now: number): boolean {
+  return n.at <= now && now < Math.max(n.until ?? 0, n.at + GRACE_MS);
 }

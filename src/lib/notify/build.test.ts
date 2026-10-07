@@ -62,10 +62,17 @@ describe("buildNotices", () => {
   });
 
   it("人に会う日は、身支度を始める時刻に知らせる", () => {
-    const d1 = { ...day(1, 8, 25), prep: true, leave: jst(2026, 10, 1, 9, 30) };
+    const d1 = { ...day(1, 8, 25), prep: true, leave: jst(2026, 10, 1, 9, 30), prepAt: jst(2026, 10, 1, 9, 30), prepAway: true };
     const got = buildNotices(input({ result: { dayPlans: [d1, day(2, 8, 25), day(3, 8, 25)], blocks: [], shortfalls: [] } }));
     const prep = got.filter((n) => n.key.startsWith("prep:"));
     expect(prep.map((n) => [n.at, n.body])).toEqual([[jst(2026, 10, 1, 8, 50), "出発 9:30"]]);
+  });
+
+  it("身支度の知らせは、置いた枠の始まりに合わせる（寝坊した日は枠より先に鳴らない）", () => {
+    const d1 = { ...day(1, 8, 25), prep: true, leave: jst(2026, 10, 1, 9, 30), prepAt: jst(2026, 10, 1, 9, 30), prepAway: true };
+    const block = { kind: "routine" as const, refId: "prep", title: "身支度", start: jst(2026, 10, 1, 9, 5), end: jst(2026, 10, 1, 9, 30) };
+    const got = buildNotices(input({ result: { dayPlans: [d1, day(2, 8, 25), day(3, 8, 25)], blocks: [block], shortfalls: [] } }));
+    expect(got.filter((n) => n.key.startsWith("prep:")).map((n) => n.at)).toEqual([jst(2026, 10, 1, 9, 5)]);
   });
 
   it("タスクは枠ごとの終了時に進捗を確認する", () => {

@@ -112,7 +112,7 @@ it("サーバーを読み直している間は、通知の一覧を置かない"
   vi.mocked(loadRemote).mockReturnValue(new Promise<RemoteRow>((r) => { resolvePull = r; }));
   await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
   act(() => result.current.update((d) => ({ ...d, tasks: d.tasks.slice(1) })));
-  await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(5500); });
   expect(saveSchedule).not.toHaveBeenCalled();
   await act(async () => { resolvePull({ data: sampleData(now), updatedAt: now }); });
   await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
@@ -141,4 +141,34 @@ it("同じ人の控えなら、サーバーにまだ行がなければ控えを�
   await act(async () => { await vi.advanceTimersByTimeAsync(0); });
   const sent = vi.mocked(saveRemote).mock.calls.at(-1)?.[0] as { tasks: { id: string }[] };
   expect(sent.tasks.some((t) => t.id === "mine")).toBe(true);
+});
+
+it("サーバーの応答が遅いときは、数秒で端末の控えに切り替えて使い始める", async () => {
+  vi.mocked(loadRemote).mockReturnValue(new Promise<RemoteRow>(() => undefined));
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(result.current.initialLoaded).toBe(false);
+  await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+  expect(result.current.initialLoaded).toBe(true);
+  expect(result.current.sync).toBe("offline");
+  warn.mockRestore();
+});
+
+it("2台で別々に記録を足しても、戻ったときに両方残して送る", async () => {
+  const { result } = renderHook(() => useMockStore());
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  // いったん合わせ終えた状態から、この端末で喫煙を記録（まだ送れない）
+  vi.mocked(saveRemote).mockRejectedValue(new Error("offline"));
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  act(() => result.current.patch(() => ({ smokeLogs: [now + 1000] })));
+  await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+  // そのあいだに、ほかの端末が別の記録を足してサーバーに保存した
+  vi.mocked(saveRemote).mockResolvedValue(now + 60_000);
+  vi.mocked(loadRemote).mockResolvedValue({ data: { ...sampleData(now), smokeLogs: [now + 2000] }, updatedAt: now + 30_000 });
+  await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+  expect(result.current.state.smokeLogs).toEqual([now + 1000, now + 2000]);
+  expect((vi.mocked(saveRemote).mock.calls.at(-1)![0] as { smokeLogs: number[] }).smokeLogs).toEqual([now + 1000, now + 2000]);
+  warn.mockRestore();
 });

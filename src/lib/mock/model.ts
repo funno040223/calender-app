@@ -213,10 +213,19 @@ export type MorningFatigue = 1 | 2 | 3 | 4 | 5;
  * その日の計画の控え（記録の画面の「気づき」で使う。画面には出さない）。
  * その日のうちは組み直すたびに書き直し、日が変わったら残したままにする
  */
+export type RewardSource = "wake" | "routine" | "bed" | "habit" | "task" | "log";
+export interface RewardBank {
+  /** この時刻より前の分が入っている */
+  until: number;
+  yen: Record<RewardSource, number>;
+}
+
 export interface DayLog {
-  /** 時刻のある予定の数と、家にいない予定があったか */
+  /** 時刻のある予定の数と、外出の日だったか（dayLoadOf） */
   events: number;
   away: boolean;
+  /** 予定の多い日だったか（dayLoadOf。古い控えにはない） */
+  heavy?: boolean;
   rainy?: boolean;
   /** その日の行動ポイント（予測）と上限 */
   points?: number;
@@ -321,6 +330,11 @@ export interface MockData {
   rewardSpends: RewardSpend[];
   /** ご褒美のお金の金額（円） */
   rewardRates: RewardRates;
+  /**
+   * 確定したご褒美の繰り越し。until より前にたまった分をもとごとに足し合わせて残す。
+   * 記録の保存期限が切れても、たまった額が減らない（金額の設定を変えても、確定した分は変わらない）
+   */
+  rewardBank: RewardBank;
   /** 済ませたデータの移行の名前（同じ移行を2回しないため） */
   migrations: string[];
 }

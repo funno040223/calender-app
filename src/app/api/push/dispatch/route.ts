@@ -1,10 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { cleanNotices, sendPush, type PushTarget } from "@/lib/push/send";
+import { cleanNotices, isDue, sendPush, type PushTarget } from "@/lib/push/send";
 import { authorized } from "@/lib/push/cron";
 import { deliverNotice, deliveryLedger } from "@/lib/push/delivery";
 
-/** 遅れて届いた一覧でも、この時間までは送る */
-const GRACE_MS = 10 * 60_000;
 const KEEP_SENT_MS = 3 * 24 * 60 * 60_000;
 
 /**
@@ -22,7 +20,7 @@ export async function POST(request: Request) {
   let sent = 0;
   let failed = 0;
   for (const row of rows ?? []) {
-    const due = cleanNotices(row.items).filter((n) => n.at <= now && n.at > now - GRACE_MS);
+    const due = cleanNotices(row.items).filter((n) => isDue(n, now));
     if (!due.length) continue;
 
     const { data: subs } = await db.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", row.user_id);

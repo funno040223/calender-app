@@ -3,7 +3,7 @@ import Link from "next/link";
 
 
 import { useMemo, useRef, useState } from "react";
-import type { Block } from "@/lib/scheduler";
+import { wakingDayStart, type Block } from "@/lib/scheduler";
 import { sameBlock, type OwnEvent } from "@/lib/mock/store";
 import type { CalendarId } from "@/lib/mock/calendars";
 import { useApp } from "@/components/app/StoreProvider";
@@ -396,7 +396,7 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
   }
   if (block.kind !== "habit") return null;
   const habit = state.habits.find((h) => h.id === block.refId);
-  const day = dateKeyOf(block.start);
+  const day = dateKeyOf(wakingDayStart(block.start, state.result.dayPlans, state.settings.tzOffsetMinutes));
   const mark = state.habitLogs[day]?.[block.refId];
   const setMark = (m: HabitMark) =>
     update((d) => {
@@ -437,7 +437,12 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
           type="button"
           className="rounded-xl py-2.5 font-medium text-tint hover:bg-surface2"
           onClick={() => {
-            update((d) => ({ ...d, habitSkips: { ...d.habitSkips, [day]: [...new Set([...(d.habitSkips[day] ?? []), block.refId])] } }));
+            // 「外で食べる」にしたら、「家で食べる」は外す（両方は入れない）
+            update((d) => ({
+              ...d,
+              habitSkips: { ...d.habitSkips, [day]: [...new Set([...(d.habitSkips[day] ?? []), block.refId])] },
+              mealsAtHome: d.mealsAtHome[day] ? { ...d.mealsAtHome, [day]: d.mealsAtHome[day].filter((id) => id !== block.refId) } : d.mealsAtHome,
+            }));
             onSkipped();
           }}
         >

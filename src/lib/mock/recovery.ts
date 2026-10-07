@@ -68,7 +68,7 @@ export function workNowChoices(state: MockState, now: number, minutes: number) {
   const gap = workNowGap(state, now);
   if (!gap) return [];
   return [...state.tasks].sort((a, b) => (a.deadline ?? Infinity) - (b.deadline ?? Infinity) || b.priority - a.priority).flatMap((task) => {
-    const tag = state.tags.find((t) => t.id === task.tagId);
+    const tag = state.planTags.find((t) => t.id === task.tagId);
     const length = Math.min(minutes, estimateMinutes(task, tag));
     if (length < 5 || now + length * MIN > gap.end) return [];
     if (task.deadline !== undefined && task.deadline > now + WORK_NOW_DAYS * DAY_MS) return [];

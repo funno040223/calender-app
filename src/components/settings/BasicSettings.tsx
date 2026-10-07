@@ -29,7 +29,7 @@ const GROUPS: { title: string; fields: MinutesField[] }[] = [
   {
     title: "睡眠と朝",
     fields: [
-      { key: "sleepMinutes", label: "睡眠時間", min: 240, max: 720, step: 15 },
+      { key: "sleepMinutes", label: "寝床の時間", min: 240, max: 720, step: 15 },
       { key: "routineMinutes", label: "朝ルーティン", max: 180 },
       { key: "prepMinutes", label: "身支度（人に会う日）", max: 180 },
       { key: "homeWakeLeadMinutes", label: "在宅の予定の前の余裕", max: 240 },

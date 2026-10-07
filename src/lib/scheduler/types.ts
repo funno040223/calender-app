@@ -278,6 +278,15 @@ export interface DayPlan {
   holiday: boolean;
   /** 朝に身支度の時間を取る日（最初の予定が外出か、人に顔を出す予定） */
   prep?: boolean;
+  /** 身支度は1日1回。身支度の要る予定のうち、いちばん早いものの前に置く（外出なら家を出る時刻、在宅の会議なら始まり）。予定の最初でなくてもよい */
+  prepAt?: number;
+  prepEvent?: CalendarEvent;
+  /** その予定が外出か */
+  prepAway?: boolean;
+  /** 外出の日（dayload.ts） */
+  outing?: boolean;
+  /** 予定の多い日（dayload.ts） */
+  heavy?: boolean;
   /** 外出した日の、最後の外出から家に帰る時刻（帰りの移動を含む） */
   homeAt?: number;
   /** 予定の多い日（外出の日を含む）の、夜の始まり（最後の予定が終わる時刻）。体力を答えるまでは、そのあとに集中の作業を入れない */

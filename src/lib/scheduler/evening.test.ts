@@ -118,3 +118,15 @@ describe("身支度・習慣の優先度・自己成長の枠", () => {
     expect(placed(plan(baseInput(now, { habits: [growth], events: [workday] }))).some((b) => b.start < jst(2026, 10, 2))).toBe(false);
   });
 });
+
+describe("身支度は、朝が在宅でも夕方の外出の前に置く", () => {
+  it("朝は在宅の予定、夕方に外出の日は、出発の前に身支度の枠を置く", () => {
+    const now = jst(2026, 10, 1, 7);
+    const home = { id: "h1", title: "ゼミの準備", start: jst(2026, 10, 1, 10), end: jst(2026, 10, 1, 11), atHome: true };
+    const out = { id: "o1", title: "食事会", start: jst(2026, 10, 1, 18), end: jst(2026, 10, 1, 20), location: "渋谷", travelMinutes: 30 };
+    const r = plan(baseInput(now, { events: [home, out] }));
+    const prep = r.blocks.find((b) => b.kind === "routine" && b.refId === "prep");
+    expect(prep).toBeDefined();
+    expect(prep!.end).toBe(jst(2026, 10, 1, 17, 30));
+  });
+});

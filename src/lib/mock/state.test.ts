@@ -54,8 +54,8 @@ describe("雨の日", () => {
     const got = rainyDayKeys({
       rainyDays: ["2026-10-03"],
       notRainyDays: ["2026-10-02"],
-      rainForecast: { fetchedAt: 0, days: { "2026-10-01": 70, "2026-10-02": 80, "2026-10-04": 30 } },
-    });
+      rainForecast: { fetchedAt: 1000, days: { "2026-10-01": 70, "2026-10-02": 80, "2026-10-04": 30 } },
+    }, 2000);
     expect(got.sort()).toEqual(["2026-10-01", "2026-10-03"]);
   });
 });
