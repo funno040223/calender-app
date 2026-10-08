@@ -1,0 +1,3197 @@
+{
+ "batch": "b04_mock_store",
+ "nodes": [
+  {
+   "id": "feature:night/bedtime-replan",
+   "label": "Feature",
+   "name": "「寝る」「起きた」とヘルスケアから起床を組み直す",
+   "description": "「寝る」「起きた」の記録とヘルスケアの睡眠から、朝ごとに1つの睡眠を見積もり、その起床から日の計画を組み直す。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 31,
+   "line_end": 77,
+   "confidence": "high",
+   "evidence": "朝ごとに寝た・起きた・入眠の記録から睡眠を見積もる関数"
+  },
+  {
+   "id": "feature:night/bedtime-reconcile",
+   "label": "Feature",
+   "name": "見積もった睡眠と重なる枠の整理",
+   "description": "見積もった睡眠と重なる自動の枠を外し、途中までのタスクの作業は確認に残す。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 84,
+   "line_end": 96,
+   "confidence": "high",
+   "evidence": "睡眠と重なる枠を外し、作業ログを更新する"
+  },
+  {
+   "id": "setting:night/late-wake-minutes",
+   "label": "Setting",
+   "name": "「今から寝る」の起きる予定から起きたとみなす猶予（6時間）",
+   "description": "「今から寝る」の起きる予定の終わりから何分後までの「起きた」を同じ眠りの起床とみなすか。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 7,
+   "line_end": 7,
+   "confidence": "high",
+   "evidence": "定数が6時間（分に直して360）",
+   "const_ref": "const:src/lib/mock/bedtime.ts#LATE_WAKE_MINUTES",
+   "value": 360
+  },
+  {
+   "id": "setting:night/sleep-minutes",
+   "label": "Setting",
+   "name": "目標の睡眠時間（設定）",
+   "description": "「寝る」を押した夜の起床を見積もるときに足す、設定の睡眠時間（分）。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 43,
+   "line_end": 43,
+   "confidence": "high",
+   "evidence": "設定の sleepMinutes を押した時刻に足している"
+  },
+  {
+   "id": "rule:night/late-wake-tap-closes-sleep",
+   "label": "Rule",
+   "name": "「今から寝る」の予定は、そのあとの「起きた」で終える",
+   "description": "「今から寝る」で入れた起きる予定は、予定の終わりから6時間以内に押した「起きた」（または朝ルーティンの最初のチェック）の時刻で終わった扱いにする。昼寝など遠い起床は結びつけない。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 9,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "寝る立て直しだけを対象に、寝始めより後で終了+6時間より前の最も早い活動開始へ終了を置き換える"
+  },
+  {
+   "id": "rule:night/recent-two-days",
+   "label": "Rule",
+   "name": "2日以内の記録だけで組み直す",
+   "description": "「寝る」「起きた」とヘルスケアの目覚めは、いまから2日前までのものだけを見積もりに使い、古い記録で将来の起床をずらさない。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 32,
+   "line_end": 32,
+   "confidence": "high",
+   "evidence": "recent は現在以前かつ2日以内の時刻だけを通す"
+  },
+  {
+   "id": "rule:night/bed-tap-wake-estimate",
+   "label": "Rule",
+   "name": "「寝る」を押した夜は、押した時刻に睡眠時間を足した起床へ送る",
+   "description": "「寝る」を押した時刻に設定の睡眠時間を足した時刻まで寝る前提で、その起床を見積もる。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 41,
+   "line_end": 50,
+   "confidence": "high",
+   "evidence": "押した時刻＋睡眠時間を desired とし、起きる日と見積もり起床を求める"
+  },
+  {
+   "id": "rule:night/bed-wake-limited-by-fixed-events",
+   "label": "Rule",
+   "name": "見積もり起床は、固定の予定に間に合う時刻を上限にする",
+   "description": "「寝る」を押した夜の起床は、その日の固定の予定に間に合う最も遅い起床（移動や身支度を含む）を超えない。すでに間に合わないときは睡眠を負の長さにせず、そのまま衝突として見せる。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 45,
+   "line_end": 48,
+   "confidence": "high",
+   "evidence": "latestWakeOfDay を上限にし、押した時刻より後のときだけ頭打ちにする"
+  },
+  {
+   "id": "rule:night/bed-never-earlier-than-planned-wake",
+   "label": "Rule",
+   "name": "早く寝ても起床は予定より前へ動かさない",
+   "description": "「寝る」を押した夜の見積もり起床は、その日の予定どおりの起床より早くならない（早く寝た分は起床を早めない）。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 47,
+   "line_end": 47,
+   "confidence": "high",
+   "evidence": "予定の起床と押した時刻＋睡眠時間の遅いほうを取る"
+  },
+  {
+   "id": "rule:night/activity-start-wins",
+   "label": "Rule",
+   "name": "活動開始の記録があれば、その時刻から組み直す",
+   "description": "「起きた」（なければ朝ルーティンの最初のチェック）がある朝は、予定より早くても遅くても、その時刻を起床として組み直す。「寝る」より後の押下だけを結びつける。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 51,
+   "line_end": 71,
+   "confidence": "high",
+   "evidence": "tap があれば woke の立て直しを作り、寝る記録がある場合はそれより後のものだけ採る"
+  },
+  {
+   "id": "rule:night/health-late-wake-replan",
+   "label": "Rule",
+   "name": "ヘルスケアの目覚めが予定より遅いときだけ、その時刻から組み直す",
+   "description": "「起きた」を押していなくても、ヘルスケアの目覚めが予定の起床より遅ければ（寝坊）その時刻から組み直す。早い目覚めでは起床を前へ動かさない。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 72,
+   "line_end": 72,
+   "confidence": "high",
+   "evidence": "night.end が予定起床より後のときだけ woke を作る"
+  },
+  {
+   "id": "rule:night/sleep-start-priority",
+   "label": "Rule",
+   "name": "睡眠の始まりは「寝る」→ヘルスケアの入眠→予定の就寝の順に使う",
+   "description": "組み直す睡眠の始まりの時刻は、「寝る」を押した時刻、なければヘルスケアの入眠、それもなければ前の晩の予定の就寝にする。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 68,
+   "line_end": 68,
+   "confidence": "high",
+   "evidence": "start を bed?.at ?? night?.start ?? plan.bed の順に決める"
+  },
+  {
+   "id": "rule:night/manual-reset-wins",
+   "label": "Rule",
+   "name": "自分で入れた立て直しがあれば自動の見積もりは作らない",
+   "description": "自分で入れた立て直し（疲れている以外）が同じ時間帯にあるときは、「寝る」「起きた」・ヘルスケアからの自動の見積もりを出さない。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 34,
+   "line_end": 34,
+   "confidence": "high",
+   "evidence": "既存の立て直しと重なる見積もりは破棄する（tired は除く）"
+  },
+  {
+   "id": "rule:night/bed-only-sleep-estimate",
+   "label": "Rule",
+   "name": "「寝る」だけ押した朝は、睡眠として見積もる",
+   "description": "「起きた」もヘルスケアの遅い目覚めもない朝でも、「寝る」を押していれば、その夜の睡眠（押した時刻〜見積もり起床）を組み直しに使う。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 73,
+   "line_end": 73,
+   "confidence": "high",
+   "evidence": "bed があるだけなら mode=sleep の立て直しを作る"
+  },
+  {
+   "id": "rule:night/planned-wake-kept",
+   "label": "Rule",
+   "name": "前の晩に予定していた起床を残す",
+   "description": "組み直した睡眠には、前の晩に予定していた起床（「寝る」を押した夜は見積もり）を plannedEnd として残し、「予定どおり起きた」の判定に使えるようにする。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 66,
+   "line_end": 72,
+   "confidence": "high",
+   "evidence": "expected を plannedEnd に渡す"
+  },
+  {
+   "id": "rule:night/drop-auto-blocks-in-sleep",
+   "label": "Rule",
+   "name": "見積もった睡眠と重なる自動の枠は外す",
+   "description": "見積もった睡眠の時間と重なる、固定していない枠は外す。固定した枠は残す。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 95,
+   "line_end": 95,
+   "confidence": "high",
+   "evidence": "pinned でない枠だけ睡眠と重なれば除く"
+  },
+  {
+   "id": "rule:night/pinned-task-blocks-kept",
+   "label": "Rule",
+   "name": "固定したタスクの枠は睡眠と重なっても作業ログを変えない",
+   "description": "固定したタスクの枠は、睡眠の整理の対象にしない。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 89,
+   "line_end": 89,
+   "confidence": "high",
+   "evidence": "pinned な枠のキーは continue でとばす"
+  },
+  {
+   "id": "rule:night/answered-sleep-miss",
+   "label": "Rule",
+   "name": "「寝る」「起きた」に答えた夜は、睡眠中に始まった枠を「できなかった」にする",
+   "description": "睡眠の始まりを自分で答えた夜に、その睡眠の間に始まった未確認のタスクの枠は、自動で「できなかった」にする。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 90,
+   "line_end": 91,
+   "confidence": "high",
+   "evidence": "睡眠開始以降に始まった枠を reviewed・outcome none にする（health 由来を除く）"
+  },
+  {
+   "id": "rule:night/health-only-sleep-confirm",
+   "label": "Rule",
+   "name": "ヘルスケアだけの睡眠と重なる枠は自動で決めず確認に残す",
+   "description": "ヘルスケア（遅れて届く）だけから見積もった睡眠と重なる枠は、「できなかった」にせず「作業の進み具合」で確認する。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 91,
+   "line_end": 91,
+   "confidence": "high",
+   "evidence": "id が health: で始まる睡眠は更新しない"
+  },
+  {
+   "id": "rule:night/cut-block-at-sleep-start",
+   "label": "Rule",
+   "name": "睡眠の前から始まった枠は、睡眠の始まりで切る",
+   "description": "睡眠より前に始まって睡眠にまたがるタスクの枠は、終わりを睡眠の始まりにして、その時間だけを確認に残す。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 92,
+   "line_end": 92,
+   "confidence": "high",
+   "evidence": "枠の終了を sleep.start に置き換える"
+  },
+  {
+   "id": "rule:night/reviewed-blocks-untouched",
+   "label": "Rule",
+   "name": "確認済み・数えた・未来・重ならない枠は整理しない",
+   "description": "すでに確認した枠、作業として数えた枠、まだ始まっていない枠、睡眠と重ならない枠は、睡眠の整理で変えない。",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 88,
+   "line_end": 88,
+   "confidence": "high",
+   "evidence": "条件のどれかで continue する"
+  },
+  {
+   "id": "feature:night/night-record",
+   "label": "Feature",
+   "name": "夜の記録（起きた日ごとに1つにまとめる）",
+   "description": "起きた日ごとに、活動（寝床に入った・起き上がった）と睡眠（ヘルスケアの入眠・目覚め）を分けて持ち、どの場面も同じ値を使う。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 42,
+   "line_end": 92,
+   "confidence": "high",
+   "evidence": "起きた日の夜の記録を1つ組み立てる関数"
+  },
+  {
+   "id": "feature:night/on-time-judge",
+   "label": "Feature",
+   "name": "予定どおり起きた・寝たの判定",
+   "description": "夜の記録から、予定の起床・就寝に対して猶予内だったかを判定する。ご褒美・今週のまとめ・気づきが共通で使う。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 108,
+   "line_end": 122,
+   "confidence": "high",
+   "evidence": "起床と就寝の判定関数"
+  },
+  {
+   "id": "feature:night/sleep-gaps",
+   "label": "Feature",
+   "name": "寝つくまで・起き上がるまでの差",
+   "description": "活動の記録とヘルスケアの記録の差から、寝つくまでと起き上がるまでの分を出す（記録の画面の「夜」のカードに使う）。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 124,
+   "line_end": 128,
+   "confidence": "high",
+   "evidence": "2つの差を分で返す関数"
+  },
+  {
+   "id": "setting:night/on-time-grace",
+   "label": "Setting",
+   "name": "予定どおりかを見る猶予（30分）",
+   "description": "予定の起床・就寝からこの分数以内なら予定どおりとみなす。起床・就寝で共通。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 36,
+   "line_end": 36,
+   "confidence": "high",
+   "evidence": "定数が30（分）",
+   "const_ref": "const:src/lib/mock/night.ts#ON_TIME_GRACE_MINUTES",
+   "value": 30
+  },
+  {
+   "id": "rule:night/source-priority",
+   "label": "Rule",
+   "name": "夜の時刻は 手で入れた値 → ボタン → 朝ルーティン の順に使う",
+   "description": "寝床に入った時刻は 自分で入れた立て直し → 「寝る」、起き上がった時刻は 立て直し → 「起きた」 → 朝ルーティンの最初のチェック の順で優先する。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 49,
+   "line_end": 63,
+   "confidence": "high",
+   "evidence": "bed と up を出どころの優先順で決める"
+  },
+  {
+   "id": "rule:night/manual-reset-latest",
+   "label": "Rule",
+   "name": "その朝に終わる自分の立て直しのうち、最後に終わるものを手入力とみなす",
+   "description": "夜の記録で手入力として使うのは、その起きた日に終わる、疲れている以外の自分の立て直しのうち、終了がもっとも遅いもの。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 48,
+   "line_end": 49,
+   "confidence": "high",
+   "evidence": "tired を除き、終了日が一致するものを終了の遅い順に1つ取る"
+  },
+  {
+   "id": "rule:night/bed-belongs-to-next-morning",
+   "label": "Rule",
+   "name": "前の日の「寝る」は、次の朝の夜の記録に結びつける",
+   "description": "「寝る」の記録は寝た日のキーに入っているが、夜の記録では起きた日（翌日）の夜として扱う。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 44,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "起きた日の前日のキーで bedLogs を引く"
+  },
+  {
+   "id": "rule:night/sleep-minutes-priority",
+   "label": "Rule",
+   "name": "睡眠時間は 手で直した値 → ヘルスケア → 寝る〜起きた の順に使う",
+   "description": "睡眠時間は朝のカードで直した値、なければヘルスケアの眠った分、それもなければ「寝る」〜「起きた」の差を使う。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 74,
+   "line_end": 81,
+   "confidence": "high",
+   "evidence": "sleep を手→ヘルスケア→活動の差の順で決める"
+  },
+  {
+   "id": "rule:night/sleep-from-activity-conditions",
+   "label": "Rule",
+   "name": "寝る〜起きたで睡眠時間を出す条件",
+   "description": "寝る〜起きたから睡眠時間を出すのは、寝た側がヘルスケアでなく、起きた側が朝ルーティンのチェックでなく、起きたが寝たより後のときだけ。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 72,
+   "line_end": 73,
+   "confidence": "high",
+   "evidence": "bed・up の出どころと前後関係を確かめてから分に直す"
+  },
+  {
+   "id": "rule:night/planned-bed-fallback",
+   "label": "Rule",
+   "name": "予定の就寝は 「寝る」を押したときの予定 → 計画の控え → 予定の起床−睡眠時間 の順",
+   "description": "前の晩に予定していた就寝は、「寝る」の記録に残した予定、なければ今日の計画の控えの就寝、それもなければ予定の起床から睡眠時間を引いた時刻とする。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 65,
+   "line_end": 70,
+   "confidence": "high",
+   "evidence": "plannedBed を3段のフォールバックで決める"
+  },
+  {
+   "id": "rule:night/all-nights-dates",
+   "label": "Rule",
+   "name": "記録のある夜はすべて、起きた日の古い順に出す",
+   "description": "起きた日の候補は、朝の記録・ヘルスケアの睡眠・「寝る」の翌日・疲れている以外の立て直しの終了日の全部。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 95,
+   "line_end": 106,
+   "confidence": "high",
+   "evidence": "4つの出どころの日付を集めて並べ替える"
+  },
+  {
+   "id": "rule:night/up-on-time",
+   "label": "Rule",
+   "name": "予定どおり起きた：活動開始が予定の起床から30分以内",
+   "description": "活動開始が予定の起床から猶予内なら予定どおり。ヘルスケアの目覚めは目が覚めただけで起き上がったとは限らないので使わない。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 108,
+   "line_end": 110,
+   "confidence": "high",
+   "evidence": "up と plannedWake がそろい、猶予内かを見る"
+  },
+  {
+   "id": "rule:night/bed-on-time",
+   "label": "Rule",
+   "name": "予定どおり寝た：活動終了（なければ入眠）が予定の就寝から30分以内",
+   "description": "寝た時刻が予定の就寝から猶予内なら予定どおり。判定の時刻は「寝る」、なければヘルスケアの入眠（入眠が間に合っていれば寝床に入るのも間に合っているため）。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 112,
+   "line_end": 122,
+   "confidence": "high",
+   "evidence": "bedTimeOf の時刻と plannedBed を猶予で比べる"
+  },
+  {
+   "id": "rule:night/fall-asleep-gap",
+   "label": "Rule",
+   "name": "寝つくまで＝寝床に入った時刻から入眠までの分（両方ある夜だけ）",
+   "description": "「寝る」と入眠の両方があり、入眠が寝床に入った時刻以降のときだけ、寝つくまでの分を出す。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 124,
+   "line_end": 126,
+   "confidence": "high",
+   "evidence": "bed と asleep から分を計算する"
+  },
+  {
+   "id": "rule:night/get-up-gap",
+   "label": "Rule",
+   "name": "起き上がるまで＝ヘルスケアの目覚めから活動開始までの分（両方ある夜だけ）",
+   "description": "活動開始とヘルスケアの目覚めの両方があり、活動開始が目覚め以降のときだけ、起き上がるまでの分を出す。",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 127,
+   "line_end": 128,
+   "confidence": "high",
+   "evidence": "up と awake から分を計算する"
+  },
+  {
+   "id": "feature:sync/conflict-merge",
+   "label": "Feature",
+   "name": "2台・オフラインで変えたときの項目ごとの合わせ方",
+   "description": "この端末の未送信の変更とサーバー側の変更が重なったとき、項目ごとの指紋で、片方だけの変更はそのまま使い、両方の変更は足した記録を失わないように合わせる。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 64,
+   "line_end": 83,
+   "confidence": "high",
+   "evidence": "mergeConflict が項目ごとに採用元を決める"
+  },
+  {
+   "id": "feature:sync/fingerprints",
+   "label": "Feature",
+   "name": "項目ごとの指紋",
+   "description": "データの各項目の内容から短い指紋を作り、項目が変わったかを見分ける（2台の合わせ方に使う）。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 4,
+   "line_end": 36,
+   "confidence": "high",
+   "evidence": "stable で正規化した文字列をハッシュして項目ごとに持つ"
+  },
+  {
+   "id": "rule:sync/fingerprint-order-insensitive",
+   "label": "Rule",
+   "name": "並びが違っても同じ値なら同じ指紋にする",
+   "description": "指紋はオブジェクトのキーを並べ替え、未定義の値を無視して作るので、jsonb で項目の並びが変わっても変更とはみなさない。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 7,
+   "line_end": 18,
+   "confidence": "high",
+   "evidence": "stable がキーを整列し undefined を除く"
+  },
+  {
+   "id": "rule:sync/merge-one-side-changed",
+   "label": "Rule",
+   "name": "片方だけ変えた項目は、その変更を使う",
+   "description": "指紋が同じならサーバーの値、この端末が前に合わせた状態のままならサーバーの値、サーバーが前のままなら端末の値を使う。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 76,
+   "line_end": 78,
+   "confidence": "high",
+   "evidence": "項目ごとに指紋を比べて採用元を決める"
+  },
+  {
+   "id": "rule:sync/merge-both-changed-union",
+   "label": "Rule",
+   "name": "両方で変えた項目は足した分を両方残す",
+   "description": "両方で変えた項目は union で合わせる。足した記録は両方残し、同じものを変えていたらあとから保存したサーバーを使う。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 42,
+   "line_end": 80,
+   "confidence": "high",
+   "evidence": "前の指紋との比較で両方変更なら union を呼ぶ"
+  },
+  {
+   "id": "rule:sync/merge-list-union",
+   "label": "Rule",
+   "name": "一覧は、数・文字列は和集合、ID か日付のあるものは同じキーでサーバー優先で両方残す",
+   "description": "数だけ・文字列だけの一覧は重複なく足し合わせ（数は昇順）、ID か date を持つ要素の一覧はキーごとに両方残して同じキーはサーバーの要素にする。どれでもなければサーバーの一覧にする。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 44,
+   "line_end": 55,
+   "confidence": "high",
+   "evidence": "型ごとに和集合・キーでの上書き・サーバー採用に分岐する"
+  },
+  {
+   "id": "rule:sync/merge-record-overlay",
+   "label": "Rule",
+   "name": "辞書は、キーごとに重ね、同じキーはサーバー優先にする",
+   "description": "辞書どうしは端末の内容にサーバーのキーを重ね、どちらも辞書なら中身も重ねる。どちらも一覧なら一覧の合わせ方を使い、そのほかはサーバーの値にする。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 56,
+   "line_end": 61,
+   "confidence": "high",
+   "evidence": "キーごとの上書きと入れ子の展開"
+  },
+  {
+   "id": "rule:sync/merge-no-base-no-loss",
+   "label": "Rule",
+   "name": "前に合わせた記録がなくても、記録を失わない",
+   "description": "前に合わせたときの指紋がなければ、両方で変えた扱いにして足した記録を残す。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 77,
+   "line_end": 80,
+   "confidence": "high",
+   "evidence": "base がないと片方だけ変更の分岐に入らず union へ進む"
+  },
+  {
+   "id": "rule:sync/merge-migrations-union",
+   "label": "Rule",
+   "name": "適用済みの移行の一覧は、両方を足す",
+   "description": "「migrations」の項目は、両方で変えていたら端末とサーバーの適用済みの一覧を合わせたものにする。",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 79,
+   "line_end": 79,
+   "confidence": "high",
+   "evidence": "migrations は集合の和にする"
+  },
+  {
+   "id": "feature:sync/mock-store",
+   "label": "Feature",
+   "name": "画面用のデータ保管（useMockStore）",
+   "description": "画面が使うデータの保管。ブラウザの控えとサーバーの内容を合わせ、変更のたびに組み直し、保存・取り込み・通知の一覧の送信・元に戻すをまとめて受け持つ。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 186,
+   "line_end": 447,
+   "confidence": "high",
+   "evidence": "画面全体が使うフック"
+  },
+  {
+   "id": "feature:sync/local-cache",
+   "label": "Feature",
+   "name": "端末の控え（localStorage）",
+   "description": "すぐ開くために、データ・取り込んだ予定・同期の目印をブラウザの localStorage に控える。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 18,
+   "line_end": 98,
+   "confidence": "high",
+   "evidence": "読み書きの関数群"
+  },
+  {
+   "id": "feature:sync/server-sync",
+   "label": "Feature",
+   "name": "サーバーとの読み込み・保存",
+   "description": "開いたとき・戻ってきたときにサーバー（Supabase の app_state）の内容を読み、変えた内容は少し待って保存する。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 235,
+   "line_end": 355,
+   "confidence": "high",
+   "evidence": "push・pull と画面への戻り検知"
+  },
+  {
+   "id": "feature:sync/ical-refresh",
+   "label": "Feature",
+   "name": "取り込み予定の更新",
+   "description": "登録した iCal カレンダーを取り込み直して、外部予定として計画に反映する。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 213,
+   "line_end": 233,
+   "confidence": "high",
+   "evidence": "refreshImports"
+  },
+  {
+   "id": "feature:sync/notice-upload",
+   "label": "Feature",
+   "name": "通知の一覧をサーバーに置く",
+   "description": "組み直すたびに、これから送る通知の一覧を作ってサーバーに置く（送るのはサーバー側の定期実行）。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 357,
+   "line_end": 386,
+   "confidence": "high",
+   "evidence": "buildNotices の結果を saveSchedule で保存"
+  },
+  {
+   "id": "feature:sync/undo",
+   "label": "Feature",
+   "name": "直前の操作を元に戻す",
+   "description": "変更の直前の状態を1つ控え、元に戻すと組み直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 405,
+   "line_end": 430,
+   "confidence": "high",
+   "evidence": "update が控えを作り undo が戻す"
+  },
+  {
+   "id": "feature:sync/replan-on-change",
+   "label": "Feature",
+   "name": "変更のたびの組み直し",
+   "description": "予定・タスク・設定などを変えたら必ず配置を組み直す。配置に関係しない変更は組み直さない。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 405,
+   "line_end": 437,
+   "confidence": "high",
+   "evidence": "update は replan を通し、patch は通さない"
+  },
+  {
+   "id": "feature:sync/reset-sample",
+   "label": "Feature",
+   "name": "見本のデータに戻す",
+   "description": "データを見本の初期データで組み直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 439,
+   "line_end": 442,
+   "confidence": "high",
+   "evidence": "reset"
+  },
+  {
+   "id": "setting:sync/save-delay",
+   "label": "Setting",
+   "name": "変更を保存するまでの待ち（0.8秒）",
+   "description": "変更してからサーバーに保存するまで待つ時間（ミリ秒）。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 127,
+   "line_end": 127,
+   "confidence": "high",
+   "evidence": "定数が800",
+   "const_ref": "const:src/lib/mock/store.ts#SAVE_DELAY_MS",
+   "value": 800
+  },
+  {
+   "id": "setting:sync/load-timeout",
+   "label": "Setting",
+   "name": "サーバーの読み込みを待つ長さ（6秒）",
+   "description": "サーバーの読み込みをこれ以上待たずに端末の控えで使い始める時間（ミリ秒）。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 135,
+   "line_end": 136,
+   "confidence": "high",
+   "evidence": "定数が6000",
+   "const_ref": "const:src/lib/mock/store.ts#LOAD_TIMEOUT_MS",
+   "value": 6000
+  },
+  {
+   "id": "setting:sync/stale-ms",
+   "label": "Setting",
+   "name": "戻ってきたとき組み直す経過時間（10分）",
+   "description": "画面を開いたままこの時間が経っていたら、戻ってきたときに組み直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 74,
+   "line_end": 75,
+   "confidence": "high",
+   "evidence": "定数が10 * 60_000（ミリ秒、600000）",
+   "const_ref": "const:src/lib/mock/store.ts#STALE_MS",
+   "value": 600000
+  },
+  {
+   "id": "setting:sync/import-every",
+   "label": "Setting",
+   "name": "取り込み直す間隔（15分）",
+   "description": "戻ってきたとき、前回の取り込みからこの時間が経っていれば iCal を取り込み直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 78,
+   "line_end": 78,
+   "confidence": "high",
+   "evidence": "定数が15 * 60_000（ミリ秒、900000）",
+   "const_ref": "const:src/lib/mock/store.ts#IMPORT_EVERY_MS",
+   "value": 900000
+  },
+  {
+   "id": "setting:sync/notice-delay",
+   "label": "Setting",
+   "name": "通知の一覧を送るまでの待ち（3秒）",
+   "description": "組み直しが落ち着いてから通知の一覧を置くために待つ時間（ミリ秒）。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 128,
+   "line_end": 129,
+   "confidence": "high",
+   "evidence": "定数が3000",
+   "const_ref": "const:src/lib/mock/store.ts#NOTICE_DELAY_MS",
+   "value": 3000
+  },
+  {
+   "id": "rule:sync/logout-clears-cache",
+   "label": "Rule",
+   "name": "ログアウトしたら、この端末の控えをすべて消す",
+   "description": "次に開いた人に見えないように、キーが task-rhythm: で始まる localStorage の項目をすべて消す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 21,
+   "line_end": 28,
+   "confidence": "high",
+   "evidence": "接頭辞の一致する項目を全部削除する"
+  },
+  {
+   "id": "rule:sync/cache-load-order",
+   "label": "Rule",
+   "name": "控えは v2 を読み、なければ v1 から移行し、壊れていれば見本から始める",
+   "description": "端末の控えは新しい形（v2）を優先して読み、なければ古い形（v1）を移行して読む。読めない控えは使わず見本のデータから始める。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 49,
+   "line_end": 59,
+   "confidence": "high",
+   "evidence": "v2→v1→例外時は undefined"
+  },
+  {
+   "id": "rule:sync/owner-mismatch-fresh",
+   "label": "Rule",
+   "name": "別の人の控えは使わず、見本のデータから始める",
+   "description": "ログインした人と控えの持ち主が違うときは、控えを消して見本のデータから始める（サーバーに行がないと控えを送るので、他人のデータが混ざらないように）。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 254,
+   "line_end": 267,
+   "confidence": "high",
+   "evidence": "uid と owner が食い違えば clearLocalData して見本で組み直す"
+  },
+  {
+   "id": "rule:sync/owner-stamp",
+   "label": "Rule",
+   "name": "ログインしている人の ID を控えの持ち主として残す",
+   "description": "初回の読み込みで、ログインしている人の ID を控えの持ち主として書く。持ち主の記録がない前からの端末は、いまの人の控えとみなす。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 268,
+   "line_end": 269,
+   "confidence": "high",
+   "evidence": "uid があれば writeOwner する"
+  },
+  {
+   "id": "rule:sync/load-timeout-fallback",
+   "label": "Rule",
+   "name": "サーバーの応答が遅いときは、数秒で端末の控えで使い始める",
+   "description": "サーバーの読み込みを6秒で諦め、オフライン表示にして端末の控えのまま編集できるようにする。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 271,
+   "line_end": 271,
+   "confidence": "high",
+   "evidence": "withTimeout で読み込みを打ち切る"
+  },
+  {
+   "id": "rule:sync/pull-failure-offline",
+   "label": "Rule",
+   "name": "読み込みに失敗しても、端末の控えで編集を始められる",
+   "description": "サーバーの読み込みに失敗したら、オフライン表示にして初回読み込みを終えた扱いにする。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 300,
+   "line_end": 307,
+   "confidence": "high",
+   "evidence": "catch で offline に切り替え finally で initialLoaded を立てる"
+  },
+  {
+   "id": "rule:sync/initial-load-gate",
+   "label": "Rule",
+   "name": "初回のサーバーの応答（か諦め）が済むまで、編集できる状態にしない",
+   "description": "初回の読み込みが終わるまで initialLoaded を立てず、終わってから編集画面を出せるようにする。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 304,
+   "line_end": 307,
+   "confidence": "high",
+   "evidence": "finally で initialLoaded を true にする"
+  },
+  {
+   "id": "rule:sync/no-save-before-first-read",
+   "label": "Rule",
+   "name": "サーバーを読み終えるまでは保存しない",
+   "description": "古い控えでサーバーの内容を上書きしないよう、初回の読み込みが終わるまで保存を始めない。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 201,
+   "line_end": 202,
+   "confidence": "high",
+   "evidence": "ready が立つまで保存の effect は何もしない"
+  },
+  {
+   "id": "rule:sync/remote-changed-check",
+   "label": "Rule",
+   "name": "サーバーが前に合わせたあとで変わったか／端末に未送信の変更があるかで分ける",
+   "description": "サーバーの保存時刻が前に合わせた時刻より新しければサーバーが変わった、未送信か編集時刻が合わせ時刻より新しければ端末が変わったとみなす。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 272,
+   "line_end": 275,
+   "confidence": "high",
+   "evidence": "updatedAt と記録した時刻・dirty を比べる"
+  },
+  {
+   "id": "rule:sync/both-changed-merge",
+   "label": "Rule",
+   "name": "両方で変えていたら、項目ごとに合わせてサーバーにも送る",
+   "description": "サーバーが変わっていて、この端末にも未送信の変更があるときは、項目ごとに合わせ、足した記録を失わずに合わせたものをサーバーへ送る。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 277,
+   "line_end": 285,
+   "confidence": "high",
+   "evidence": "mergeConflict の結果で組み直し、保存待ちにする"
+  },
+  {
+   "id": "rule:sync/remote-only-adopt",
+   "label": "Rule",
+   "name": "サーバーだけが変わっていたら、サーバーの内容を使う",
+   "description": "サーバーが変わっていて端末に未送信の変更がなければ、サーバーの内容で組み直し、その時点を合わせ済みとして残す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 286,
+   "line_end": 294,
+   "confidence": "high",
+   "evidence": "remote を replan し markSynced する"
+  },
+  {
+   "id": "rule:sync/initial-send-local",
+   "label": "Rule",
+   "name": "サーバーにまだ無いか端末が新しいときは、端末の内容を送る",
+   "description": "初回の読み込みでサーバーに変更がなければ（行がないときを含む）、この端末の内容をサーバーに送る。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 295,
+   "line_end": 299,
+   "confidence": "high",
+   "evidence": "initial のとき push する"
+  },
+  {
+   "id": "rule:sync/save-debounce",
+   "label": "Rule",
+   "name": "変更から少し待ってサーバーに保存する",
+   "description": "データが変わったら、0.8秒待ってからサーバーに保存する。待っている間にさらに変われば待ち直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 319,
+   "line_end": 332,
+   "confidence": "high",
+   "evidence": "state が変わるたびに保存を予約し直す"
+  },
+  {
+   "id": "rule:sync/save-failure-retry",
+   "label": "Rule",
+   "name": "保存に失敗したら、未送信として残してオフライン表示にする",
+   "description": "サーバーへの保存に失敗したときは未送信の印を戻してオフラインにし、次の機会に比べ直して送る。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 244,
+   "line_end": 248,
+   "confidence": "high",
+   "evidence": "catch で dirty を立てて offline にする"
+  },
+  {
+   "id": "rule:sync/remote-origin-no-resave",
+   "label": "Rule",
+   "name": "サーバーや取り込みから来た変化は保存し直さない（未送信の変更があれば送り直す）",
+   "description": "サーバーの内容や取り込んだ予定で組み直しただけの変化は保存しない。ただし直前の未送信の変更が残っていれば送り直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 321,
+   "line_end": 329,
+   "confidence": "high",
+   "evidence": "fromRemote のときは dirty でなければ保存を予約しない"
+  },
+  {
+   "id": "rule:sync/visible-repull",
+   "label": "Rule",
+   "name": "アプリに戻ってきたら、サーバーを読み直す",
+   "description": "画面が見える状態に戻ったとき、初回の読み込み後であればサーバーを読み直す。つながらなかったあとは、比べ直して送る。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 340,
+   "line_end": 345,
+   "confidence": "high",
+   "evidence": "visibilitychange で pull を呼ぶ"
+  },
+  {
+   "id": "rule:sync/online-retry",
+   "label": "Rule",
+   "name": "オンラインに戻ったら、オフラインだった分を送る",
+   "description": "ネットワークが戻ったとき、オフライン表示のままなら初回と同じ形で読み直して送る。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 346,
+   "line_end": 348,
+   "confidence": "high",
+   "evidence": "online イベントで offline のときだけ pull する"
+  },
+  {
+   "id": "rule:sync/import-on-visible-after-interval",
+   "label": "Rule",
+   "name": "戻ってきたとき、15分以上たっていれば iCal も取り込み直す",
+   "description": "戻ってきたとき、前回の取り込みから15分を超えていれば iCal を取り込み直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 344,
+   "line_end": 344,
+   "confidence": "high",
+   "evidence": "経過時間が IMPORT_EVERY_MS を超えたら refreshImports"
+  },
+  {
+   "id": "rule:sync/import-range",
+   "label": "Rule",
+   "name": "iCal の取り込み範囲は、8日前から16日先まで",
+   "description": "取り込む予定の期間は、いまの8日前から16日先まで。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 218,
+   "line_end": 218,
+   "confidence": "high",
+   "evidence": "syncImports に now-8日・now+16日を渡す"
+  },
+  {
+   "id": "rule:sync/import-failure-keeps-previous",
+   "label": "Rule",
+   "name": "取り込みに1つでも失敗したら、直前の予定・控え・通知を置き換えない",
+   "description": "取り込み元のどれかが失敗したときは、不完全な一覧で予定・端末の控え・通知を置き換えず、前回のものを残してエラー表示にする。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 219,
+   "line_end": 223,
+   "confidence": "high",
+   "evidence": "失敗した元があれば error にして return する"
+  },
+  {
+   "id": "rule:sync/import-empty-clears",
+   "label": "Rule",
+   "name": "取り込み元が1つもなければ、外部予定は空にする",
+   "description": "登録した取り込み元がなければ（全件削除を含む）、見本の予定を足さずに外部予定を空にする。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 213,
+   "line_end": 213,
+   "confidence": "high",
+   "evidence": "コメントの方針どおり、成功した取り込みの結果で置き換える"
+  },
+  {
+   "id": "rule:sync/import-not-persisted",
+   "label": "Rule",
+   "name": "取り込んだ予定はサーバーの app_state に入れない",
+   "description": "取り込んだ外部予定は端末の控えにだけ残し、サーバーのデータには保存しない（取り込みでの組み直しは保存し直さない）。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 225,
+   "line_end": 228,
+   "confidence": "high",
+   "evidence": "writeImported して fromRemote を立てる"
+  },
+  {
+   "id": "rule:sync/notice-wait-while-pulling",
+   "label": "Rule",
+   "name": "サーバーを読み直している間は、通知の一覧を置かない",
+   "description": "ほかの端末が置いた一覧を古い内容で上書きしないよう、読み直し中は通知の一覧を保存せず、3秒待って確かめ直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 361,
+   "line_end": 365,
+   "confidence": "high",
+   "evidence": "pulling が立っていれば待ち直す"
+  },
+  {
+   "id": "rule:sync/notice-skip-duplicate",
+   "label": "Rule",
+   "name": "前回と同じ通知の一覧は送らない",
+   "description": "通知の一覧を JSON にして、前に保存したものと同じなら保存しない。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 377,
+   "line_end": 382,
+   "confidence": "high",
+   "evidence": "文字列が同じなら return する"
+  },
+  {
+   "id": "rule:sync/notice-close-gone-task",
+   "label": "Rule",
+   "name": "なくなったタスクの通知は閉じる",
+   "description": "いまあるタスクの ID の一覧を渡して、すでにないタスクの通知を閉じる。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 376,
+   "line_end": 376,
+   "confidence": "medium",
+   "evidence": "closeGoneTaskNotices にタスクの ID の集合を渡す（関数名による判断）"
+  },
+  {
+   "id": "rule:sync/stale-replan",
+   "label": "Rule",
+   "name": "しばらく開いていなかったら、戻ったときに今の時刻で組み直す",
+   "description": "画面に戻ってきた（または前面に出た）とき、前回の組み直しから10分以上経っていれば組み直す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 389,
+   "line_end": 403,
+   "confidence": "high",
+   "evidence": "visibilitychange と focus で plannedAt を見る"
+  },
+  {
+   "id": "rule:sync/auto-update-not-undoable",
+   "label": "Rule",
+   "name": "自動の変更は「元に戻す」の対象にしない",
+   "description": "天気や Notion の取り込みなど自動の変更は取り消しの印を作らず、取り消しの控えにも同じ変更を当てて、元に戻しても自動の内容が消えないようにする。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 406,
+   "line_end": 421,
+   "confidence": "high",
+   "evidence": "auto のときは控えに fn を当てるだけにする"
+  },
+  {
+   "id": "rule:sync/undo-cleared-on-remote",
+   "label": "Rule",
+   "name": "サーバーの内容を取り込んだら、元に戻す控えを捨てる",
+   "description": "サーバーの内容で置き換えたときと、配置に関係しない変更をしたときは、元に戻す控えを消す。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 279,
+   "line_end": 289,
+   "confidence": "high",
+   "evidence": "pull の2分岐と patch で undoData を消す"
+  },
+  {
+   "id": "rule:sync/patch-no-replan",
+   "label": "Rule",
+   "name": "配置に関係しない変更は組み直さない",
+   "description": "表示の設定・楽しみ・朝の記録など配置に関係しない変更は組み直さずにそのまま入れる。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 432,
+   "line_end": 437,
+   "confidence": "high",
+   "evidence": "patch は replan を通さず state に重ねる"
+  },
+  {
+   "id": "rule:sync/same-block-identity",
+   "label": "Rule",
+   "name": "枠の同一判定は、種類・参照先・開始時刻の一致",
+   "description": "2つの枠を同じものとみなすのは、種類・参照先の ID・開始時刻がすべて同じとき。",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 451,
+   "line_end": 452,
+   "confidence": "high",
+   "evidence": "sameBlock が3つの値を比べる"
+  }
+ ],
+ "edges": [
+  {
+   "type": "PART_OF",
+   "from": "feature:night/bedtime-replan",
+   "to": "feature:night",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 31,
+   "line_end": 77
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:night/bedtime-reconcile",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 84,
+   "line_end": 96
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:night/bedtime-replan",
+   "to": "feature:rhythm",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 37,
+   "line_end": 45
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:night/bedtime-replan",
+   "to": "feature:health-sleep",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 56,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 31,
+   "line_end": 77
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#reconcileBedtime",
+   "to": "feature:night/bedtime-reconcile",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 84,
+   "line_end": 96
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#settledResets",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 10,
+   "line_end": 21
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:night/late-wake-minutes",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/bedtime.ts#LATE_WAKE_MINUTES",
+   "to": "setting:night/late-wake-minutes",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:night/sleep-minutes",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "setting:night/sleep-minutes",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/late-wake-tap-closes-sleep",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 9,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#settledResets",
+   "to": "rule:night/late-wake-tap-closes-sleep",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 10,
+   "line_end": 21
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:night/late-wake-tap-closes-sleep",
+   "to": "setting:night/late-wake-minutes",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 16,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/late-wake-tap-closes-sleep",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 82,
+   "line_end": 98
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/recent-two-days",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/recent-two-days",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/recent-two-days",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 48,
+   "line_end": 50
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/bed-tap-wake-estimate",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 41,
+   "line_end": 50
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/bed-tap-wake-estimate",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 41,
+   "line_end": 50
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:night/bed-tap-wake-estimate",
+   "to": "setting:night/sleep-minutes",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/bed-tap-wake-estimate",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 18,
+   "line_end": 24
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/bed-wake-limited-by-fixed-events",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 45,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/bed-wake-limited-by-fixed-events",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 45,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/bed-wake-limited-by-fixed-events",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 25,
+   "line_end": 31
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/bed-never-earlier-than-planned-wake",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 47,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/bed-never-earlier-than-planned-wake",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 47,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/bed-never-earlier-than-planned-wake",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 43,
+   "line_end": 47
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/activity-start-wins",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 51,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/activity-start-wins",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 52,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/activity-start-wins",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 37,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "rule:night/activity-start-wins",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 76,
+   "line_end": 82
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/health-late-wake-replan",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 72,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/health-late-wake-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 72,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/health-late-wake-replan",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 104,
+   "line_end": 109
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/sleep-start-priority",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 68,
+   "line_end": 68
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/sleep-start-priority",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 68,
+   "line_end": 68
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/sleep-start-priority",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 124,
+   "line_end": 129
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/manual-reset-wins",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 34,
+   "line_end": 74
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/manual-reset-wins",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 34,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/manual-reset-wins",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 37,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/bed-only-sleep-estimate",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 73,
+   "line_end": 73
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/bed-only-sleep-estimate",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 73,
+   "line_end": 73
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/planned-wake-kept",
+   "to": "feature:night/bedtime-replan",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 66,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#bedtimeSleeps",
+   "to": "rule:night/planned-wake-kept",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 66,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/planned-wake-kept",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 130,
+   "line_end": 135
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/drop-auto-blocks-in-sleep",
+   "to": "feature:night/bedtime-reconcile",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 95,
+   "line_end": 95
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#reconcileBedtime",
+   "to": "rule:night/drop-auto-blocks-in-sleep",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 95,
+   "line_end": 95
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/drop-auto-blocks-in-sleep",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 51,
+   "line_end": 60
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/pinned-task-blocks-kept",
+   "to": "feature:night/bedtime-reconcile",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 89,
+   "line_end": 89
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#reconcileBedtime",
+   "to": "rule:night/pinned-task-blocks-kept",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 89,
+   "line_end": 89
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/answered-sleep-miss",
+   "to": "feature:night/bedtime-reconcile",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 90,
+   "line_end": 91
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#reconcileBedtime",
+   "to": "rule:night/answered-sleep-miss",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 90,
+   "line_end": 91
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/answered-sleep-miss",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 51,
+   "line_end": 60
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/health-only-sleep-confirm",
+   "to": "feature:night/bedtime-reconcile",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 91,
+   "line_end": 91
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#reconcileBedtime",
+   "to": "rule:night/health-only-sleep-confirm",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 91,
+   "line_end": 91
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/health-only-sleep-confirm",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 110,
+   "line_end": 119
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/cut-block-at-sleep-start",
+   "to": "feature:night/bedtime-reconcile",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 92,
+   "line_end": 92
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#reconcileBedtime",
+   "to": "rule:night/cut-block-at-sleep-start",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 92,
+   "line_end": 92
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/bedtime.test.ts",
+   "to": "rule:night/cut-block-at-sleep-start",
+   "file": "src/lib/mock/bedtime.test.ts",
+   "line_start": 51,
+   "line_end": 57
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/reviewed-blocks-untouched",
+   "to": "feature:night/bedtime-reconcile",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 88,
+   "line_end": 88
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/bedtime.ts#reconcileBedtime",
+   "to": "rule:night/reviewed-blocks-untouched",
+   "file": "src/lib/mock/bedtime.ts",
+   "line_start": 88,
+   "line_end": 88
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:night/night-record",
+   "to": "feature:night",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 42,
+   "line_end": 92
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:night/night-record",
+   "to": "feature:health-sleep",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 47,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#nightOf",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 42,
+   "line_end": 92
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#allNights",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 95,
+   "line_end": 106
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 10,
+   "line_end": 62
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:night/on-time-judge",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 108,
+   "line_end": 122
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#upOnTime",
+   "to": "feature:night/on-time-judge",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 109,
+   "line_end": 110
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#bedOnTimeOf",
+   "to": "feature:night/on-time-judge",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 119,
+   "line_end": 122
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#bedTimeOf",
+   "to": "feature:night/on-time-judge",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 116,
+   "line_end": 116
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:night/sleep-gaps",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 124,
+   "line_end": 128
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#fallAsleepMinutes",
+   "to": "feature:night/sleep-gaps",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 125,
+   "line_end": 126
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#getUpMinutes",
+   "to": "feature:night/sleep-gaps",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 127,
+   "line_end": 128
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "feature:night/sleep-gaps",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 11,
+   "line_end": 30
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:night/on-time-grace",
+   "to": "feature:night/on-time-judge",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/night.ts#ON_TIME_GRACE_MINUTES",
+   "to": "setting:night/on-time-grace",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/source-priority",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 49,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#nightOf",
+   "to": "rule:night/source-priority",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 49,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "rule:night/source-priority",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 32,
+   "line_end": 46
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/manual-reset-latest",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 48,
+   "line_end": 49
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#nightOf",
+   "to": "rule:night/manual-reset-latest",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 48,
+   "line_end": 49
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/bed-belongs-to-next-morning",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 44,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#nightOf",
+   "to": "rule:night/bed-belongs-to-next-morning",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 44,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#allNights",
+   "to": "rule:night/bed-belongs-to-next-morning",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 99,
+   "line_end": 102
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/sleep-minutes-priority",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 74,
+   "line_end": 81
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#nightOf",
+   "to": "rule:night/sleep-minutes-priority",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 74,
+   "line_end": 81
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "rule:night/sleep-minutes-priority",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 26,
+   "line_end": 27
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/sleep-from-activity-conditions",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 72,
+   "line_end": 73
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#nightOf",
+   "to": "rule:night/sleep-from-activity-conditions",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 72,
+   "line_end": 73
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "rule:night/sleep-from-activity-conditions",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 48,
+   "line_end": 61
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/planned-bed-fallback",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 65,
+   "line_end": 70
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#nightOf",
+   "to": "rule:night/planned-bed-fallback",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 65,
+   "line_end": 70
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:night/planned-bed-fallback",
+   "to": "setting:night/sleep-minutes",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 66,
+   "line_end": 70
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/all-nights-dates",
+   "to": "feature:night/night-record",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 95,
+   "line_end": 106
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#allNights",
+   "to": "rule:night/all-nights-dates",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 95,
+   "line_end": 106
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/up-on-time",
+   "to": "feature:night/on-time-judge",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 108,
+   "line_end": 110
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#upOnTime",
+   "to": "rule:night/up-on-time",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 109,
+   "line_end": 110
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:night/up-on-time",
+   "to": "setting:night/on-time-grace",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 110,
+   "line_end": 110
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "rule:night/up-on-time",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 28,
+   "line_end": 28
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/bed-on-time",
+   "to": "feature:night/on-time-judge",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 112,
+   "line_end": 122
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#bedOnTimeOf",
+   "to": "rule:night/bed-on-time",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 119,
+   "line_end": 122
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#bedTimeOf",
+   "to": "rule:night/bed-on-time",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 116,
+   "line_end": 116
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:night/bed-on-time",
+   "to": "setting:night/on-time-grace",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 121,
+   "line_end": 121
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "rule:night/bed-on-time",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 29,
+   "line_end": 29
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/fall-asleep-gap",
+   "to": "feature:night/sleep-gaps",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 124,
+   "line_end": 126
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#fallAsleepMinutes",
+   "to": "rule:night/fall-asleep-gap",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 125,
+   "line_end": 126
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "rule:night/fall-asleep-gap",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 24,
+   "line_end": 24
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:night/get-up-gap",
+   "to": "feature:night/sleep-gaps",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 127,
+   "line_end": 128
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/night.ts#getUpMinutes",
+   "to": "rule:night/get-up-gap",
+   "file": "src/lib/mock/night.ts",
+   "line_start": 127,
+   "line_end": 128
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/night.test.ts",
+   "to": "rule:night/get-up-gap",
+   "file": "src/lib/mock/night.test.ts",
+   "line_start": 25,
+   "line_end": 25
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/conflict-merge",
+   "to": "feature:sync",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 64,
+   "line_end": 83
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#mergeConflict",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 69,
+   "line_end": 83
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#union",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 43,
+   "line_end": 62
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/merge.test.ts",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.test.ts",
+   "line_start": 9,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/fingerprints",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 4,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#fingerprints",
+   "to": "feature:sync/fingerprints",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 34,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#hash",
+   "to": "feature:sync/fingerprints",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 21,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#stable",
+   "to": "feature:sync/fingerprints",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 7,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/mock/merge.ts#Fingerprints",
+   "to": "feature:sync/fingerprints",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 5,
+   "line_end": 5
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/fingerprint-order-insensitive",
+   "to": "feature:sync/fingerprints",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 7,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#stable",
+   "to": "rule:sync/fingerprint-order-insensitive",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 7,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/merge.test.ts",
+   "to": "rule:sync/fingerprint-order-insensitive",
+   "file": "src/lib/mock/merge.test.ts",
+   "line_start": 32,
+   "line_end": 35
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/merge-one-side-changed",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 76,
+   "line_end": 78
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#mergeConflict",
+   "to": "rule:sync/merge-one-side-changed",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 76,
+   "line_end": 78
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/merge.test.ts",
+   "to": "rule:sync/merge-one-side-changed",
+   "file": "src/lib/mock/merge.test.ts",
+   "line_start": 10,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/merge-both-changed-union",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 42,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#mergeConflict",
+   "to": "rule:sync/merge-both-changed-union",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 80,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/merge.test.ts",
+   "to": "rule:sync/merge-both-changed-union",
+   "file": "src/lib/mock/merge.test.ts",
+   "line_start": 18,
+   "line_end": 24
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/merge-list-union",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 44,
+   "line_end": 55
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#union",
+   "to": "rule:sync/merge-list-union",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 44,
+   "line_end": 55
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#keyOf",
+   "to": "rule:sync/merge-list-union",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 39,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/merge.test.ts",
+   "to": "rule:sync/merge-list-union",
+   "file": "src/lib/mock/merge.test.ts",
+   "line_start": 18,
+   "line_end": 30
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/merge-record-overlay",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 56,
+   "line_end": 61
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#union",
+   "to": "rule:sync/merge-record-overlay",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 56,
+   "line_end": 61
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/merge.test.ts",
+   "to": "rule:sync/merge-record-overlay",
+   "file": "src/lib/mock/merge.test.ts",
+   "line_start": 18,
+   "line_end": 24
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/merge-no-base-no-loss",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 77,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#mergeConflict",
+   "to": "rule:sync/merge-no-base-no-loss",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 77,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/merge.test.ts",
+   "to": "rule:sync/merge-no-base-no-loss",
+   "file": "src/lib/mock/merge.test.ts",
+   "line_start": 37,
+   "line_end": 41
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/merge-migrations-union",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 79,
+   "line_end": 79
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/merge.ts#mergeConflict",
+   "to": "rule:sync/merge-migrations-union",
+   "file": "src/lib/mock/merge.ts",
+   "line_start": 79,
+   "line_end": 79
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/mock-store",
+   "to": "feature:sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 186,
+   "line_end": 447
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 191,
+   "line_end": 447
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/mock/store.ts#MockStore",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 449,
+   "line_end": 449
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/local-cache",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 18,
+   "line_end": 98
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/local-cache",
+   "to": "integration:browser-storage",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 49,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#loadData",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 49,
+   "line_end": 59
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#saveData",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 61,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#initialState",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 69,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#readImported",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 82,
+   "line_end": 90
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#writeImported",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 91,
+   "line_end": 98
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#STORAGE_KEY",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 18,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#IMPORTED_KEY",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 77,
+   "line_end": 77
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#readNumber",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 138,
+   "line_end": 144
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#writeNumber",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 145,
+   "line_end": 151
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#readEditedAt",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 171,
+   "line_end": 177
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#writeEditedAt",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 178,
+   "line_end": 184
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/server-sync",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 235,
+   "line_end": 355
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/server-sync",
+   "to": "integration:supabase-db",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 241,
+   "line_end": 241
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/server-sync",
+   "to": "integration:supabase-auth",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 257,
+   "line_end": 257
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/server-sync",
+   "to": "feature:sync/conflict-merge",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 281,
+   "line_end": 281
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 235,
+   "line_end": 355
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#withTimeout",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 107,
+   "line_end": 121
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#readBase",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 152,
+   "line_end": 159
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#markSynced",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 161,
+   "line_end": 169
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/mock/store.ts#SyncStatus",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 124,
+   "line_end": 124
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/ical-refresh",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 213,
+   "line_end": 233
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/ical-refresh",
+   "to": "integration:ical-import",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 218,
+   "line_end": 218
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/ical-refresh",
+   "to": "feature:ical",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 218,
+   "line_end": 218
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "feature:sync/ical-refresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 214,
+   "line_end": 233
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/mock/store.ts#ImportStatus",
+   "to": "feature:sync/ical-refresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 100,
+   "line_end": 105
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/notice-upload",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 357,
+   "line_end": 386
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/notice-upload",
+   "to": "feature:notifications",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 366,
+   "line_end": 375
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "feature:sync/notice-upload",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 357,
+   "line_end": 386
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/undo",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 405,
+   "line_end": 430
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "feature:sync/undo",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 410,
+   "line_end": 430
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "feature:sync/undo",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 32,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/replan-on-change",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 405,
+   "line_end": 437
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/replan-on-change",
+   "to": "feature:planner",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 420,
+   "line_end": 420
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "feature:sync/replan-on-change",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 405,
+   "line_end": 437
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#sameBlock",
+   "to": "feature:sync/replan-on-change",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 451,
+   "line_end": 452
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/reset-sample",
+   "to": "feature:sync/mock-store",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 439,
+   "line_end": 442
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "feature:sync/reset-sample",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 439,
+   "line_end": 442
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:sync/save-delay",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 127,
+   "line_end": 127
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#SAVE_DELAY_MS",
+   "to": "setting:sync/save-delay",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 127,
+   "line_end": 127
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:sync/load-timeout",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 135,
+   "line_end": 136
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#LOAD_TIMEOUT_MS",
+   "to": "setting:sync/load-timeout",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 136,
+   "line_end": 136
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:sync/stale-ms",
+   "to": "feature:sync/replan-on-change",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 74,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#STALE_MS",
+   "to": "setting:sync/stale-ms",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 75,
+   "line_end": 75
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:sync/import-every",
+   "to": "feature:sync/ical-refresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 78,
+   "line_end": 78
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#IMPORT_EVERY_MS",
+   "to": "setting:sync/import-every",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 78,
+   "line_end": 78
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:sync/notice-delay",
+   "to": "feature:sync/notice-upload",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 128,
+   "line_end": 129
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#NOTICE_DELAY_MS",
+   "to": "setting:sync/notice-delay",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 129,
+   "line_end": 129
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/logout-clears-cache",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 21,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#clearLocalData",
+   "to": "rule:sync/logout-clears-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 22,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#KEY_PREFIX",
+   "to": "rule:sync/logout-clears-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 19,
+   "line_end": 19
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/cache-load-order",
+   "to": "feature:sync/local-cache",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 49,
+   "line_end": 59
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#loadData",
+   "to": "rule:sync/cache-load-order",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 49,
+   "line_end": 59
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#initialState",
+   "to": "rule:sync/cache-load-order",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 69,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/mock/store.ts#V1_STORAGE_KEY",
+   "to": "rule:sync/cache-load-order",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 29,
+   "line_end": 29
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/owner-mismatch-fresh",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 254,
+   "line_end": 267
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/owner-mismatch-fresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 254,
+   "line_end": 267
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#readOwner",
+   "to": "rule:sync/owner-mismatch-fresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 33,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/owner-mismatch-fresh",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 122,
+   "line_end": 133
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/owner-stamp",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 268,
+   "line_end": 269
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/owner-stamp",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 268,
+   "line_end": 269
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#writeOwner",
+   "to": "rule:sync/owner-stamp",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 41,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/owner-stamp",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 122,
+   "line_end": 133
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/load-timeout-fallback",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 271,
+   "line_end": 271
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/load-timeout-fallback",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 271,
+   "line_end": 271
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#withTimeout",
+   "to": "rule:sync/load-timeout-fallback",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 107,
+   "line_end": 121
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:sync/load-timeout-fallback",
+   "to": "setting:sync/load-timeout",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 271,
+   "line_end": 271
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/load-timeout-fallback",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 146,
+   "line_end": 156
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/pull-failure-offline",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 300,
+   "line_end": 307
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/pull-failure-offline",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 300,
+   "line_end": 307
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/pull-failure-offline",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 55,
+   "line_end": 63
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/initial-load-gate",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 304,
+   "line_end": 307
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/initial-load-gate",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 304,
+   "line_end": 307
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/initial-load-gate",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 44,
+   "line_end": 53
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/no-save-before-first-read",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 201,
+   "line_end": 202
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/no-save-before-first-read",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 319,
+   "line_end": 322
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/remote-changed-check",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 272,
+   "line_end": 275
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/remote-changed-check",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 272,
+   "line_end": 276
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/both-changed-merge",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 277,
+   "line_end": 285
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/both-changed-merge",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 277,
+   "line_end": 285
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/both-changed-merge",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 158,
+   "line_end": 174
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/remote-only-adopt",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 286,
+   "line_end": 294
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/remote-only-adopt",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 286,
+   "line_end": 294
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/initial-send-local",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 295,
+   "line_end": 299
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/initial-send-local",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 295,
+   "line_end": 299
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/initial-send-local",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 135,
+   "line_end": 144
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/save-debounce",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 319,
+   "line_end": 332
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/save-debounce",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 319,
+   "line_end": 332
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:sync/save-debounce",
+   "to": "setting:sync/save-delay",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 330,
+   "line_end": 330
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/save-failure-retry",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 244,
+   "line_end": 248
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/save-failure-retry",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 235,
+   "line_end": 249
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/remote-origin-no-resave",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 321,
+   "line_end": 329
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/remote-origin-no-resave",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 321,
+   "line_end": 329
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/remote-origin-no-resave",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 92,
+   "line_end": 104
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/visible-repull",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 340,
+   "line_end": 345
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/visible-repull",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 341,
+   "line_end": 345
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/online-retry",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 346,
+   "line_end": 348
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/online-retry",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 346,
+   "line_end": 348
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/import-on-visible-after-interval",
+   "to": "feature:sync/ical-refresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 344,
+   "line_end": 344
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/import-on-visible-after-interval",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 344,
+   "line_end": 344
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:sync/import-on-visible-after-interval",
+   "to": "setting:sync/import-every",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 344,
+   "line_end": 344
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/import-range",
+   "to": "feature:sync/ical-refresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 218,
+   "line_end": 218
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/import-range",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 218,
+   "line_end": 218
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/import-failure-keeps-previous",
+   "to": "feature:sync/ical-refresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 219,
+   "line_end": 223
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/import-failure-keeps-previous",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 219,
+   "line_end": 223
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/import-failure-keeps-previous",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 65,
+   "line_end": 82
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/import-empty-clears",
+   "to": "feature:sync/ical-refresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 213,
+   "line_end": 228
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/import-empty-clears",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 224,
+   "line_end": 229
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/import-empty-clears",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 84,
+   "line_end": 90
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/import-not-persisted",
+   "to": "feature:sync/ical-refresh",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 225,
+   "line_end": 228
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/import-not-persisted",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 225,
+   "line_end": 228
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/notice-wait-while-pulling",
+   "to": "feature:sync/notice-upload",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 361,
+   "line_end": 365
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/notice-wait-while-pulling",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 361,
+   "line_end": 365
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:sync/notice-wait-while-pulling",
+   "to": "setting:sync/notice-delay",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 363,
+   "line_end": 363
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "rule:sync/notice-wait-while-pulling",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 106,
+   "line_end": 120
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/notice-skip-duplicate",
+   "to": "feature:sync/notice-upload",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 377,
+   "line_end": 382
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/notice-skip-duplicate",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 377,
+   "line_end": 382
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/notice-close-gone-task",
+   "to": "feature:sync/notice-upload",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 376,
+   "line_end": 376
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/notice-close-gone-task",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 376,
+   "line_end": 376
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/stale-replan",
+   "to": "feature:sync/replan-on-change",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 389,
+   "line_end": 403
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/stale-replan",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 389,
+   "line_end": 403
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:sync/stale-replan",
+   "to": "setting:sync/stale-ms",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 394,
+   "line_end": 394
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/auto-update-not-undoable",
+   "to": "feature:sync/undo",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 406,
+   "line_end": 421
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/auto-update-not-undoable",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 410,
+   "line_end": 421
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/undo-cleared-on-remote",
+   "to": "feature:sync/undo",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 279,
+   "line_end": 289
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/undo-cleared-on-remote",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 279,
+   "line_end": 289
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/patch-no-replan",
+   "to": "feature:sync/replan-on-change",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 432,
+   "line_end": 437
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#useMockStore",
+   "to": "rule:sync/patch-no-replan",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 433,
+   "line_end": 437
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/same-block-identity",
+   "to": "feature:sync/replan-on-change",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 451,
+   "line_end": 452
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/mock/store.ts#sameBlock",
+   "to": "rule:sync/same-block-identity",
+   "file": "src/lib/mock/store.ts",
+   "line_start": 451,
+   "line_end": 452
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/mock/store.test.tsx",
+   "to": "feature:sync/server-sync",
+   "file": "src/lib/mock/store.test.tsx",
+   "line_start": 44,
+   "line_end": 174
+  }
+ ]
+}

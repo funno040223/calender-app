@@ -1,0 +1,3518 @@
+{
+ "batch": "b09_components_calendar",
+ "nodes": [
+  {
+   "id": "feature:calendar/view-modes",
+   "label": "Feature",
+   "name": "3日・週・月の表示切り替え",
+   "description": "ヘッダーのタブで3日・週・月を切り替え、前へ・今日・次へで移動する。1日だけの表示は作らず最小は3日。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 21,
+   "line_end": 25,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/strip-view",
+   "label": "Feature",
+   "name": "3日・週の横めくり表示",
+   "description": "横に42日ぶん並べた日を指で動かして1日ずつ止まる。端に近づくと並べ直して途切れなく見せる。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 54,
+   "line_end": 57,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/month-view",
+   "label": "Feature",
+   "name": "月表示（週を縦に連ねる）",
+   "description": "週を縦に途切れずに並べ、1週ずつ止まる見渡し用の月表示。日付を押すとその日の3日・週表示へ移る。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 73,
+   "line_end": 78,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/pinch-zoom",
+   "label": "Feature",
+   "name": "ピンチで30分の高さを変える",
+   "description": "2本指のピンチやCtrl＋スクロールで30分の高さを変え、予定も同時に伸び縮みする。高さは端末に覚える。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 332,
+   "line_end": 450,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/time-axis",
+   "label": "Feature",
+   "name": "外に出した時刻の目盛り",
+   "description": "横に流れないよう横の枠の外に時刻と「終日」の目盛りを置き、縦のスクロールに合わせて動かす。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 481,
+   "line_end": 530,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/tap-select",
+   "label": "Feature",
+   "name": "1回目は選ぶ・2回目で開く",
+   "description": "予定や枠を1回押すと選ぶだけで、同じものをもう1回押すと詳しく開く。1回目は関連する予定・タスクを光らせる。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 60,
+   "line_end": 75,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/related-focus",
+   "label": "Feature",
+   "name": "関連する予定とタスクの強調",
+   "description": "予定を押す・重ねると、関連するタスクの枠までまとめて強調し、ほかを薄くする。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 33,
+   "line_end": 44,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/own-event-edit",
+   "label": "Feature",
+   "name": "自分の予定の作成・編集・削除・ドラッグ",
+   "description": "空き時間や日付を押して予定を作り、押して編集・削除し、ドラッグやリサイズで動かせる。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 91,
+   "line_end": 117,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/event-form",
+   "label": "Feature",
+   "name": "予定の入力フォーム",
+   "description": "タイトル・カレンダー・日時・終日・場所・移動時間・在宅・身支度・メモを入れる予定の編集シート。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 53,
+   "line_end": 238,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/block-sheet",
+   "label": "Feature",
+   "name": "タスク・習慣の枠の詳細シート",
+   "description": "枠を開くと種類・日時・長さ・関連する予定を見せ、固定の解除やタスクの編集、記録ボタンを出す。",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 50,
+   "line_end": 98,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/block-record",
+   "label": "Feature",
+   "name": "枠からの記録（やった・できなかった・飛ばす・空ける）",
+   "description": "カレンダーの枠から習慣の「やった／少しだけ／できなかった」、「今日は飛ばす」、タスクの「この時間は空ける」を行う。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 374,
+   "line_end": 454,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/block-drag-pin",
+   "label": "Feature",
+   "name": "枠をドラッグして固定",
+   "description": "タスク・習慣の枠をドラッグすると、その位置に固定され自動配置で動かなくなる。固定は解除できる。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 147,
+   "line_end": 156,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/class-occurrence",
+   "label": "Feature",
+   "name": "授業の1回ぶんの操作",
+   "description": "時間割から作った授業の回ごとに、任意参加の出欠の切り替えと休講にできる。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 120,
+   "line_end": 144,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/imported-travel",
+   "label": "Feature",
+   "name": "取り込んだ予定の移動（片道）の指定",
+   "description": "Google から取り込んだ予定を開いて、移動の片道分を選ぶ。場所がないと家にいる扱いなので、外出として扱わせるのに使う。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 328,
+   "line_end": 355,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/readonly-event-sheet",
+   "label": "Feature",
+   "name": "読み取り専用の予定シート",
+   "description": "取り込んだ予定や授業の日時・場所・説明・出どころを見せるシート。関連するタスクと操作を下に並べる。",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 100,
+   "line_end": 128,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/related-tasks",
+   "label": "Feature",
+   "name": "予定に関連するタスクの一覧",
+   "description": "予定の詳細に、その予定に関連するタスクと配置された日時、編集ボタンを並べる。",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 11,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/calendar-toggles",
+   "label": "Feature",
+   "name": "表示するカレンダーの切り替え",
+   "description": "カレンダーごとに表示のオン・オフを切り替える。広い画面は左の列、狭い画面は左から出るシートに出す。",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 6,
+   "line_end": 48,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/block-display",
+   "label": "Feature",
+   "name": "枠・予定の見せ方",
+   "description": "タスク・習慣・朝ルーティンの枠を種類の色で出し、固定の印や関連する予定の名前を添える。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 118,
+   "line_end": 205,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/travel-band",
+   "label": "Feature",
+   "name": "移動の帯",
+   "description": "外出する予定の前後の移動を「移動」の帯で出し、押すとその予定を開く。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 711,
+   "line_end": 723,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/sleep-bands",
+   "label": "Feature",
+   "name": "睡眠とタバコを控える時間の帯",
+   "description": "就寝から翌日の起床までを睡眠の帯で、就寝3時間前からをタバコを控える帯で背景に出す。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 725,
+   "line_end": 755,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/deadline-marks",
+   "label": "Feature",
+   "name": "月表示のタスク締切の印",
+   "description": "月表示で締切の日に「〆 タスク名」を出し、押すとそのタスクを開く。配置が足りない締切は遅れの印をつける。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 661,
+   "line_end": 681,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/month-day-cells",
+   "label": "Feature",
+   "name": "月表示の日付セル",
+   "description": "日付の下に時刻の予定の件数を点で出す。1日には「月/1」と出し、点がない日も高さをそろえる。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 759,
+   "line_end": 769,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "feature:calendar/quick-add-bar",
+   "label": "Feature",
+   "name": "タスクのクイック追加バー",
+   "description": "1行の入力でタスクを追加する。締切（今日・明日・今週まで）と作業の種類のチップを選べ、読み取り結果の見込みを下に出す。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 25,
+   "line_end": 119,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "setting:calendar/tap-repeat-ignore-ms",
+   "label": "Setting",
+   "name": "同じタップとみなす時間（ミリ秒）",
+   "description": "これより早い2回目のタップは同じタップの重なりとみなし、「もう1回押した」に数えない。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 32,
+   "line_end": 32,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarApp.tsx#TAP_REPEAT_IGNORE_MS",
+   "value": 500
+  },
+  {
+   "id": "setting:calendar/strip-days",
+   "label": "Setting",
+   "name": "横に並べておく日数",
+   "description": "3日・週表示で横に並べておく日の数。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 55,
+   "line_end": 55,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#STRIP_DAYS",
+   "value": 42
+  },
+  {
+   "id": "setting:calendar/strip-lead",
+   "label": "Setting",
+   "name": "並べ直したとき今の日の前に置く日数",
+   "description": "並べ直すとき、見ている日の前に置く日数。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 56,
+   "line_end": 56,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#STRIP_LEAD",
+   "value": 14
+  },
+  {
+   "id": "setting:calendar/strip-edge",
+   "label": "Setting",
+   "name": "端に近づいたとみなす日数",
+   "description": "見ている日が端からこの日数以内になったら並べ直す。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 57,
+   "line_end": 57,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#STRIP_EDGE",
+   "value": 5
+  },
+  {
+   "id": "setting:calendar/slot-default",
+   "label": "Setting",
+   "name": "30分の高さの初期値（px）",
+   "description": "ピンチで変える前の、30分の高さ。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 60,
+   "line_end": 60,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#SLOT_DEFAULT",
+   "value": 34
+  },
+  {
+   "id": "setting:calendar/slot-min",
+   "label": "Setting",
+   "name": "30分の高さの下限（px）",
+   "description": "ピンチで縮めたときの最小の高さ。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 61,
+   "line_end": 61,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#SLOT_MIN",
+   "value": 20
+  },
+  {
+   "id": "setting:calendar/slot-max",
+   "label": "Setting",
+   "name": "30分の高さの上限（px）",
+   "description": "ピンチで広げたときの最大の高さ。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 62,
+   "line_end": 62,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#SLOT_MAX",
+   "value": 90
+  },
+  {
+   "id": "setting:calendar/slot-storage-key",
+   "label": "Setting",
+   "name": "30分の高さを覚える保存キー",
+   "description": "ピンチで決めた高さを端末のローカル保存に覚えるキー名。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 59,
+   "line_end": 59,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#SLOT_KEY",
+   "value": "task-rhythm:slot-height"
+  },
+  {
+   "id": "setting:calendar/month-weeks",
+   "label": "Setting",
+   "name": "月表示で縦に並べておく週数",
+   "description": "月表示で縦に並べておく週の数。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 74,
+   "line_end": 74,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#MONTH_WEEKS",
+   "value": 26
+  },
+  {
+   "id": "setting:calendar/month-lead",
+   "label": "Setting",
+   "name": "月表示で今の週の前に置く週数",
+   "description": "並べ直したとき、見ている週の前に置く週の数。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 75,
+   "line_end": 75,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#MONTH_LEAD",
+   "value": 9
+  },
+  {
+   "id": "setting:calendar/month-edge",
+   "label": "Setting",
+   "name": "月表示で端に近づいたとみなす週数",
+   "description": "端からこの週数以内になったら月表示を並べ直す。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 76,
+   "line_end": 76,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#MONTH_EDGE",
+   "value": 2
+  },
+  {
+   "id": "setting:calendar/month-rows",
+   "label": "Setting",
+   "name": "月表示で画面に入れる週数",
+   "description": "1週の高さ＝画面の高さ÷この数。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 78,
+   "line_end": 78,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/CalendarView.tsx#MONTH_ROWS",
+   "value": 6
+  },
+  {
+   "id": "setting:calendar/quick-add-deadline-chips",
+   "label": "Setting",
+   "name": "クイック追加の締切チップ",
+   "description": "追加バーに出す締切の選択肢（今日・明日・今週）。選ぶと「〜まで」と書いたのと同じ意味になる。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 8,
+   "line_end": 8,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/QuickAddBar.tsx#DEADLINE_CHIPS",
+   "value": "今日,明日,今週"
+  },
+  {
+   "id": "setting:calendar/quick-add-priority-labels",
+   "label": "Setting",
+   "name": "優先度の表示名",
+   "description": "優先度1・2・3を「低・中・高」と表示する。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 10,
+   "line_end": 10,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認",
+   "const_ref": "const:src/components/calendar/QuickAddBar.tsx#PRIORITY_LABEL",
+   "value": "1:低,2:中,3:高"
+  },
+  {
+   "id": "setting:calendar/imported-travel-choices",
+   "label": "Setting",
+   "name": "移動（片道）の選択肢（分）",
+   "description": "取り込んだ予定の移動時間として選べる分数。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 347,
+   "line_end": 351,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "setting:calendar/snap-minutes",
+   "label": "Setting",
+   "name": "ドラッグで動く刻み",
+   "description": "予定・枠のドラッグ、リサイズの刻みは15分、目盛りの区切りは30分。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 871,
+   "line_end": 873,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "setting:calendar/nosmoke-cutoff-view",
+   "label": "Setting",
+   "name": "タバコを控える帯の始まり（就寝の何分前）",
+   "description": "カレンダーの帯は、通知側の就寝前のタバコの区切り（分）を共有して就寝の前から引く。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 744,
+   "line_end": 744,
+   "confidence": "medium",
+   "evidence": "定数は notify/build.ts にあり、ここでは参照のみ。値は定義側で確認",
+   "const_ref": "const:src/lib/notify/build.ts#SMOKE_CUTOFF_MINUTES",
+   "value": 180
+  },
+  {
+   "id": "rule:calendar/default-view-by-width",
+   "label": "Rule",
+   "name": "狭い画面は3日、広い画面は週で開く",
+   "description": "幅639px以下なら3日表示、それより広ければ週表示で始める。1日だけの表示はない。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 49,
+   "line_end": 50,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/month-pick-day-jump",
+   "label": "Rule",
+   "name": "月表示で日付を押すとその日の3日・週表示へ",
+   "description": "月表示で日付を押すと、狭い画面なら3日、広い画面なら週表示でその日から見せる。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 240,
+   "line_end": 243,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/second-tap-opens",
+   "label": "Rule",
+   "name": "同じものをもう1回押すと開く",
+   "description": "予定・枠は1回目で選ぶだけ。選んでいるものを（500ms より後に）もう1回押すと詳しく開く。別のものを押すと選び直す。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 62,
+   "line_end": 75,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/empty-click-clears-selection",
+   "label": "Rule",
+   "name": "何もない所を押すと選択を解く（作成より先）",
+   "description": "選択や強調が残っているときは、空きを押してもまず選択を解くだけで新規予定は作らない。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 264,
+   "line_end": 269,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/focus-group-dim",
+   "label": "Rule",
+   "name": "関連するまとまり以外は薄く、まとまりは枠で強調",
+   "description": "強調中のまとまり以外の予定・枠は透明度0.35にし、まとまりには輪郭の影をつける。関連するタスクがない予定は強調しない。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 33,
+   "line_end": 44,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/task-block-group-needs-related-event",
+   "label": "Rule",
+   "name": "タスク枠は関連する予定があるときだけまとまりを持つ",
+   "description": "タスクの枠を押したとき、そのタスクに関連する予定が存在する場合だけ強調のまとまりを作る。習慣の枠は作らない。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 84,
+   "line_end": 88,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-delete-and-save-upsert",
+   "label": "Rule",
+   "name": "予定の保存は既存なら置き換え、なければ追加",
+   "description": "同じ id の予定があれば置き換え、なければ末尾に追加する。保存・削除のあとはフォームを閉じる。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 95,
+   "line_end": 105,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-drag-allday-flag",
+   "label": "Rule",
+   "name": "ドラッグ後の予定は終日の印を引き継ぐ",
+   "description": "ドラッグ・リサイズ後、終日の予定は allDay を付け、そうでなければ外す。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 106,
+   "line_end": 117,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/class-cancel-clears-attendance",
+   "label": "Rule",
+   "name": "授業を休講にすると出席の記録も外れる",
+   "description": "休講にした回は休講日に加え、参加の日から外す。休講にする前に確認を出す。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 133,
+   "line_end": 139,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/class-optional-attend-toggle",
+   "label": "Rule",
+   "name": "任意参加の授業だけ「この回は参加する」を出す",
+   "description": "任意参加の授業にだけ参加の切り替えを出す。参加しない回は空き時間として扱い、タスクを置くことがある。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 312,
+   "line_end": 326,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/imported-travel-only-google",
+   "label": "Rule",
+   "name": "移動（片道）の指定は Google 取り込み予定だけ",
+   "description": "移動の選択は Google から取り込んだ予定にだけ出す。場所があれば「場所から」と「家にいる」(0分)、なければ「家にいる」が初期の選択肢。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 328,
+   "line_end": 355,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/readonly-source-label",
+   "label": "Rule",
+   "name": "取り込み予定・授業は読み取り専用と出す",
+   "description": "Google の予定は読み取り専用、授業は時間割の設定で変えると説明を出す。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 303,
+   "line_end": 311,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/drag-pins-block",
+   "label": "Rule",
+   "name": "枠をドラッグすると固定される",
+   "description": "枠を動かしたら新しい時間に固定（pinned）する。固定の解除で自動配置に戻す。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 146,
+   "line_end": 157,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-sheet-pin-release-not-routine",
+   "label": "Rule",
+   "name": "固定を外すボタンは固定された枠だけ、朝ルーティンには出さない",
+   "description": "固定中の枠にだけ「固定を外して自動に戻す」を出す。朝ルーティンの枠は固定の操作を出さない。",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 80,
+   "line_end": 89,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-sheet-edit-task-only-task",
+   "label": "Rule",
+   "name": "「タスクを編集」はタスクの枠だけ",
+   "description": "タスクの枠のシートにだけ、元のタスクを開く編集ボタンを出す。",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 90,
+   "line_end": 94,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-sheet-related-event",
+   "label": "Rule",
+   "name": "関連する予定があれば「〜の準備」と添える",
+   "description": "タスクの枠に関連する予定があると、その予定の短い表記に「の準備」を付けて出す。",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 74,
+   "line_end": 79,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-record-free-unstarted-task",
+   "label": "Rule",
+   "name": "始まっていないタスク枠は「この時間は空ける」",
+   "description": "まだ始まっていないタスクの枠では、この回だけ外してその時間を空けられる（外した分は別の時間に入れ直す）。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 381,
+   "line_end": 394,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-record-started-task-to-today",
+   "label": "Rule",
+   "name": "始まったタスク枠は今日の画面で進み具合を確認",
+   "description": "始まった（組み直しの時刻以前に開始した）タスクの枠は、カレンダーで記録せず今日の画面の進み具合へ案内する。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 377,
+   "line_end": 395,
+   "confidence": "medium",
+   "evidence": "「started」は組み直した時刻(plannedAt)との比較。今日の画面のどのカードかはコードに書かれていない"
+  },
+  {
+   "id": "rule:calendar/block-record-habit-done-only-started",
+   "label": "Rule",
+   "name": "習慣の「やった／少しだけ」は始まった枠だけ",
+   "description": "習慣の枠に「やった」「少しだけ」を出すのは、始まった枠だけ。同じボタンをもう1回押すと記録を取り消す。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 401,
+   "line_end": 421,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-record-five-if-allowed",
+   "label": "Rule",
+   "name": "「少しだけ」は許す習慣だけ",
+   "description": "「少しだけ」は allowsFive が真の習慣にだけ出す。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 412,
+   "line_end": 416,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-record-miss-tracked",
+   "label": "Rule",
+   "name": "終わった未記録の「記録する」習慣は「できなかった」を出す",
+   "description": "記録する習慣で、まだ記録がなく枠が終わっているときだけ「できなかった」を出す。押すと外して入れ直す。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 422,
+   "line_end": 434,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-record-skip-today",
+   "label": "Rule",
+   "name": "飛ばせる習慣・食事は終わる前なら「今日は飛ばす／外で食べる」",
+   "description": "飛ばせる習慣か食事で、枠がまだ終わっていないとき出す。食事は「今日は外で食べる」と表示し、押すと家で食べる指定は外す（両方は入れない）。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 435,
+   "line_end": 453,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-record-waking-day",
+   "label": "Rule",
+   "name": "記録の日付は起きている日で決める",
+   "description": "習慣の記録は枠の開始から起きている日（wakingDayStart）の日付で持つ。夜中の枠は前の日の続きになる。",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 399,
+   "line_end": 400,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/strip-recenter-near-edge",
+   "label": "Rule",
+   "name": "端に近づいたら並べ直す",
+   "description": "見ている日が端から5日以内になったら、見ている日を中心寄りにして42日を並べ直す。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 304,
+   "line_end": 312,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/week-home-monday",
+   "label": "Rule",
+   "name": "週表示は月曜始まりで、最初はその週の月曜",
+   "description": "週表示の最初の位置はその週の月曜で、3日表示は今日。FullCalendar の週の始まりも月曜。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 244,
+   "line_end": 249,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/visible-days-by-mode",
+   "label": "Rule",
+   "name": "表示する日数は3日・週は7日",
+   "description": "1日の幅は画面の幅から時刻の列を引き、週は7日・3日は3日で割る。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 274,
+   "line_end": 284,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/settle-not-while-touching",
+   "label": "Rule",
+   "name": "指を置いている間は並べ直さない",
+   "description": "iPhone で指で動かしている途中に位置を変えると日付だけ入れ替わって何日も飛ぶため、並べ直しや境目への寄せは指を離して止まってから行う。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 532,
+   "line_end": 546,
+   "confidence": "high",
+   "evidence": "コメントに理由、touch.current.down で判定"
+  },
+  {
+   "id": "rule:calendar/settle-snap-to-day",
+   "label": "Rule",
+   "name": "日の途中で止まったら近い日の境目へ寄せる",
+   "description": "止まる仕組みが効かず日の途中で止まったとき、近いほうの日の境目まで動かす（1px超のずれ）。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 538,
+   "line_end": 544,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/initial-scroll-hour-before-now",
+   "label": "Rule",
+   "name": "縦は最初だけ今の1時間前から見せる",
+   "description": "初めて描いたときだけ、現在時刻の1時間前（最小0時）へ縦に動かす。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 505,
+   "line_end": 514,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/axis-follows-vertical-scroll",
+   "label": "Rule",
+   "name": "時刻の目盛りは縦の枠のスクロールに合わせて動く",
+   "description": "縦の枠の位置・高さを測り、スクロールのたびに目盛りを縦に同じだけずらす。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 487,
+   "line_end": 504,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/pinch-clamp-and-persist",
+   "label": "Rule",
+   "name": "ピンチの高さは20〜90pxに収め、端末に覚える",
+   "description": "30分の高さは下限20・上限90の範囲に収める。ピンチを終えたらローカル保存に覚え、次回それを読む（範囲外の値は初期値34に戻す）。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 63,
+   "line_end": 71,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/pinch-freezes-scroll",
+   "label": "Rule",
+   "name": "ピンチ中は横縦スクロールと1日ずつ止める仕組みを止める",
+   "description": "2本指の間は拡大縮小とぶつからないよう横位置を固定し、終わったら横位置を日の境目にそろえてから戻す。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 385,
+   "line_end": 417,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/pinch-keeps-focus-time",
+   "label": "Rule",
+   "name": "ピンチの点の時刻が指の下から動かないよう縦位置を合わせる",
+   "description": "拡大縮小の間、指の間の時刻がずれないようスクロール位置を補正し、予定の位置も同じ割合で伸ばす。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 347,
+   "line_end": 376,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/ctrl-wheel-is-pinch",
+   "label": "Rule",
+   "name": "Ctrl＋スクロールもピンチとして扱う",
+   "description": "パソコンのトラックパッドのピンチ（Ctrl＋スクロール）で同じ拡大縮小を行い、200ms 止まったら確定して保存する。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 420,
+   "line_end": 433,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/month-weeks-snap-and-recenter",
+   "label": "Rule",
+   "name": "月表示は1週ずつ止まり、端で並べ直す",
+   "description": "縦に26週並べ、端から2週以内になったら見ている週の9週前から並べ直す。1週の高さは画面の高さの6分の1。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 595,
+   "line_end": 624,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/month-title-from-middle-week",
+   "label": "Rule",
+   "name": "月表示の見出しは画面の真ん中あたりの週で決める",
+   "description": "見出しの月は、見ている週から2週下の週の中ほどの日で決める。前へ・次への月送りも同じ基準。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 587,
+   "line_end": 594,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/month-hides-timed-events",
+   "label": "Rule",
+   "name": "月表示は終日の予定だけ文字で出す",
+   "description": "月表示では時刻の予定を文字にせず、終日の予定と締切だけを出す。時刻の予定は日付の下の点の件数にする。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 655,
+   "line_end": 658,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/month-dots-cap",
+   "label": "Rule",
+   "name": "月表示の点は4つまで、5件以上は＋",
+   "description": "日ごとの時刻の予定の件数を点で出す（最大4つ、超えると＋）。非表示のカレンダーの予定と、参加しない任意授業は数えない。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 759,
+   "line_end": 769,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/month-first-day-label",
+   "label": "Rule",
+   "name": "月表示の1日には「月/1」と出す",
+   "description": "週が途切れず続くので、1日だけは月も添えて「m/1」と書く。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 849,
+   "line_end": 850,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/deadline-shown-day-before-midnight",
+   "label": "Rule",
+   "name": "日付だけの締切は翌日0:00の前の日に出す",
+   "description": "日付だけの締切は翌日0:00で持っているので、1ミリ秒前の日（締切の当日）に〆を出す。締切のないタスクは出さない。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 665,
+   "line_end": 672,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/deadline-late-mark",
+   "label": "Rule",
+   "name": "配置できずに足りないタスクの締切は遅れの印",
+   "description": "配置結果の shortfalls に入っているタスクの締切には is-late を付ける。タスクのカレンダーを隠している間は出さない。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 662,
+   "line_end": 675,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/hidden-calendars-not-shown",
+   "label": "Rule",
+   "name": "非表示にしたカレンダーは予定・枠・移動を出さない",
+   "description": "予定・枠・移動の帯は、そのカレンダーが非表示ならカレンダーに出さない。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 658,
+   "line_end": 691,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/blocks-colored-by-kind",
+   "label": "Rule",
+   "name": "枠は種類ごとのカレンダーの色（タスク・習慣・朝ルーティン）",
+   "description": "タスク・習慣・朝ルーティンの枠は、それぞれ同名のカレンダーの色と表示切り替えに属する。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 118,
+   "line_end": 118,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/routine-block-not-draggable",
+   "label": "Rule",
+   "name": "朝ルーティンは動かせない",
+   "description": "朝ルーティンは起床時刻から決まるので、枠をドラッグ・リサイズできない。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 700,
+   "line_end": 701,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/only-own-events-editable",
+   "label": "Rule",
+   "name": "動かせるのは自分の予定だけ",
+   "description": "取り込んだ予定・授業・移動・締切は動かせず（読み取り専用の見た目）、自分の予定だけがドラッグ・リサイズできる。動かせない変更は元に戻す。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 120,
+   "line_end": 129,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-not-allday",
+   "label": "Rule",
+   "name": "タスク・習慣の枠は終日に置けない",
+   "description": "枠を終日の欄へドラッグしたら元に戻す。終了が分からないときは元の長さを保つ。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 801,
+   "line_end": 805,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/create-by-tap-60min",
+   "label": "Rule",
+   "name": "空き時間を押すと60分、終日欄は終日の予定を作る",
+   "description": "3日・週表示で空き時間を押すと60分の新規予定、終日欄を押すと終日の予定を作る。ドラッグ・長押しで範囲を選んでも作れる（長押し350ms）。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 776,
+   "line_end": 783,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-group-for-related",
+   "label": "Rule",
+   "name": "関連するタスクがある予定にはまとまりと件数の印",
+   "description": "関連するタスクがある予定にだけ、強調用のまとまりと「関連するタスクN件」の印を付ける。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 130,
+   "line_end": 147,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/block-shows-related-event",
+   "label": "Rule",
+   "name": "タスク枠に関連する予定の名前を出す",
+   "description": "枠の中に「→ 関連する予定」と添える。枠の色の縁は関連する予定のカレンダーの色に合わせる。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 692,
+   "line_end": 706,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/pinned-icon",
+   "label": "Rule",
+   "name": "固定された枠には固定の印",
+   "description": "固定（pinned）した枠のタイトルの前にピンの印を出す。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 149,
+   "line_end": 158,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/travel-band-opens-event",
+   "label": "Rule",
+   "name": "移動の帯を押すとその予定を開く",
+   "description": "移動の帯は動かせず、押すと移動の元になった予定を開く。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 711,
+   "line_end": 723,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/sleep-band-from-bed-to-next-wake",
+   "label": "Rule",
+   "name": "睡眠の帯は就寝から翌日の起床まで",
+   "description": "各日の就寝から翌日の起床までを睡眠の帯にする。最初の日の前は起床から睡眠時間を引いた時刻から、最後の日は就寝から睡眠時間ぶん。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 725,
+   "line_end": 741,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/nosmoke-band-before-bed",
+   "label": "Rule",
+   "name": "就寝の3時間前から就寝までは「タバコはここまで」の帯",
+   "description": "各日の就寝の前の SMOKE_CUTOFF_MINUTES 分から就寝まで、タバコを控える背景の帯を出す。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 742,
+   "line_end": 754,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-keeps-length-on-start-change",
+   "label": "Rule",
+   "name": "開始の時刻を変えたら長さを保って終了も動かす",
+   "description": "時刻の予定の開始を変えると、元の長さを保って終了を動かす（終了が前なら翌日として長さを数える）。複数日の予定は動かさない。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 92,
+   "line_end": 99,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-shifts-end-date-with-date",
+   "label": "Rule",
+   "name": "複数日・終日の予定は日付を変えたら終わりの日も同じ日数ずらす",
+   "description": "終日か複数日の予定で日付を変えると、終わりの日も同じ日数ずらす。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 83,
+   "line_end": 90,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-allday-toggle-defaults",
+   "label": "Rule",
+   "name": "終日をやめたら 9:00〜10:00 に直す",
+   "description": "終日から時刻の予定に切り替えるとき、0:00〜0:00（24時間）にならないよう 9:00〜10:00 にする。終日にするときは終わりの日を始まり以降に直す。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 73,
+   "line_end": 81,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-end-next-day",
+   "label": "Rule",
+   "name": "終了が開始以前なら翌日の時刻とみなす",
+   "description": "23:00〜1:00 のように終了が開始より前（同じ）なら、終了を翌日にする。複数日のときは入れた日付のまま。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 111,
+   "line_end": 113,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-allday-end-exclusive",
+   "label": "Rule",
+   "name": "終日の終わりは最終日の翌日0:00で持つ",
+   "description": "終日の予定は最終日の翌日0:00を終了として保存し、フォームには最終日を出す。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 38,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-validation",
+   "label": "Rule",
+   "name": "入力の検証（日時必須・終了が後・移動は0以上）",
+   "description": "日時が空なら「日時を入力してください」、終了が開始以前なら「終了は開始より後にしてください」、移動時間が数でない・負なら「0以上の数」とエラーにして保存しない。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 114,
+   "line_end": 118,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-travel-blank-auto",
+   "label": "Rule",
+   "name": "移動時間が空なら「自動」",
+   "description": "移動時間を空にすると自動（未指定）として保存する。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 117,
+   "line_end": 117,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-default-title",
+   "label": "Rule",
+   "name": "題名が空なら「新規予定」",
+   "description": "タイトルが空のままでも保存でき、「新規予定」になる。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 123,
+   "line_end": 123,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-prep-only-timed-and-away-only-allday",
+   "label": "Rule",
+   "name": "「顔を出す」は時刻の予定だけ、「家にいない」は終日だけ保存",
+   "description": "身支度の印（needsPrep）は時刻の予定にだけ、家にいない（awayFromHome）は終日の予定にだけ保存する。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 131,
+   "line_end": 132,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-own-calendars",
+   "label": "Rule",
+   "name": "予定は自分のカレンダーのどれかに入れる",
+   "description": "予定の入れ先は自分の予定用のカレンダー（OWN_CALENDARS）から選び、初期は own。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 32,
+   "line_end": 32,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/event-form-delete-only-existing",
+   "label": "Rule",
+   "name": "削除は既存の予定だけ、確認つき",
+   "description": "新規作成中は削除ボタンを出さず、既存の予定では確認のうえ削除できる。",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 230,
+   "line_end": 234,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/related-tasks-unplaced-warning",
+   "label": "Rule",
+   "name": "配置がないタスクは「まだ配置できていません」",
+   "description": "関連するタスクに配置された枠があれば日時を並べ、なければ赤で「まだ配置できていません」と出す。関連がなければ何も出さない。",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 12,
+   "line_end": 40,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/readonly-sheet-when-text",
+   "label": "Rule",
+   "name": "終日は日付だけ、複数日は期間で出す",
+   "description": "読み取りシートの日時は、終日なら日付（1日を超えるなら期間）、時刻の予定なら日時〜終了時刻で出す。",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 112,
+   "line_end": 116,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/toggle-hint-text",
+   "label": "Rule",
+   "name": "点線の枠はアプリが置いたものと説明する",
+   "description": "カレンダー一覧の下に、点線の枠はアプリが置いたタスク・習慣で、ドラッグで固定され、予定を押すと関連タスクが強調されると説明を出す。",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 43,
+   "line_end": 45,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/toggle-on-off-semantics",
+   "label": "Rule",
+   "name": "非表示に入っていないカレンダーを表示中とみなす",
+   "description": "hidden に入っていないカレンダーを表示中とし、押すとオン・オフを反転する。",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 17,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/quick-add-chip-overrides-text",
+   "label": "Rule",
+   "name": "締切チップは文中の締切より優先する",
+   "description": "チップは「今日まで」などを書いたのと同じ意味で、文の中に書いた締切よりチップを優先する。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 42,
+   "line_end": 43,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/quick-add-default-priority-mid",
+   "label": "Rule",
+   "name": "優先度が読み取れなければ中（2）",
+   "description": "読み取った優先度がなければ「中」(2)にする。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 46,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/quick-add-empty-no-submit",
+   "label": "Rule",
+   "name": "空の入力では追加しない",
+   "description": "入力が空白だけなら追加ボタンも出さず、追加もしない。追加したら入力とチップを空に戻す。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 55,
+   "line_end": 63,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/quick-add-chips-only-while-typing",
+   "label": "Rule",
+   "name": "チップは入力中だけ出す",
+   "description": "締切と作業の種類のチップは、入力欄にフォーカスがあるか、入力・選択があるときだけ出す。フォーカスが外れても250ms待って閉じる。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 31,
+   "line_end": 34,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/quick-add-preview-estimate",
+   "label": "Rule",
+   "name": "追加前に読み取り結果と所要時間の目安を見せる",
+   "description": "題名・締切（なければ締切なし）・所要時間・優先度を出す。所要時間を書いていなければ作業の種類の既定（なければ60分）から目安を出し「（目安）」と添える。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 110,
+   "line_end": 117,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/quick-add-fresh-now",
+   "label": "Rule",
+   "name": "基準時刻は入力を始めたとき・追加するときに取り直す",
+   "description": "開いたまま日付が変わっても読み取りがずれないよう、入力を始めたときと追加するときに基準時刻を取り直す。",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 36,
+   "line_end": 37,
+   "confidence": "high",
+   "evidence": "該当箇所のコードで確認"
+  },
+  {
+   "id": "rule:calendar/fc-utc-shift",
+   "label": "Rule",
+   "name": "FullCalendar には +9時間ずらした日本時間を渡す",
+   "description": "FullCalendar は timeZone を UTC にし、日付・時刻は日本時間に直した値で入出力する（toFc / fromFc）。",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 829,
+   "line_end": 830,
+   "confidence": "medium",
+   "evidence": "timeZone=UTC と toFc/fromFc の利用から。ずらす量は jst.ts 側"
+  }
+ ],
+ "edges": [
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/view-modes",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 21,
+   "line_end": 25
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "feature:calendar/view-modes",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 206,
+   "line_end": 226
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarApp.tsx#VIEWS",
+   "to": "feature:calendar/view-modes",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 21,
+   "line_end": 25
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/strip-view",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 54,
+   "line_end": 57
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "feature:calendar/strip-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 218,
+   "line_end": 937
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:calendar/strip-view",
+   "to": "integration:fullcalendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 54,
+   "line_end": 57
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/month-view",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 73,
+   "line_end": 78
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "feature:calendar/month-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 574,
+   "line_end": 650
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:calendar/month-view",
+   "to": "integration:fullcalendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 73,
+   "line_end": 78
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/pinch-zoom",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 332,
+   "line_end": 450
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "feature:calendar/pinch-zoom",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 332,
+   "line_end": 450
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:calendar/pinch-zoom",
+   "to": "setting:calendar/slot-default",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 332,
+   "line_end": 450
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:calendar/pinch-zoom",
+   "to": "setting:calendar/slot-min",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 332,
+   "line_end": 450
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:calendar/pinch-zoom",
+   "to": "setting:calendar/slot-max",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 332,
+   "line_end": 450
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:calendar/pinch-zoom",
+   "to": "integration:browser-storage",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 332,
+   "line_end": 450
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/time-axis",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 481,
+   "line_end": 530
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "feature:calendar/time-axis",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 481,
+   "line_end": 530
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/tap-select",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 60,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "feature:calendar/tap-select",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 60,
+   "line_end": 75
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:calendar/tap-select",
+   "to": "setting:calendar/tap-repeat-ignore-ms",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 60,
+   "line_end": 75
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/related-focus",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 33,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#FocusStyle",
+   "to": "feature:calendar/related-focus",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 35,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "feature:calendar/related-focus",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 82,
+   "line_end": 88
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/own-event-edit",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 91,
+   "line_end": 117
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "feature:calendar/own-event-edit",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 91,
+   "line_end": 117
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/event-form",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 53,
+   "line_end": 238
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 53,
+   "line_end": 238
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/block-sheet",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 50,
+   "line_end": 98
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/InfoSheet.tsx#BlockSheet",
+   "to": "feature:calendar/block-sheet",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 50,
+   "line_end": 98
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/InfoSheet.tsx#KIND_LABEL",
+   "to": "feature:calendar/block-sheet",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 48,
+   "line_end": 48
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/block-record",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 374,
+   "line_end": 454
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#BlockRecord",
+   "to": "feature:calendar/block-record",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 374,
+   "line_end": 454
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/block-drag-pin",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 147,
+   "line_end": 156
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "feature:calendar/block-drag-pin",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 147,
+   "line_end": 156
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/class-occurrence",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 120,
+   "line_end": 144
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "feature:calendar/class-occurrence",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 356,
+   "line_end": 368
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/imported-travel",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 328,
+   "line_end": 355
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "feature:calendar/imported-travel",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 328,
+   "line_end": 355
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/readonly-event-sheet",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 100,
+   "line_end": 128
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/InfoSheet.tsx#ReadonlyEventSheet",
+   "to": "feature:calendar/readonly-event-sheet",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 100,
+   "line_end": 128
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/related-tasks",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 11,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/InfoSheet.tsx#RelatedTasks",
+   "to": "feature:calendar/related-tasks",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 11,
+   "line_end": 46
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/calendar-toggles",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 6,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarToggles.tsx#CalendarToggles",
+   "to": "feature:calendar/calendar-toggles",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 6,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "feature:calendar/calendar-toggles",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 275,
+   "line_end": 279
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/block-display",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 118,
+   "line_end": 205
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#BLOCK_CAL",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 118,
+   "line_end": 118
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#eventToInput",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 120,
+   "line_end": 138
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#renderEventContent",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 160,
+   "line_end": 205
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#PinIcon",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 149,
+   "line_end": 158
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#RelatedBadge",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 140,
+   "line_end": 147
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/travel-band",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 711,
+   "line_end": 723
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "feature:calendar/travel-band",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 711,
+   "line_end": 723
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/sleep-bands",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 725,
+   "line_end": 755
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "feature:calendar/sleep-bands",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 725,
+   "line_end": 755
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/deadline-marks",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 661,
+   "line_end": 681
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "feature:calendar/deadline-marks",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 661,
+   "line_end": 681
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/month-day-cells",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 759,
+   "line_end": 769
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "feature:calendar/month-day-cells",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 846,
+   "line_end": 862
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/quick-add-bar",
+   "to": "feature:quick-add",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 25,
+   "line_end": 119
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/QuickAddBar.tsx#QuickAddBar",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 25,
+   "line_end": 119
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/QuickAddBar.tsx#Chip",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 12,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/tap-repeat-ignore-ms",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarApp.tsx#TAP_REPEAT_IGNORE_MS",
+   "to": "setting:calendar/tap-repeat-ignore-ms",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/strip-days",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 55,
+   "line_end": 55
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#STRIP_DAYS",
+   "to": "setting:calendar/strip-days",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 55,
+   "line_end": 55
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/strip-lead",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 56,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#STRIP_LEAD",
+   "to": "setting:calendar/strip-lead",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 56,
+   "line_end": 56
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/strip-edge",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 57,
+   "line_end": 57
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#STRIP_EDGE",
+   "to": "setting:calendar/strip-edge",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 57,
+   "line_end": 57
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/slot-default",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 60,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#SLOT_DEFAULT",
+   "to": "setting:calendar/slot-default",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 60,
+   "line_end": 60
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/slot-min",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 61,
+   "line_end": 61
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#SLOT_MIN",
+   "to": "setting:calendar/slot-min",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 61,
+   "line_end": 61
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/slot-max",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 62,
+   "line_end": 62
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#SLOT_MAX",
+   "to": "setting:calendar/slot-max",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 62,
+   "line_end": 62
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/slot-storage-key",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 59,
+   "line_end": 59
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#SLOT_KEY",
+   "to": "setting:calendar/slot-storage-key",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 59,
+   "line_end": 59
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/month-weeks",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 74,
+   "line_end": 74
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#MONTH_WEEKS",
+   "to": "setting:calendar/month-weeks",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 74,
+   "line_end": 74
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/month-lead",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 75,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#MONTH_LEAD",
+   "to": "setting:calendar/month-lead",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 75,
+   "line_end": 75
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/month-edge",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 76,
+   "line_end": 76
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#MONTH_EDGE",
+   "to": "setting:calendar/month-edge",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 76,
+   "line_end": 76
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/month-rows",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 78,
+   "line_end": 78
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#MONTH_ROWS",
+   "to": "setting:calendar/month-rows",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 78,
+   "line_end": 78
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/quick-add-deadline-chips",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 8,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/QuickAddBar.tsx#DEADLINE_CHIPS",
+   "to": "setting:calendar/quick-add-deadline-chips",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 8,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/quick-add-priority-labels",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 10,
+   "line_end": 10
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/QuickAddBar.tsx#PRIORITY_LABEL",
+   "to": "setting:calendar/quick-add-priority-labels",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 10,
+   "line_end": 10
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/imported-travel-choices",
+   "to": "feature:calendar/imported-travel",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 347,
+   "line_end": 351
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "setting:calendar/imported-travel-choices",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 347,
+   "line_end": 351
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/snap-minutes",
+   "to": "feature:calendar",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 871,
+   "line_end": 873
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "setting:calendar/snap-minutes",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 871,
+   "line_end": 873
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/nosmoke-cutoff-view",
+   "to": "feature:calendar/sleep-bands",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 744,
+   "line_end": 744
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "setting:calendar/nosmoke-cutoff-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 744,
+   "line_end": 744
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/default-view-by-width",
+   "to": "feature:calendar/view-modes",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 49,
+   "line_end": 50
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/default-view-by-width",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 49,
+   "line_end": 50
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/month-pick-day-jump",
+   "to": "feature:calendar/month-view",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 240,
+   "line_end": 243
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/month-pick-day-jump",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 240,
+   "line_end": 243
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/second-tap-opens",
+   "to": "feature:calendar/tap-select",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 62,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/second-tap-opens",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 62,
+   "line_end": 75
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/second-tap-opens",
+   "to": "setting:calendar/tap-repeat-ignore-ms",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 62,
+   "line_end": 75
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/empty-click-clears-selection",
+   "to": "feature:calendar/tap-select",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 264,
+   "line_end": 269
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/empty-click-clears-selection",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 264,
+   "line_end": 269
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/calendar/CalendarView.tsx",
+   "to": "rule:calendar/empty-click-clears-selection",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 777,
+   "line_end": 777
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/focus-group-dim",
+   "to": "feature:calendar/related-focus",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 33,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#FocusStyle",
+   "to": "rule:calendar/focus-group-dim",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 35,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/focus-group-dim",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 82,
+   "line_end": 88
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/task-block-group-needs-related-event",
+   "to": "feature:calendar/related-focus",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 84,
+   "line_end": 88
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/task-block-group-needs-related-event",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 84,
+   "line_end": 88
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-delete-and-save-upsert",
+   "to": "feature:calendar/own-event-edit",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 95,
+   "line_end": 105
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/event-delete-and-save-upsert",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 95,
+   "line_end": 105
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-drag-allday-flag",
+   "to": "feature:calendar/own-event-edit",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 106,
+   "line_end": 117
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/event-drag-allday-flag",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 106,
+   "line_end": 117
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/class-cancel-clears-attendance",
+   "to": "feature:calendar/class-occurrence",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 133,
+   "line_end": 139
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/class-cancel-clears-attendance",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 356,
+   "line_end": 368
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/class-optional-attend-toggle",
+   "to": "feature:calendar/class-occurrence",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 312,
+   "line_end": 326
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/class-optional-attend-toggle",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 312,
+   "line_end": 326
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/imported-travel-only-google",
+   "to": "feature:calendar/imported-travel",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 328,
+   "line_end": 355
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/imported-travel-only-google",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 328,
+   "line_end": 355
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/readonly-source-label",
+   "to": "feature:calendar/readonly-event-sheet",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 303,
+   "line_end": 311
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/readonly-source-label",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 303,
+   "line_end": 311
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/drag-pins-block",
+   "to": "feature:calendar/block-drag-pin",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 146,
+   "line_end": 157
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/drag-pins-block",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 146,
+   "line_end": 157
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-sheet-pin-release-not-routine",
+   "to": "feature:calendar/block-sheet",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 80,
+   "line_end": 89
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/InfoSheet.tsx#BlockSheet",
+   "to": "rule:calendar/block-sheet-pin-release-not-routine",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 80,
+   "line_end": 89
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-sheet-edit-task-only-task",
+   "to": "feature:calendar/block-sheet",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 90,
+   "line_end": 94
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/InfoSheet.tsx#BlockSheet",
+   "to": "rule:calendar/block-sheet-edit-task-only-task",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 90,
+   "line_end": 94
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-sheet-related-event",
+   "to": "feature:calendar/block-sheet",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 74,
+   "line_end": 79
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/InfoSheet.tsx#BlockSheet",
+   "to": "rule:calendar/block-sheet-related-event",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 74,
+   "line_end": 79
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/block-sheet-related-event",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 172,
+   "line_end": 177
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-record-free-unstarted-task",
+   "to": "feature:calendar/block-record",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 381,
+   "line_end": 394
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#BlockRecord",
+   "to": "rule:calendar/block-record-free-unstarted-task",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 381,
+   "line_end": 394
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-record-started-task-to-today",
+   "to": "feature:calendar/block-record",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 377,
+   "line_end": 395
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#BlockRecord",
+   "to": "rule:calendar/block-record-started-task-to-today",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 377,
+   "line_end": 395
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-record-habit-done-only-started",
+   "to": "feature:calendar/block-record",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 401,
+   "line_end": 421
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#BlockRecord",
+   "to": "rule:calendar/block-record-habit-done-only-started",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 401,
+   "line_end": 421
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-record-five-if-allowed",
+   "to": "feature:calendar/block-record",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 412,
+   "line_end": 416
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#BlockRecord",
+   "to": "rule:calendar/block-record-five-if-allowed",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 412,
+   "line_end": 416
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-record-miss-tracked",
+   "to": "feature:calendar/block-record",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 422,
+   "line_end": 434
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#BlockRecord",
+   "to": "rule:calendar/block-record-miss-tracked",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 422,
+   "line_end": 434
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-record-skip-today",
+   "to": "feature:calendar/block-record",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 435,
+   "line_end": 453
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#BlockRecord",
+   "to": "rule:calendar/block-record-skip-today",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 435,
+   "line_end": 453
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-record-waking-day",
+   "to": "feature:calendar/block-record",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 399,
+   "line_end": 400
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#BlockRecord",
+   "to": "rule:calendar/block-record-waking-day",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 399,
+   "line_end": 400
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/strip-recenter-near-edge",
+   "to": "feature:calendar/strip-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 304,
+   "line_end": 312
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/strip-recenter-near-edge",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 304,
+   "line_end": 312
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/strip-recenter-near-edge",
+   "to": "setting:calendar/strip-days",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 304,
+   "line_end": 312
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/strip-recenter-near-edge",
+   "to": "setting:calendar/strip-lead",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 304,
+   "line_end": 312
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/strip-recenter-near-edge",
+   "to": "setting:calendar/strip-edge",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 304,
+   "line_end": 312
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/week-home-monday",
+   "to": "feature:calendar/strip-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 244,
+   "line_end": 249
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/week-home-monday",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 831,
+   "line_end": 831
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/visible-days-by-mode",
+   "to": "feature:calendar/strip-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 274,
+   "line_end": 284
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/visible-days-by-mode",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 274,
+   "line_end": 284
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/settle-not-while-touching",
+   "to": "feature:calendar/strip-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 532,
+   "line_end": 546
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/settle-not-while-touching",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 532,
+   "line_end": 546
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/settle-snap-to-day",
+   "to": "feature:calendar/strip-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 538,
+   "line_end": 544
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/settle-snap-to-day",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 538,
+   "line_end": 544
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/initial-scroll-hour-before-now",
+   "to": "feature:calendar/time-axis",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 505,
+   "line_end": 514
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/initial-scroll-hour-before-now",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 821,
+   "line_end": 822
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/axis-follows-vertical-scroll",
+   "to": "feature:calendar/time-axis",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 487,
+   "line_end": 504
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/axis-follows-vertical-scroll",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 487,
+   "line_end": 504
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/pinch-clamp-and-persist",
+   "to": "feature:calendar/pinch-zoom",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 63,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#clampSlot",
+   "to": "rule:calendar/pinch-clamp-and-persist",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 63,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#readSlot",
+   "to": "rule:calendar/pinch-clamp-and-persist",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 64,
+   "line_end": 71
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/pinch-clamp-and-persist",
+   "to": "setting:calendar/slot-default",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 63,
+   "line_end": 71
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/pinch-clamp-and-persist",
+   "to": "setting:calendar/slot-min",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 63,
+   "line_end": 71
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/pinch-clamp-and-persist",
+   "to": "setting:calendar/slot-max",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 63,
+   "line_end": 71
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/pinch-freezes-scroll",
+   "to": "feature:calendar/pinch-zoom",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 385,
+   "line_end": 417
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/pinch-freezes-scroll",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 385,
+   "line_end": 417
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/pinch-keeps-focus-time",
+   "to": "feature:calendar/pinch-zoom",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 347,
+   "line_end": 376
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/pinch-keeps-focus-time",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 347,
+   "line_end": 376
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/ctrl-wheel-is-pinch",
+   "to": "feature:calendar/pinch-zoom",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 420,
+   "line_end": 433
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/ctrl-wheel-is-pinch",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 420,
+   "line_end": 433
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/month-weeks-snap-and-recenter",
+   "to": "feature:calendar/month-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 595,
+   "line_end": 624
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/month-weeks-snap-and-recenter",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 595,
+   "line_end": 624
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/month-weeks-snap-and-recenter",
+   "to": "setting:calendar/month-weeks",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 595,
+   "line_end": 624
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/month-weeks-snap-and-recenter",
+   "to": "setting:calendar/month-lead",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 595,
+   "line_end": 624
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/month-weeks-snap-and-recenter",
+   "to": "setting:calendar/month-edge",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 595,
+   "line_end": 624
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/month-weeks-snap-and-recenter",
+   "to": "setting:calendar/month-rows",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 595,
+   "line_end": 624
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/month-title-from-middle-week",
+   "to": "feature:calendar/month-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 587,
+   "line_end": 594
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/month-title-from-middle-week",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 638,
+   "line_end": 643
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/month-hides-timed-events",
+   "to": "feature:calendar/month-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 655,
+   "line_end": 658
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/month-hides-timed-events",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 655,
+   "line_end": 658
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/month-dots-cap",
+   "to": "feature:calendar/month-day-cells",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 759,
+   "line_end": 769
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/month-dots-cap",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 851,
+   "line_end": 859
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/month-first-day-label",
+   "to": "feature:calendar/month-day-cells",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 849,
+   "line_end": 850
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/month-first-day-label",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 849,
+   "line_end": 850
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/deadline-shown-day-before-midnight",
+   "to": "feature:calendar/deadline-marks",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 665,
+   "line_end": 672
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/deadline-shown-day-before-midnight",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 665,
+   "line_end": 672
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/deadline-late-mark",
+   "to": "feature:calendar/deadline-marks",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 662,
+   "line_end": 675
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/deadline-late-mark",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 662,
+   "line_end": 675
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/hidden-calendars-not-shown",
+   "to": "feature:calendar/calendar-toggles",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 658,
+   "line_end": 691
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/hidden-calendars-not-shown",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 712,
+   "line_end": 712
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/blocks-colored-by-kind",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 118,
+   "line_end": 118
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/calendar/CalendarView.tsx#BLOCK_CAL",
+   "to": "rule:calendar/blocks-colored-by-kind",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 118,
+   "line_end": 118
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/routine-block-not-draggable",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 700,
+   "line_end": 701
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/routine-block-not-draggable",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 700,
+   "line_end": 701
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/only-own-events-editable",
+   "to": "feature:calendar/own-event-edit",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 120,
+   "line_end": 129
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#eventToInput",
+   "to": "rule:calendar/only-own-events-editable",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 120,
+   "line_end": 129
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/only-own-events-editable",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 793,
+   "line_end": 800
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-not-allday",
+   "to": "feature:calendar/block-drag-pin",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 801,
+   "line_end": 805
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/block-not-allday",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 801,
+   "line_end": 805
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/create-by-tap-60min",
+   "to": "feature:calendar/own-event-edit",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 776,
+   "line_end": 783
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/create-by-tap-60min",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 864,
+   "line_end": 868
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-group-for-related",
+   "to": "feature:calendar/related-focus",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 130,
+   "line_end": 147
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#RelatedBadge",
+   "to": "rule:calendar/event-group-for-related",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 140,
+   "line_end": 147
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#eventToInput",
+   "to": "rule:calendar/event-group-for-related",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 130,
+   "line_end": 138
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/block-shows-related-event",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 692,
+   "line_end": 706
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/block-shows-related-event",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 692,
+   "line_end": 706
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/pinned-icon",
+   "to": "feature:calendar/block-display",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 149,
+   "line_end": 158
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#PinIcon",
+   "to": "rule:calendar/pinned-icon",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 149,
+   "line_end": 158
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#renderEventContent",
+   "to": "rule:calendar/pinned-icon",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 196,
+   "line_end": 196
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/travel-band-opens-event",
+   "to": "feature:calendar/travel-band",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 711,
+   "line_end": 723
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/travel-band-opens-event",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 790,
+   "line_end": 790
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/sleep-band-from-bed-to-next-wake",
+   "to": "feature:calendar/sleep-bands",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 725,
+   "line_end": 741
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/sleep-band-from-bed-to-next-wake",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 725,
+   "line_end": 741
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/nosmoke-band-before-bed",
+   "to": "feature:calendar/sleep-bands",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 742,
+   "line_end": 754
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/nosmoke-band-before-bed",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 742,
+   "line_end": 754
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/nosmoke-band-before-bed",
+   "to": "setting:calendar/nosmoke-cutoff-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 742,
+   "line_end": 754
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-keeps-length-on-start-change",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 92,
+   "line_end": 99
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-keeps-length-on-start-change",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 92,
+   "line_end": 99
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-shifts-end-date-with-date",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 83,
+   "line_end": 90
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-shifts-end-date-with-date",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 83,
+   "line_end": 90
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-allday-toggle-defaults",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 73,
+   "line_end": 81
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-allday-toggle-defaults",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 73,
+   "line_end": 81
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-end-next-day",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 111,
+   "line_end": 113
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-end-next-day",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 111,
+   "line_end": 113
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-allday-end-exclusive",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 38,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#toDraft",
+   "to": "rule:calendar/event-form-allday-end-exclusive",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 38,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-allday-end-exclusive",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 105,
+   "line_end": 109
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-validation",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 114,
+   "line_end": 118
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-validation",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 114,
+   "line_end": 118
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-travel-blank-auto",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 117,
+   "line_end": 117
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-travel-blank-auto",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 199,
+   "line_end": 208
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-default-title",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 123,
+   "line_end": 123
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-default-title",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 123,
+   "line_end": 123
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-prep-only-timed-and-away-only-allday",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 131,
+   "line_end": 132
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-prep-only-timed-and-away-only-allday",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 214,
+   "line_end": 218
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-own-calendars",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#toDraft",
+   "to": "rule:calendar/event-form-own-calendars",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-own-calendars",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 150,
+   "line_end": 165
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/event-form-delete-only-existing",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 230,
+   "line_end": 234
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/EventForm.tsx#EventForm",
+   "to": "rule:calendar/event-form-delete-only-existing",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 230,
+   "line_end": 234
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/related-tasks-unplaced-warning",
+   "to": "feature:calendar/related-tasks",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 12,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/InfoSheet.tsx#RelatedTasks",
+   "to": "rule:calendar/related-tasks-unplaced-warning",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 12,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/readonly-sheet-when-text",
+   "to": "feature:calendar/readonly-event-sheet",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 112,
+   "line_end": 116
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/InfoSheet.tsx#ReadonlyEventSheet",
+   "to": "rule:calendar/readonly-sheet-when-text",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 112,
+   "line_end": 116
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/toggle-hint-text",
+   "to": "feature:calendar/calendar-toggles",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 43,
+   "line_end": 45
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarToggles.tsx#CalendarToggles",
+   "to": "rule:calendar/toggle-hint-text",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 43,
+   "line_end": 45
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/toggle-on-off-semantics",
+   "to": "feature:calendar/calendar-toggles",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 17,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarToggles.tsx#CalendarToggles",
+   "to": "rule:calendar/toggle-on-off-semantics",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 17,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarApp.tsx#CalendarApp",
+   "to": "rule:calendar/toggle-on-off-semantics",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 164,
+   "line_end": 166
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/quick-add-chip-overrides-text",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 42,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/QuickAddBar.tsx#QuickAddBar",
+   "to": "rule:calendar/quick-add-chip-overrides-text",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 42,
+   "line_end": 43
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/quick-add-chip-overrides-text",
+   "to": "setting:calendar/quick-add-deadline-chips",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 42,
+   "line_end": 43
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/quick-add-default-priority-mid",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 46,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/QuickAddBar.tsx#QuickAddBar",
+   "to": "rule:calendar/quick-add-default-priority-mid",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 46,
+   "line_end": 46
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:calendar/quick-add-default-priority-mid",
+   "to": "setting:calendar/quick-add-priority-labels",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 46,
+   "line_end": 46
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/quick-add-empty-no-submit",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 55,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/QuickAddBar.tsx#QuickAddBar",
+   "to": "rule:calendar/quick-add-empty-no-submit",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 40,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/quick-add-chips-only-while-typing",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 31,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/QuickAddBar.tsx#QuickAddBar",
+   "to": "rule:calendar/quick-add-chips-only-while-typing",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 95,
+   "line_end": 95
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/quick-add-preview-estimate",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 110,
+   "line_end": 117
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/QuickAddBar.tsx#QuickAddBar",
+   "to": "rule:calendar/quick-add-preview-estimate",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 110,
+   "line_end": 117
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/quick-add-fresh-now",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 36,
+   "line_end": 37
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/QuickAddBar.tsx#QuickAddBar",
+   "to": "rule:calendar/quick-add-fresh-now",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 74,
+   "line_end": 74
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/fc-utc-shift",
+   "to": "feature:calendar/strip-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 829,
+   "line_end": 830
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/calendar/CalendarView.tsx#CalendarView",
+   "to": "rule:calendar/fc-utc-shift",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 829,
+   "line_end": 830
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/calendar/CalendarApp.tsx",
+   "to": "feature:calendar/view-modes",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 1,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/calendar/CalendarToggles.tsx",
+   "to": "feature:calendar/calendar-toggles",
+   "file": "src/components/calendar/CalendarToggles.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/calendar/CalendarView.tsx",
+   "to": "feature:calendar/strip-view",
+   "file": "src/components/calendar/CalendarView.tsx",
+   "line_start": 1,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/calendar/EventForm.tsx",
+   "to": "feature:calendar/event-form",
+   "file": "src/components/calendar/EventForm.tsx",
+   "line_start": 1,
+   "line_end": 9
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/calendar/InfoSheet.tsx",
+   "to": "feature:calendar/block-sheet",
+   "file": "src/components/calendar/InfoSheet.tsx",
+   "line_start": 1,
+   "line_end": 10
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/calendar/QuickAddBar.tsx",
+   "to": "feature:calendar/quick-add-bar",
+   "file": "src/components/calendar/QuickAddBar.tsx",
+   "line_start": 1,
+   "line_end": 7
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:calendar/tap-select",
+   "to": "feature:calendar/related-focus",
+   "file": "src/components/calendar/CalendarApp.tsx",
+   "line_start": 77,
+   "line_end": 90
+  }
+ ]
+}

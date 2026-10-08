@@ -1,0 +1,5782 @@
+{
+ "batch": "b06_lib_services",
+ "nodes": [
+  {
+   "id": "rule:notifications/open-only-in-app-path",
+   "label": "Rule",
+   "name": "通知や戻り先の行き先はアプリ内の場所だけ通す",
+   "description": "「/」で始まる同じアプリ内の場所だけを通し、「//」「/\\」やタブ・空白を含むもの、外部URL、空の値は「/」に置き換える。",
+   "file": "src/lib/appPath.ts",
+   "line_start": 5,
+   "line_end": 7,
+   "confidence": "high",
+   "evidence": "正規表現で先頭が単独のスラッシュ以外を弾き、通らなければ / を返す。テストが外部サイト風の値を全て / にすることを確かめている。"
+  },
+  {
+   "id": "feature:health-sleep/parse-body",
+   "label": "Feature",
+   "name": "ショートカットが送る睡眠の記録を読み取る",
+   "description": "iPhone のショートカットが送る「開始|終了|値」の行（JSON の lines・samples、そのままの文字）を睡眠の記録の並びにし、読めない行は捨てる。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 83,
+   "line_end": 126,
+   "confidence": "high",
+   "evidence": "本文を JSON か行として読み、行は区切りで3つ以上に分けて記録にする。テストが3形式を確かめている。"
+  },
+  {
+   "id": "rule:health-sleep/body-formats",
+   "label": "Rule",
+   "name": "本文は JSON の lines・samples・生の行のどれでも読み、区切りは「|」「｜」タブ",
+   "description": "JSON が文字列なら行、{lines}（文字列か配列）なら行、{samples}や配列なら {start,end,value} の並び、JSON でなければ本文全体を行として読む。行の区切りは半角・全角の縦線かタブ。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 88,
+   "line_end": 126,
+   "confidence": "high",
+   "evidence": "JSON.parse の結果の型で分岐し、失敗すると改行で分ける。行は正規表現で縦線・タブ分割。"
+  },
+  {
+   "id": "setting:health-sleep/max-samples",
+   "label": "Setting",
+   "name": "一度に読む睡眠の記録の上限（5000件）",
+   "description": "1回の送信で読み取る記録の数は5000件まで。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 30,
+   "line_end": 31,
+   "confidence": "high",
+   "evidence": "読み取り結果を MAX_SAMPLES で切っている。",
+   "const_ref": "const:src/lib/health/sleep.ts#MAX_SAMPLES",
+   "value": 5000
+  },
+  {
+   "id": "rule:health-sleep/time-without-zone-is-jst",
+   "label": "Rule",
+   "name": "タイムゾーンのない時刻は日本時間として読む",
+   "description": "ISO 8601 など zone つきはそのまま、zone のない「2026/10/01 2:13」「2026年10月1日 2:13」などは日本時間（+9時間）として読む。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 44,
+   "line_end": 58,
+   "confidence": "high",
+   "evidence": "zone の記述がなければ JST のオフセットを使う。テストで複数の書式が同じ時刻になる。"
+  },
+  {
+   "id": "rule:health-sleep/12-hour-notation",
+   "label": "Rule",
+   "name": "午前・午後・AM・PM の書き方も読む",
+   "description": "「午後2:13」「2:13 PM」のように午後なら12時間足し、午前の12時は0時として読む。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 50,
+   "line_end": 53,
+   "confidence": "high",
+   "evidence": "午後/pm を検出して時を足す分岐がある。テストが午後2:13を14:13にする。"
+  },
+  {
+   "id": "rule:health-sleep/date-without-time-rejected",
+   "label": "Rule",
+   "name": "時刻のない日付だけの値は読まない",
+   "description": "時と分が含まれない日付だけの文字列は読み取れず、その行は捨てる。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 47,
+   "line_end": 48,
+   "confidence": "high",
+   "evidence": "時刻（時:分）を必須とする正規表現。テストが日付だけで undefined になる。"
+  },
+  {
+   "id": "rule:health-sleep/value-classification",
+   "label": "Rule",
+   "name": "睡眠の値を「眠り・覚醒・ベッド」に分ける",
+   "description": "数字は HealthKit の値（0=ベッド、2=覚醒、1と3〜5=眠り）、文字は日本語・英語（コア・深い・レム・asleep など）を眠り、覚醒、ベッドに分け、分からない値は捨てる。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 60,
+   "line_end": 72,
+   "confidence": "high",
+   "evidence": "数値と文字列で分岐し、該当しなければ undefined。テストで日英数字を確認。"
+  },
+  {
+   "id": "rule:health-sleep/drop-invalid-samples",
+   "label": "Rule",
+   "name": "終了が開始以前・24時間を超える・読めない記録は捨てる",
+   "description": "開始か終了が読めない、値が分類できない、終了が開始以前、長さが24時間を超える記録は採用しない。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 74,
+   "line_end": 80,
+   "confidence": "high",
+   "evidence": "sample 関数の不採用条件。"
+  },
+  {
+   "id": "feature:health-sleep/inspect-unread",
+   "label": "Feature",
+   "name": "読めなかったときの手がかりを返す",
+   "description": "何行届いて何件読めたか、読めなかった最初の行（120字まで）、JSON のキーを返し、ショートカットの作りを直す手がかりにする。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 87,
+   "line_end": 126,
+   "confidence": "high",
+   "evidence": "戻り値に lines・samples・unread・keys を持つ。テストが件数と最初の読めない行を検証。"
+  },
+  {
+   "id": "feature:health-sleep/nightly-summary",
+   "label": "Feature",
+   "name": "睡眠の記録を夜ごとにまとめる",
+   "description": "眠っていた記録を起きた日ごとにまとめ、寝ついた時刻・起きた時刻・眠った分を出す。重なる記録は1回ぶんに数える。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 128,
+   "line_end": 150,
+   "confidence": "high",
+   "evidence": "summarizeSleep が眠りを統合して日付ごとに1件にする。"
+  },
+  {
+   "id": "rule:health-sleep/asleep-only-and-overlap-merge",
+   "label": "Rule",
+   "name": "「眠り」の記録だけ数え、重なりは1回ぶんにする",
+   "description": "覚醒・ベッドの記録は眠った分に入れず、iPhone と Apple Watch の重なる眠りは統合する。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 130,
+   "line_end": 131,
+   "confidence": "high",
+   "evidence": "kind が asleep のものだけを merge に渡す。テストで重なりと覚醒を確認。"
+  },
+  {
+   "id": "setting:health-sleep/session-gap-minutes",
+   "label": "Setting",
+   "name": "眠りを分ける起きていた時間（150分）",
+   "description": "眠りと眠りの間が150分以内なら同じ眠りの続きとして数える。夜中に1〜2時間目が覚めても同じ夜のままにするための値。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 34,
+   "line_end": 38,
+   "confidence": "high",
+   "evidence": "コメントとコードが一致し、間隔の比較に使う。",
+   "const_ref": "const:src/lib/health/sleep.ts#SESSION_GAP_MINUTES",
+   "value": 150
+  },
+  {
+   "id": "rule:health-sleep/short-wake-same-sleep",
+   "label": "Rule",
+   "name": "起きていた時間が短ければ同じ眠りの続き（寝ついた時刻を後ろにずらさない）",
+   "description": "眠りの間が150分以内なら1つの眠りにつなぎ、眠った分は起きていた時間を除いて足す。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 132,
+   "line_end": 141,
+   "confidence": "high",
+   "evidence": "直前の眠りの終了との差で結合。テストが1時間の目覚めを同じ夜にする。"
+  },
+  {
+   "id": "setting:health-sleep/min-night-minutes",
+   "label": "Setting",
+   "name": "夜とみなす最短の眠り（120分）",
+   "description": "これより短い眠り（昼寝など）は夜として数えない。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 32,
+   "line_end": 33,
+   "confidence": "high",
+   "evidence": "眠りの合計が MIN_NIGHT_MINUTES 未満なら除く。",
+   "const_ref": "const:src/lib/health/sleep.ts#MIN_NIGHT_MINUTES",
+   "value": 120
+  },
+  {
+   "id": "rule:health-sleep/nap-not-a-night",
+   "label": "Rule",
+   "name": "2時間より短い眠り（昼寝）は夜にしない",
+   "description": "眠りの合計が120分未満のものは夜の記録に入れない。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 143,
+   "line_end": 145,
+   "confidence": "high",
+   "evidence": "短い眠りを continue で飛ばす。テストが40分の昼寝を除外する。"
+  },
+  {
+   "id": "rule:health-sleep/night-is-wake-day-longest",
+   "label": "Rule",
+   "name": "夜は起きた日に付け、同じ日はいちばん長い眠りを残す",
+   "description": "眠りの終わりの日本時間の日付をその夜の日付にし、同じ日に複数の眠りがあれば眠った分が最も長いものだけ残す。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 145,
+   "line_end": 148,
+   "confidence": "high",
+   "evidence": "dateKeyOf(終了) をキーに、長いほうを採用。"
+  },
+  {
+   "id": "rule:health-sleep/token-format",
+   "label": "Rule",
+   "name": "ショートカットの合言葉は32バイトの base64url（43文字）",
+   "description": "合言葉は英数字・「-」・「_」の43文字の形だけを正しいものとする。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 28,
+   "line_end": 29,
+   "confidence": "high",
+   "evidence": "正規表現 ^[A-Za-z0-9_-]{43}$。"
+  },
+  {
+   "id": "feature:health-sleep/load-nights",
+   "label": "Feature",
+   "name": "保存された夜ごとの睡眠を画面とサーバーで同じ形に戻す",
+   "description": "health_sleep の行（起きた日・眠り始め・終わり・眠った分）を、起きた日ごとのまとめに変換する。画面とサーバーの両方で使う。",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 152,
+   "line_end": 159,
+   "confidence": "high",
+   "evidence": "nightsFromRows が行を日付キーのオブジェクトに変える。画面側 loadSleepNights とサーバー側 recentNights が呼ぶ。"
+  },
+  {
+   "id": "feature:health-sleep/token",
+   "label": "Feature",
+   "name": "ヘルスケア取り込みの合言葉の発行・停止",
+   "description": "設定画面から睡眠を送るための合言葉を作る（前の合言葉は使えなくなる）、停止する、登録済みか確かめる。合言葉はサーバーに SHA-256 だけを保存し、作ったときにしか画面に出さない。",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 11,
+   "line_end": 31,
+   "confidence": "high",
+   "evidence": "newSecret のトークンのハッシュだけを health_tokens に upsert。作成日だけ読む。"
+  },
+  {
+   "id": "rule:health-sleep/token-hash-only",
+   "label": "Rule",
+   "name": "合言葉は SHA-256 だけ保存し、再発行すると前のものは使えない",
+   "description": "新しい合言葉を作ると同じユーザーの行を上書きし、保存するのはハッシュと作成時刻だけ。合言葉本体は作成時の1回だけ返す。",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 17,
+   "line_end": 26,
+   "confidence": "high",
+   "evidence": "upsert で token_hash と created_at のみ送る。コメントも明記。"
+  },
+  {
+   "id": "feature:health-sleep/shortcut-launch",
+   "label": "Feature",
+   "name": "アプリを開いたときにショートカット「睡眠を送る」を動かす",
+   "description": "iPhone はロック中にヘルスケアを読めないので、アプリを開いているときにショートカットを呼べるようにする。動かしたことを覚え、戻ってきたら間をあけず読み直す。",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 40,
+   "line_end": 60,
+   "confidence": "high",
+   "evidence": "shortcuts:// の URL と、動かした時刻をセッションに記録して10分以内なら true を1回返す。"
+  },
+  {
+   "id": "setting:health-sleep/shortcut-name",
+   "label": "Setting",
+   "name": "呼び出すショートカットの名前（睡眠を送る）",
+   "description": "ショートカット名は「睡眠を送る」。URL スキームで名前を渡して動かす。",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 40,
+   "line_end": 41,
+   "confidence": "high",
+   "evidence": "URL に encodeURIComponent した名前を埋めている。",
+   "const_ref": "const:src/lib/sync/health.ts#SLEEP_SHORTCUT_URL",
+   "value": "睡眠を送る"
+  },
+  {
+   "id": "rule:health-sleep/asked-within-10-minutes",
+   "label": "Rule",
+   "name": "ショートカットを動かして10分以内の戻りだけ、すぐ読み直す（1回だけ）",
+   "description": "動かした時刻を sessionStorage に残し、10分以内なら1回だけ true を返して消す。保存できない環境ではいつもの間隔で読む。",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 42,
+   "line_end": 60,
+   "confidence": "high",
+   "evidence": "時刻差が10分未満かを判定し、読み取り後に削除。例外は握りつぶして false。"
+  },
+  {
+   "id": "feature:ical/export-ics",
+   "label": "Feature",
+   "name": "アプリの予定を iCal 形式に書き出す",
+   "description": "iOS のカレンダーなどから読み取り専用で購読できる iCal を作る。カレンダー名・予定の題名・時刻・場所・説明を書く。",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 21,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "buildIcs が vcalendar を組み立てて文字列化する。テストで読み直しても同じになる。"
+  },
+  {
+   "id": "rule:ical/export-time-format",
+   "label": "Rule",
+   "name": "時刻は UTC で、終日の予定だけローカルの日付で書く",
+   "description": "通常の予定は UTC の日時、終日の予定は日付だけ（tzOffsetMinutes のローカル日付、既定は540分）で書く。",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 16,
+   "line_end": 24,
+   "confidence": "high",
+   "evidence": "終日なら dateOnly、そうでなければ UTC の fromJSDate。"
+  },
+  {
+   "id": "rule:ical/export-stable-uid",
+   "label": "Rule",
+   "name": "予定の ID は配信のたびに変わらない",
+   "description": "購読側が同じ予定かを判断できるよう、予定の uid は配信ごとに変えない。配信する枠・予定・授業は種類・ID・開始時刻から決まる uid を持つ。",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 5,
+   "line_end": 8,
+   "confidence": "high",
+   "evidence": "ExportEvent の uid の説明と feedEvents での uid の作り方。"
+  },
+  {
+   "id": "feature:ical/feed-events",
+   "label": "Feature",
+   "name": "配信する予定を選ぶ",
+   "description": "iCal で配信する予定を、アプリが組んだ枠・アプリで入れた予定・時間割の授業から作り、開始の早い順にする。",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 12,
+   "line_end": 36,
+   "confidence": "high",
+   "evidence": "feedEvents が3種類を集めて並べる。テストで内容と順序を確認。"
+  },
+  {
+   "id": "rule:ical/feed-excludes-google",
+   "label": "Rule",
+   "name": "Google カレンダーから取り込んだ予定は配信しない",
+   "description": "二重になるため、取り込んだ予定は配信に入れない。入れるのは枠・自分の予定・出る回の授業だけ。",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 12,
+   "line_end": 15,
+   "confidence": "high",
+   "evidence": "引数に Google の予定がなく、コメントが理由を述べる。テストは出ない授業を除く。"
+  },
+  {
+   "id": "setting:ical/feed-past-days",
+   "label": "Setting",
+   "name": "配信する過去の範囲（7日前）",
+   "description": "配信は現在の7日前までの予定を含める。",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 5,
+   "line_end": 7,
+   "confidence": "high",
+   "evidence": "inRange の下限に FEED_PAST_MS を使う。",
+   "const_ref": "const:src/lib/ical/feed.ts#FEED_PAST_MS",
+   "value": "7 * DAY_MS"
+  },
+  {
+   "id": "setting:ical/feed-future-days",
+   "label": "Setting",
+   "name": "配信する未来の範囲（15日先）",
+   "description": "配信は現在の15日先までの予定を含める。先は配置する日数（14日）に合わせる。",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 6,
+   "line_end": 8,
+   "confidence": "high",
+   "evidence": "inRange の上限に FEED_FUTURE_MS を使い、コメントが配置の14日に合わせると書く。",
+   "const_ref": "const:src/lib/ical/feed.ts#FEED_FUTURE_MS",
+   "value": "15 * DAY_MS"
+  },
+  {
+   "id": "rule:ical/feed-range",
+   "label": "Rule",
+   "name": "配信範囲の外の予定は入れない",
+   "description": "終わりが7日前より前、または始まりが15日先以降の予定は配信しない。",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 18,
+   "line_end": 18,
+   "confidence": "high",
+   "evidence": "inRange の比較式。テストで1か月前の枠が除外される。"
+  },
+  {
+   "id": "rule:ical/feed-block-label",
+   "label": "Rule",
+   "name": "枠の説明に種類と「リズム カレンダーが配置」を付ける",
+   "description": "タスク・習慣・朝ルーティンの枠は、説明に「タスク（リズム カレンダーが配置）」のように種類を付けて配信する。",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 10,
+   "line_end": 27,
+   "confidence": "high",
+   "evidence": "KIND_LABEL と description のテンプレート。テストが文言を確認。"
+  },
+  {
+   "id": "rule:ical/feed-token-format",
+   "label": "Rule",
+   "name": "配信アドレスの合言葉は32バイトの base64url（43文字）",
+   "description": "配信のアドレスに入れる合言葉は英数字・「-」・「_」の43文字の形だけを受け付ける。",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 38,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "FEED_TOKEN の正規表現。"
+  },
+  {
+   "id": "feature:ical/feed-secret-url",
+   "label": "Feature",
+   "name": "配信アドレスの発行と停止",
+   "description": "iCal 配信の合言葉を作ってアドレスにし、DB には合言葉の SHA-256 だけを保存する。アドレスは作ったときの1回だけ返し、作り直すと前のアドレスは使えなくなる。配信は停止できる。",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 3,
+   "line_end": 47,
+   "confidence": "high",
+   "evidence": "createFeed が newSecret のハッシュを ical_feeds に upsert し、/api/ical/feed/<token>.ics を返す。"
+  },
+  {
+   "id": "rule:ical/feed-token-random-hash-only",
+   "label": "Rule",
+   "name": "合言葉は推測できない乱数で、保存するのはハッシュだけ",
+   "description": "32バイトの乱数を base64url にして合言葉とし、保存は SHA-256（16進）のみ。",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 24,
+   "line_end": 29,
+   "confidence": "high",
+   "evidence": "crypto.getRandomValues と subtle.digest。"
+  },
+  {
+   "id": "rule:ical/feed-regenerate-invalidates-old",
+   "label": "Rule",
+   "name": "アドレスを作り直すと前のものは使えなくなる",
+   "description": "ユーザーごとに1行を upsert で置き換えるので、新しいアドレスを作ると以前のものは無効になる。",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 31,
+   "line_end": 42,
+   "confidence": "medium",
+   "evidence": "コメントと upsert の挙動。行の置き換えで前のハッシュが消えることからの推定で、サーバー側の照合は担当外。"
+  },
+  {
+   "id": "feature:ical/server-fetch",
+   "label": "Feature",
+   "name": "サーバーで iCal を安全に取りに行く",
+   "description": "登録された iCal の URL をサーバーから取得する。許可した配信元だけに接続し、失敗時は画面に出せる日本語の理由を返す（URL は含めない）。",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 7,
+   "line_end": 51,
+   "confidence": "high",
+   "evidence": "fetchIcsText が URL を検査して取得し、結果のテキストを返す。"
+  },
+  {
+   "id": "setting:ical/fetch-max-redirects",
+   "label": "Setting",
+   "name": "転送をたどる最大回数（3回）",
+   "description": "取得時の転送は3回まで。超えたら止める。",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 5,
+   "line_end": 5,
+   "confidence": "high",
+   "evidence": "ループの上限と、超過時のエラー。",
+   "const_ref": "const:src/lib/ical/fetch.ts#MAX_REDIRECTS",
+   "value": 3
+  },
+  {
+   "id": "setting:ical/fetch-timeout-ms",
+   "label": "Setting",
+   "name": "iCal の取得のタイムアウト（10秒）",
+   "description": "1回の取得は10,000ミリ秒でタイムアウトする。",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 4,
+   "line_end": 4,
+   "confidence": "high",
+   "evidence": "fetch の signal に使う。",
+   "const_ref": "const:src/lib/ical/fetch.ts#TIMEOUT_MS",
+   "value": 10000
+  },
+  {
+   "id": "setting:ical/fetch-max-bytes",
+   "label": "Setting",
+   "name": "取り込める iCal の大きさの上限（5MB）",
+   "description": "5MB を超える iCal は取り込まない。",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 3,
+   "line_end": 3,
+   "confidence": "high",
+   "evidence": "content-length と本文の長さの両方で比較。",
+   "const_ref": "const:src/lib/ical/fetch.ts#MAX_BYTES",
+   "value": "5 * 1024 * 1024"
+  },
+  {
+   "id": "rule:ical/fetch-follow-redirects-manually",
+   "label": "Rule",
+   "name": "転送は自分でたどり、行く前に許可した配信元か確かめる",
+   "description": "自動の転送はせず、転送先ごとに Google・iCloud の https かを確認し、許可外（例：内部アドレス）なら取りに行かず止める。転送が多すぎても止める。",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 11,
+   "line_end": 43,
+   "confidence": "high",
+   "evidence": "redirect を manual にして Location を検査する。テストが内部アドレスへの転送を1回の取得で止める。"
+  },
+  {
+   "id": "rule:ical/fetch-google-login-hint",
+   "label": "Rule",
+   "name": "Google のログイン画面へ転送されたら非公開アドレスを確かめるよう案内する",
+   "description": "accounts.google.com へ転送された場合は、iCal の非公開アドレスを使っているか、管理者が外部取得を止めていないかを案内するエラーにする。",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 33,
+   "line_end": 37,
+   "confidence": "high",
+   "evidence": "host を判定して専用メッセージ。"
+  },
+  {
+   "id": "rule:ical/fetch-error-hides-url",
+   "label": "Rule",
+   "name": "取り込みの失敗理由に URL を含めない",
+   "description": "エラー文には URL の秘密部分を出さず、必要な場合もドメイン名だけを示す。",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 7,
+   "line_end": 7,
+   "confidence": "high",
+   "evidence": "コメントと各エラーメッセージ。"
+  },
+  {
+   "id": "rule:ical/fetch-size-limit",
+   "label": "Rule",
+   "name": "大きすぎる iCal は取り込まない",
+   "description": "content-length か本文の長さが上限を超えるとエラーにする。",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 47,
+   "line_end": 49,
+   "confidence": "high",
+   "evidence": "2か所の上限比較。"
+  },
+  {
+   "id": "setting:ical/allowed-hosts",
+   "label": "Setting",
+   "name": "取り込める iCal の配信元（Google・iCloud）",
+   "description": "取り込みに行ってよいのは calendar.google.com と icloud.com（サブドメイン可）だけ。",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 1,
+   "line_end": 2,
+   "confidence": "high",
+   "evidence": "許可ホストの正規表現の配列。",
+   "const_ref": "const:src/lib/ical/source.ts#ALLOWED_HOSTS",
+   "value": "calendar.google.com, *.icloud.com"
+  },
+  {
+   "id": "feature:ical/source-validation",
+   "label": "Feature",
+   "name": "取り込み元の URL の確認",
+   "description": "入力された iCal の URL を確かめ、取りに行ける https の URL にする。許可していない配信元は取り込めない。",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 4,
+   "line_end": 18,
+   "confidence": "high",
+   "evidence": "normalizeIcsUrl が検査し URL か undefined を返す。"
+  },
+  {
+   "id": "rule:ical/source-https-allowlist-only",
+   "label": "Rule",
+   "name": "許可した配信元の https だけを受け付ける",
+   "description": "webcal:// は https:// に読み替え、https 以外・ユーザー名やパスワード・ポート指定つき・許可外のホスト（偽ドメイン含む）は受け付けない。非公開 URL を任意のサーバーへ送らないため。",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 1,
+   "line_end": 18,
+   "confidence": "high",
+   "evidence": "プロトコル・認証情報・ポート・ホストを検査。テストが偽ドメインやlocalhostを拒否。"
+  },
+  {
+   "id": "feature:ical/import-parse",
+   "label": "Feature",
+   "name": "iCal の予定を取り込んで1回ずつに展開する",
+   "description": "Google カレンダーなどの iCal テキストから、指定の期間と重なる予定を取り出し、開始の早い順の予定にする。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 43,
+   "line_end": 93,
+   "confidence": "high",
+   "evidence": "parseIcs が vevent を集めて展開し、range と重なるものを返す。"
+  },
+  {
+   "id": "setting:ical/max-occurrences",
+   "label": "Setting",
+   "name": "1つの繰り返しの予定を展開する回数の上限（20000回）",
+   "description": "壊れたデータで止まらなくならないよう、1つの繰り返しは最大20000回まで展開する。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 5,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "展開ループの上限に使う。",
+   "const_ref": "const:src/lib/ical/import.ts#MAX_OCCURRENCES",
+   "value": 20000
+  },
+  {
+   "id": "rule:ical/import-expand-recurring",
+   "label": "Rule",
+   "name": "繰り返しの予定は1回ずつに展開する",
+   "description": "繰り返しの予定はイテレータで各回を出し、範囲の終わりに達したら止める。各回には別々の ID（元の uid と開始時刻）を付ける。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 75,
+   "line_end": 82,
+   "confidence": "high",
+   "evidence": "iterator で回を出し、id に開始のミリ秒を含める。テストが各回の別 ID を確認。"
+  },
+  {
+   "id": "rule:ical/import-exceptions",
+   "label": "Rule",
+   "name": "除外日と個別に変更した回を反映する",
+   "description": "除外日（EXDATE）は展開から外れ、個別に変更した回（RECURRENCE-ID）は元の繰り返しにひも付けて、変更後の時刻とタイトルで取り込む。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 57,
+   "line_end": 63,
+   "confidence": "high",
+   "evidence": "例外を master に relateException する。テストで変更後のタイトルと除外を確認。"
+  },
+  {
+   "id": "rule:ical/import-cancelled-skipped",
+   "label": "Rule",
+   "name": "キャンセルされた予定は取り込まない",
+   "description": "STATUS が CANCELLED の予定（繰り返しの回を含む）は取り込まない。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 41,
+   "line_end": 41,
+   "confidence": "high",
+   "evidence": "isCancelled を単発・繰り返しの両方で判定。テストで確認。"
+  },
+  {
+   "id": "rule:ical/import-range-overlap",
+   "label": "Rule",
+   "name": "指定の期間と重なる予定だけを取り込む",
+   "description": "予定の終わりが期間の開始より後で、始まりが期間の終わりより前のものだけを残す。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 66,
+   "line_end": 66,
+   "confidence": "high",
+   "evidence": "overlaps の比較式。テストで範囲外の回が除外される。"
+  },
+  {
+   "id": "rule:ical/import-local-wall-clock",
+   "label": "Rule",
+   "name": "終日・タイムゾーンのない時刻は日本時間の壁時計として読む",
+   "description": "日付だけ（終日）とタイムゾーンのない時刻はローカル時刻（tzOffsetMinutes、既定540）として、それ以外は UTC のミリ秒に変換する。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 16,
+   "line_end": 27,
+   "confidence": "high",
+   "evidence": "isDate と localTimezone の分岐。テストで終日が日本時間の0:00になる。"
+  },
+  {
+   "id": "rule:ical/import-moved-later-occurrence",
+   "label": "Rule",
+   "name": "元の日時が範囲より後でも、移した先が範囲内なら取り込む",
+   "description": "繰り返しの回を範囲の外から範囲の中へ移した変更は、元の日時が範囲より後でも1回だけ取り込む。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 83,
+   "line_end": 90,
+   "confidence": "high",
+   "evidence": "例外の recurrenceId が range.to 以上のものを別に追加する。テストが1回だけを確認。"
+  },
+  {
+   "id": "rule:ical/import-untitled-and-details",
+   "label": "Rule",
+   "name": "タイトルがなければ「（タイトルなし）」にし、場所・説明も取り込む",
+   "description": "予定のタイトルが空なら「（タイトルなし）」とし、場所と説明があれば引き継ぎ、終日は allDay にする。",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 29,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "toEvent の初期値と各フィールドの対応。"
+  },
+  {
+   "id": "feature:ical/sources-registry",
+   "label": "Feature",
+   "name": "取り込む iCal の登録・削除・取り込みの実行（画面用）",
+   "description": "取り込むカレンダーの一覧・登録・削除と、期間を指定したサーバー取り込みの呼び出し。画面には URL を渡さず、登録するときに1回送るだけ。",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 5,
+   "line_end": 55,
+   "confidence": "high",
+   "evidence": "listSources は名前と状態だけ選択し、syncImports は /api/ical/sync を呼ぶ。"
+  },
+  {
+   "id": "rule:ical/url-hidden-from-screen",
+   "label": "Rule",
+   "name": "取り込み元の URL は画面で扱わない",
+   "description": "一覧は id・名前・最後に取り込んだ時刻・エラーだけ読み、URL は登録するときに1回送るだけで読み戻さない。",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 5,
+   "line_end": 31,
+   "confidence": "high",
+   "evidence": "select の列と IcalSource 型に URL がない。"
+  },
+  {
+   "id": "rule:ical/add-validates-url",
+   "label": "Rule",
+   "name": "登録時に URL を確かめ、形が正しくなければ理由を示す",
+   "description": "許可した配信元の URL でなければ登録せずエラーにする。名前が空なら「Google カレンダー」にし、正規化した URL を保存する。",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 33,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "normalizeIcsUrl が undefined ならエラー。"
+  },
+  {
+   "id": "setting:auth/local-debug",
+   "label": "Setting",
+   "name": "ローカル検証モード（NEXT_PUBLIC_LOCAL_DEBUG）",
+   "description": "開発サーバーで環境変数 NEXT_PUBLIC_LOCAL_DEBUG を 1 にしたときだけ、ログインとサーバー保存を使わずこの端末だけで動かす。",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 1,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "環境変数が1かつ NODE_ENV が production でないときに true。",
+   "const_ref": "const:src/lib/localDebug.ts#LOCAL_DEBUG",
+   "value": "1"
+  },
+  {
+   "id": "feature:auth/local-debug-mode",
+   "label": "Feature",
+   "name": "ローカル検証モード",
+   "description": "ログインとサーバー（Supabase）への保存を使わず、この端末の localStorage だけで動かす検証用の動作モード。",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 1,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "LOCAL_DEBUG が proxy とサーバー保存の判定に使われる。"
+  },
+  {
+   "id": "rule:auth/local-debug-disabled-in-production",
+   "label": "Rule",
+   "name": "本番ビルドではローカル検証モードは必ず無効",
+   "description": "NODE_ENV が production のときは、環境変数が付いていても検証モードにならない。",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 4,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "条件に NODE_ENV !== production を含む。"
+  },
+  {
+   "id": "feature:auth/login-guard",
+   "label": "Feature",
+   "name": "すべてのページの前でログインを確かめる",
+   "description": "ページの前で動き、ログインを確かめる。未ログインならページはログイン画面へ、API は 401 にし、期限が近ければ自動で延長する。",
+   "file": "src/proxy.ts",
+   "line_start": 5,
+   "line_end": 54,
+   "confidence": "high",
+   "evidence": "proxy 関数が Supabase の cookie を使って getUser を確かめる。"
+  },
+  {
+   "id": "rule:auth/unauthenticated-redirect",
+   "label": "Rule",
+   "name": "未ログインはページならログイン画面、API なら 401",
+   "description": "未ログインで /login 以外を開くと、ページはログイン画面へ（開こうとした画面は next に残す）、/api/ 以下は「ログインしてください。」の 401 を返す。",
+   "file": "src/proxy.ts",
+   "line_start": 40,
+   "line_end": 49,
+   "confidence": "high",
+   "evidence": "分岐と next パラメータの組み立て。"
+  },
+  {
+   "id": "rule:auth/logged-in-skips-login-page",
+   "label": "Rule",
+   "name": "ログイン済みで /login を開いたらトップへ",
+   "description": "ログインしているのに /login を開いたら、トップへ移す。",
+   "file": "src/proxy.ts",
+   "line_start": 50,
+   "line_end": 52,
+   "confidence": "high",
+   "evidence": "user があり pathname が /login のとき redirect。"
+  },
+  {
+   "id": "rule:auth/verify-with-getuser",
+   "label": "Rule",
+   "name": "getUser で本物のログインか確かめる",
+   "description": "cookie を書き換えられても通さないよう、Supabase に問い合わせて本物のログインかを確かめる。",
+   "file": "src/proxy.ts",
+   "line_start": 34,
+   "line_end": 37,
+   "confidence": "high",
+   "evidence": "getUser を使うことがコメントで明記。"
+  },
+  {
+   "id": "rule:auth/session-auto-extend",
+   "label": "Rule",
+   "name": "ログインの有効期限が近ければ自動で延長する",
+   "description": "端末ごとに最初の1回だけログインすればよいよう、更新された cookie をリクエストとレスポンスに反映する。",
+   "file": "src/proxy.ts",
+   "line_start": 5,
+   "line_end": 32,
+   "confidence": "medium",
+   "evidence": "コメントが延長を述べ、setAll が cookie を反映する。延長自体の判断は Supabase ライブラリ側で、このコードには出ない。"
+  },
+  {
+   "id": "rule:auth/public-paths-skip-login-check",
+   "label": "Rule",
+   "name": "定期実行・配信・ヘルスケアの呼び出しはログイン確認を通さない",
+   "description": "/api/push/dispatch・/api/push/replan・/api/ical/feed/・/api/health/sleep はログインしていない呼び出しなので素通りさせ、各自の合言葉で確かめる。",
+   "file": "src/proxy.ts",
+   "line_start": 11,
+   "line_end": 15,
+   "confidence": "high",
+   "evidence": "pathname の一致で NextResponse.next を返す。"
+  },
+  {
+   "id": "rule:auth/local-debug-bypass",
+   "label": "Rule",
+   "name": "ローカル検証モードではログインを確かめない",
+   "description": "検証モードのときはログイン確認をせず、/login はトップへ移す。",
+   "file": "src/proxy.ts",
+   "line_start": 16,
+   "line_end": 17,
+   "confidence": "high",
+   "evidence": "LOCAL_DEBUG の分岐。"
+  },
+  {
+   "id": "rule:auth/proxy-skips-static-assets",
+   "label": "Rule",
+   "name": "画像・ビルド済みのファイル・service worker などにはログイン確認を動かさない",
+   "description": "matcher で _next/static、_next/image、favicon、manifest、sw.js、画像拡張子を除く。",
+   "file": "src/proxy.ts",
+   "line_start": 56,
+   "line_end": 59,
+   "confidence": "high",
+   "evidence": "config.matcher の否定先読み。"
+  },
+  {
+   "id": "feature:sync/app-state",
+   "label": "Feature",
+   "name": "アプリのデータをサーバーに読み書きする",
+   "description": "Supabase の app_state（ユーザーごとに1行の JSON、version 2）を読み書きし、ログアウトする。保存した時刻を返す。",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 4,
+   "line_end": 51,
+   "confidence": "high",
+   "evidence": "loadRemote・saveRemote が app_state を select/upsert。"
+  },
+  {
+   "id": "rule:sync/local-debug-skips-server",
+   "label": "Rule",
+   "name": "ローカル検証モードではサーバーを読み書きしない",
+   "description": "検証モードでは、ログイン中のユーザー ID を local-debug とし、読み込みは行なし、保存は何もせず現在時刻を返す。",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 21,
+   "line_end": 37,
+   "confidence": "high",
+   "evidence": "各関数の先頭で LOCAL_DEBUG を判定。"
+  },
+  {
+   "id": "rule:sync/save-requires-login",
+   "label": "Rule",
+   "name": "ログインしていないと保存できない",
+   "description": "保存時にユーザー ID が取れなければ「ログインしていません」で失敗する。",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 38,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "ID がなければ throw。"
+  },
+  {
+   "id": "rule:sync/current-user-from-stored-session",
+   "label": "Rule",
+   "name": "ログイン中の人の ID は通信せずに保存してあるログインから読む",
+   "description": "端末の保存済みのログイン（getSession）から ID を読み、通信しない。",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 19,
+   "line_end": 24,
+   "confidence": "high",
+   "evidence": "getSession を使い、getUser（通信）と使い分けている。"
+  },
+  {
+   "id": "rule:sync/save-returns-server-time",
+   "label": "Rule",
+   "name": "保存した時刻を返す",
+   "description": "保存後に返された updated_at を、保存した時刻として返す（後から保存したほうが残る判断に使う）。",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 35,
+   "line_end": 46,
+   "confidence": "medium",
+   "evidence": "upsert の select で updated_at を読み返す。サーバーの時計かどうかは DB 側（担当外）に依存する。"
+  },
+  {
+   "id": "feature:auth/supabase-clients",
+   "label": "Feature",
+   "name": "Supabase への3種類の接続（ブラウザ・サーバー・管理者）",
+   "description": "ブラウザ用（公開鍵）、サーバー用（cookie でログイン状態を受け渡す）、管理者用（secret key、RLS を通らない）の接続を作る。",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 1,
+   "line_end": 11,
+   "confidence": "high",
+   "evidence": "env.ts が接続先を読み、client/server/admin が各接続を作る。"
+  },
+  {
+   "id": "setting:auth/supabase-url-and-key",
+   "label": "Setting",
+   "name": "Supabase の接続先（NEXT_PUBLIC_SUPABASE_URL・NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY）",
+   "description": ".env.local の公開用の接続先とキー。画面とサーバーが使う。",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 3,
+   "line_end": 4,
+   "confidence": "high",
+   "evidence": "環境変数から読む。"
+  },
+  {
+   "id": "rule:auth/missing-env-error",
+   "label": "Rule",
+   "name": "接続先が設定されていなければ、書く場所を示してエラーにする",
+   "description": "URL か公開キーがなければ、.env.local に書くべき変数名を示すエラーを出す。",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 5,
+   "line_end": 9,
+   "confidence": "high",
+   "evidence": "未設定の分岐に日本語の案内。"
+  },
+  {
+   "id": "setting:auth/supabase-secret-key",
+   "label": "Setting",
+   "name": "Supabase の secret key（SUPABASE_SECRET_KEY）",
+   "description": "すべてのユーザーの行を読み書きできる管理者用のキー。通知の送信などサーバーの定期実行からだけ使う。",
+   "file": "src/lib/supabase/admin.ts",
+   "line_start": 3,
+   "line_end": 11,
+   "confidence": "high",
+   "evidence": "環境変数 SUPABASE_SECRET_KEY がないと例外。"
+  },
+  {
+   "id": "rule:auth/admin-client-server-only",
+   "label": "Rule",
+   "name": "管理者の接続はサーバーの定期実行などからだけ使い、画面から読み込まない",
+   "description": "RLS を通らず全ユーザーの行を扱えるので、画面（use client）から import しない。キーが未設定なら作れない。",
+   "file": "src/lib/supabase/admin.ts",
+   "line_start": 3,
+   "line_end": 12,
+   "confidence": "high",
+   "evidence": "コメントが用途を限定し、キーがなければ例外を投げる。"
+  },
+  {
+   "id": "rule:auth/server-client-cookie-session",
+   "label": "Rule",
+   "name": "サーバー側の接続はログイン状態を cookie で受け渡す",
+   "description": "cookie の取得・書き込みで Supabase のログイン状態を扱う。サーバーコンポーネントからは書けないので、更新は proxy に任せる。",
+   "file": "src/lib/supabase/server.ts",
+   "line_start": 5,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "setAll の例外を握りつぶしコメントが proxy へ任せると書く。"
+  },
+  {
+   "id": "feature:notifications/build-schedule",
+   "label": "Feature",
+   "name": "これから送る通知の一覧を作る",
+   "description": "配置の結果から、予定の事前通知・枠の始まり・毎朝のまとめ・身支度・帰宅時の体力・タバコの区切り・Apple Watch の充電・寝る準備などの通知を、時刻順の一覧にする。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 46,
+   "line_end": 187,
+   "confidence": "high",
+   "evidence": "buildNotices が各種の通知を add で集めて時刻順に返す。"
+  },
+  {
+   "id": "setting:notifications/lead-minutes",
+   "label": "Setting",
+   "name": "予定の何分前に知らせるか（15分）",
+   "description": "予定の通知の標準の事前時間は15分。呼び出し側で変えられる。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 39,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "leadMinutes の既定値。",
+   "const_ref": "const:src/lib/notify/build.ts#NOTICE_LEAD_MINUTES",
+   "value": 15
+  },
+  {
+   "id": "setting:notifications/horizon-ms",
+   "label": "Setting",
+   "name": "どこまで先の通知を作るか（48時間）",
+   "description": "通知は現在から48時間先までのものを作る。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 40,
+   "line_end": 40,
+   "confidence": "high",
+   "evidence": "horizonMs の既定値。",
+   "const_ref": "const:src/lib/notify/build.ts#NOTICE_HORIZON_MS",
+   "value": "48 * 60 * MIN"
+  },
+  {
+   "id": "setting:notifications/smoke-cutoff-minutes",
+   "label": "Setting",
+   "name": "タバコの区切り（就寝の180分前）",
+   "description": "就寝の3時間前に「今日のタバコはここまで」と知らせる。就寝前4時間以内の喫煙は睡眠を悪くするという根拠から、まず3時間とした。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 41,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "コメントが根拠を述べ、通知時刻に使う。",
+   "const_ref": "const:src/lib/notify/build.ts#SMOKE_CUTOFF_MINUTES",
+   "value": 180
+  },
+  {
+   "id": "setting:notifications/watch-charge-minutes",
+   "label": "Setting",
+   "name": "Apple Watch の充電を始める合図（就寝の120分前）",
+   "description": "就寝の2時間前に充電の通知を出す。外出から帰るのがそれより遅い日は帰宅の時刻にする。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 43,
+   "line_end": 44,
+   "confidence": "high",
+   "evidence": "コメントと通知時刻の計算。",
+   "const_ref": "const:src/lib/notify/build.ts#WATCH_CHARGE_MINUTES",
+   "value": 120
+  },
+  {
+   "id": "rule:notifications/event-lead",
+   "label": "Rule",
+   "name": "予定の15分前（外出する予定は家を出る15分前）に知らせる",
+   "description": "終日以外の予定は開始の15分前に、外出する予定は家を出る時刻（開始−移動時間）の15分前に知らせる。在宅の予定は「あとN分で始まります」。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 73,
+   "line_end": 88,
+   "confidence": "high",
+   "evidence": "resolveTravel から出発を求め at を決める。テストが在宅と外出の時刻を確認。"
+  },
+  {
+   "id": "rule:notifications/quiet-hours",
+   "label": "Rule",
+   "name": "就寝から次の起床までは通知を送らない（毎朝のまとめは除く）",
+   "description": "各日の就寝〜翌日の起床と、最初の日の前夜からの睡眠、疲れ以外の立て直しの期間は通知を作らない。起床ちょうどの毎朝のまとめは送る。過ぎた時刻は作らない。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 61,
+   "line_end": 71,
+   "confidence": "high",
+   "evidence": "quiet の区間に入る at を add で除外。テストが夜中の予定を送らないことを確認。"
+  },
+  {
+   "id": "rule:notifications/horizon-limit",
+   "label": "Rule",
+   "name": "48時間より先と過ぎた時刻の通知は作らない",
+   "description": "現在より後で、現在から48時間以内の時刻の通知だけを作る。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 60,
+   "line_end": 71,
+   "confidence": "high",
+   "evidence": "add の条件 at>now かつ at<=until。"
+  },
+  {
+   "id": "rule:notifications/travel-time-ask-once",
+   "label": "Rule",
+   "name": "移動時間が分からない予定は、いちばん早い1件分だけをすぐ聞く",
+   "description": "移動時間の分からない取り込み予定と登録のない場所について、まとめて何件も届かないよう最初の1件の分を「移動時間は？」で知らせ、残りは「ほかN件」にする。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 89,
+   "line_end": 99,
+   "confidence": "high",
+   "evidence": "asks の先頭だけ add。テストが1件のみを確認。"
+  },
+  {
+   "id": "rule:notifications/task-progress-check",
+   "label": "Rule",
+   "name": "タスクの枠が終わったら「どのくらい進んだ？」と聞く",
+   "description": "タスクの枠ごとに、終了時刻に進み具合の確認を知らせる。未回答分は今日の画面でまとめて確認できる。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 100,
+   "line_end": 104,
+   "confidence": "high",
+   "evidence": "kind=task の枠の end に通知。テストが枠ごとの時刻を確認。"
+  },
+  {
+   "id": "rule:notifications/block-start",
+   "label": "Rule",
+   "name": "習慣とタスクの枠は始まりに知らせ、朝ルーティンは知らせない",
+   "description": "習慣・タスクの枠の開始時刻に、題名と「開始〜終了」を知らせる。朝ルーティンは毎朝のまとめに含める。遅れても枠の終わりか開始から1時間のうち早いほうまで送る。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 107,
+   "line_end": 118,
+   "confidence": "high",
+   "evidence": "routine を飛ばし until を枠の終わりか1時間までにする。テストで確認。"
+  },
+  {
+   "id": "rule:notifications/habit-first-five-minutes",
+   "label": "Rule",
+   "name": "きっかけのある記録習慣は「まず5分」と知らせる",
+   "description": "きっかけがあり記録する習慣は本文を「まず5分」にする。ただし余裕がある日だけの習慣・食事・飛ばせない習慣には出さない。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 105,
+   "line_end": 114,
+   "confidence": "high",
+   "evidence": "cued の条件（cue かつ track、whenEnergy・meal・skippable=false を除く）。テストで確認。"
+  },
+  {
+   "id": "rule:notifications/task-notice-opens-task",
+   "label": "Rule",
+   "name": "タスクの枠の通知はそのタスクを開く（開くだけでは達成にしない）",
+   "description": "タスクの枠の通知を押すと /?task=<タスクID:開始> を開く。通知を開くことと実行の確認は別にする。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 115,
+   "line_end": 117,
+   "confidence": "high",
+   "evidence": "url のテンプレートとコメント。"
+  },
+  {
+   "id": "rule:notifications/morning-summary",
+   "label": "Rule",
+   "name": "毎朝の起床の時刻にその日のまとめを知らせる",
+   "description": "起床の時刻に「おはようございます」と、予定の件数と最初の予定・タスクの枠の数・出発時刻・締切に間に合わないタスクの件数を知らせる。起床から2時間まで遅れても送る。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 120,
+   "line_end": 133,
+   "confidence": "high",
+   "evidence": "各日の起床に morning を add。テストが本文を確認。"
+  },
+  {
+   "id": "rule:notifications/contact-day-in-morning",
+   "label": "Rule",
+   "name": "連絡してみる日は朝のまとめに添える",
+   "description": "「連絡してみる？」の日（その日の 0:00）に当たる日の朝のまとめに「連絡してみる？」を添える。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 130,
+   "line_end": 130,
+   "confidence": "high",
+   "evidence": "contactDays に日が含まれるときだけ追加。テストで確認。"
+  },
+  {
+   "id": "feature:notifications/morning-summary-group",
+   "label": "Feature",
+   "name": "朝のまとめの内容",
+   "description": "朝のまとめに含める情報（予定・タスクの枠・出発・間に合わない件数・連絡の促し）の組み立て。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 120,
+   "line_end": 133,
+   "confidence": "medium",
+   "evidence": "朝のまとめの本文を組む部分。ルールの束ねとして分けたもので、独立した画面機能ではない。"
+  },
+  {
+   "id": "rule:notifications/prep-start",
+   "label": "Rule",
+   "name": "身支度は人に会う日だけ、置いた枠の始まりに知らせる",
+   "description": "身支度が要る日に「身支度を始める」を知らせる。時刻は置いた身支度の枠の始まり（朝ルーティンに続けて置いた日は朝ルーティンが終わる時刻）、枠がなければ出発から身支度の時間を引いた時刻。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 136,
+   "line_end": 149,
+   "confidence": "high",
+   "evidence": "placed の枠を探して prepStart を決める。テストが寝坊した日は枠より先に鳴らないことを確認。"
+  },
+  {
+   "id": "rule:notifications/evening-energy-ask",
+   "label": "Rule",
+   "name": "帰宅時（または夜の始まり）に、残りの体力を聞く",
+   "description": "外出した日は帰宅の時刻（予定が多い日は夜の始まり）に「残りの体力は？」と聞く。すでに答えていれば聞かず、就寝より後なら聞かない。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 150,
+   "line_end": 160,
+   "confidence": "high",
+   "evidence": "answered と eveningAt<bed の条件。テストが答えたあとは聞かないことを確認。"
+  },
+  {
+   "id": "rule:notifications/smoke-cutoff",
+   "label": "Rule",
+   "name": "就寝の3時間前に「今日のタバコはここまで」を知らせる",
+   "description": "各日の就寝の3時間前に、就寝時刻を添えてタバコの区切りを知らせる。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 161,
+   "line_end": 168,
+   "confidence": "high",
+   "evidence": "bed − SMOKE_CUTOFF_MINUTES に通知。テストで確認。"
+  },
+  {
+   "id": "rule:notifications/watch-charge",
+   "label": "Rule",
+   "name": "Apple Watch の充電は就寝の2時間前、帰宅がそれより遅い日は帰宅の時刻",
+   "description": "就寝の2時間前に充電を知らせる。帰宅がその時刻より後で就寝より前なら、帰宅の時刻に知らせる。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 168,
+   "line_end": 175,
+   "confidence": "high",
+   "evidence": "homeAt と charge を比べて at を選ぶ。テストで確認。"
+  },
+  {
+   "id": "rule:notifications/bed-prep",
+   "label": "Rule",
+   "name": "就寝の準備の時間に、就寝と起床の時刻を添えて知らせる",
+   "description": "設定の寝る準備の時間だけ就寝の前に「寝る準備の時間です」と知らせ、Apple Watch をつける・スマホを充電場所へと促し、就寝と起床の時刻を出す（アラームをその時刻に合わせられるように）。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 176,
+   "line_end": 184,
+   "confidence": "high",
+   "evidence": "d.bed − windDownMinutes に通知。本文に次の起床を含める。テストで確認。"
+  },
+  {
+   "id": "rule:notifications/late-delivery-until",
+   "label": "Rule",
+   "name": "遅れても、知らせる意味がなくなる時刻までは送る",
+   "description": "通知は until（予定の開始・出発・枠の終わりなど）までは遅れても送る。なければ時刻から10分。",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 12,
+   "line_end": 16,
+   "confidence": "high",
+   "evidence": "Notice の until の説明と各 add での指定。"
+  },
+  {
+   "id": "feature:notifications/close-gone-task",
+   "label": "Feature",
+   "name": "消した・終えたタスクの通知を通知センターから閉じる",
+   "description": "タスクを消したり終えたりしたとき、すでに届いている「始まり」「どのくらい進んだ？」の通知を閉じて、通知センターに残さない。",
+   "file": "src/lib/notify/close.ts",
+   "line_start": 1,
+   "line_end": 15,
+   "confidence": "high",
+   "evidence": "service worker の登録から表示中の通知を取得し、タスクの通知だけ閉じる。テストで確認。"
+  },
+  {
+   "id": "rule:notifications/close-only-removed-task-notices",
+   "label": "Rule",
+   "name": "存在しなくなったタスクの通知だけ閉じる",
+   "description": "通知の tag が check:<ID>:<開始> か block:task:<ID>:<開始> で、ID が残っているタスクの一覧にないものだけ閉じる。習慣などの通知は閉じない。閉じられない環境では何もしない。",
+   "file": "src/lib/notify/close.ts",
+   "line_start": 1,
+   "line_end": 14,
+   "confidence": "high",
+   "evidence": "正規表現と taskIds 判定。テストで部分一致する別 ID を閉じないことを確認。"
+  },
+  {
+   "id": "feature:notion/read-table",
+   "label": "Feature",
+   "name": "Notion の表の列と行を読む",
+   "description": "Notion の表から、タイトル・日付・段階（セレクト／ステータス）の列と、行ごとの締切と段階を読む。サーバーだけで使い、合言葉は画面に出さない。Notion からアプリへの一方向。",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 1,
+   "line_end": 89,
+   "confidence": "high",
+   "evidence": "readSchema と readRows が Notion API を呼ぶ。"
+  },
+  {
+   "id": "setting:notion/api-version",
+   "label": "Setting",
+   "name": "Notion API のバージョン（2022-06-28）",
+   "description": "Notion の API 呼び出しに付けるバージョン。",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 3,
+   "line_end": 4,
+   "confidence": "high",
+   "evidence": "Notion-Version ヘッダーに使う。",
+   "const_ref": "const:src/lib/notion/api.ts#VERSION",
+   "value": "2022-06-28"
+  },
+  {
+   "id": "rule:notion/api-error-messages",
+   "label": "Rule",
+   "name": "合言葉違い・表なしなどを日本語で伝える",
+   "description": "401 は「合言葉が違います」、404 は表に連携を追加しているかの案内、そのほかは状態コードつきのエラーにする。",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 14,
+   "line_end": 16,
+   "confidence": "high",
+   "evidence": "状態コードごとの分岐。"
+  },
+  {
+   "id": "rule:notion/schema-columns",
+   "label": "Rule",
+   "name": "表の列はタイトル・日付・セレクトとステータスを分けて拾う",
+   "description": "タイトルの列、日付の列（複数）、段階の列（セレクトまたはステータス）とその選択肢を取り出す。",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 28,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "型ごとに filter する。"
+  },
+  {
+   "id": "rule:notion/skip-archived-rows",
+   "label": "Rule",
+   "name": "アーカイブ・ごみ箱の行は読まない",
+   "description": "archived か in_trash の行は取り込みの対象から外す。",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 65,
+   "line_end": 65,
+   "confidence": "high",
+   "evidence": "条件で continue。"
+  },
+  {
+   "id": "rule:notion/missing-column-keeps-tasks",
+   "label": "Rule",
+   "name": "選んだ列が表から消えたときはエラーにして、前のタスクを消させない",
+   "description": "行があるのに締切の列（または選んだ段階の列）が見つからなければエラーにする。日付が空の行だけの場合はエラーにしない。",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 55,
+   "line_end": 58,
+   "confidence": "high",
+   "evidence": "sawDate・sawStage の判定。テストで確認。"
+  },
+  {
+   "id": "rule:notion/row-limit-1000",
+   "label": "Rule",
+   "name": "表の行は最大1000行まで。超えたらエラー",
+   "description": "100行ずつ最大10回読み、それでも続きがあれば読み切れないとしてエラーにする。",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 51,
+   "line_end": 85,
+   "confidence": "high",
+   "evidence": "ループ10回と complete の判定。テストで確認。"
+  },
+  {
+   "id": "rule:notion/parse-database-id",
+   "label": "Rule",
+   "name": "表のアドレスか ID から32桁の ID を取り出す",
+   "description": "アドレスの「?」以降を除き、ハイフンを取り除いて最後に現れる32桁の16進数を小文字の ID にする。",
+   "file": "src/lib/notion/id.ts",
+   "line_start": 1,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "正規表現で最後の32桁を取る。"
+  },
+  {
+   "id": "feature:notion/own-source",
+   "label": "Feature",
+   "name": "本人の Notion の合言葉と表の ID を読む",
+   "description": "ログイン中の本人であることを確かめてから、画面から読めない合言葉の列を secret key で読む。取り込みの結果（最後の取得時刻・エラー）を記録する。",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 4,
+   "line_end": 23,
+   "confidence": "high",
+   "evidence": "ownNotionSource が本人確認後に管理者接続で notion_sources を読む。"
+  },
+  {
+   "id": "rule:notion/own-source-errors",
+   "label": "Rule",
+   "name": "ログインなし・未登録・読み込み失敗を分けて返す",
+   "description": "未ログインは401、設定を読めなければ準備（SQL の実行）の確認を促す500、登録がなければ404を返す。",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 11,
+   "line_end": 14,
+   "confidence": "high",
+   "evidence": "3つの分岐。"
+  },
+  {
+   "id": "rule:notion/record-fetch-status",
+   "label": "Rule",
+   "name": "取り込みの成功は時刻を更新してエラーを消し、失敗はエラーを残す",
+   "description": "成功なら最後に取り込んだ時刻を更新し前回のエラーを消す。失敗ならエラーの内容だけ記録する。",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 18,
+   "line_end": 23,
+   "confidence": "high",
+   "evidence": "update の内容を error の有無で切り替える。"
+  },
+  {
+   "id": "feature:notion/register",
+   "label": "Feature",
+   "name": "Notion の表を登録して取り込む（画面用）",
+   "description": "合言葉と表のアドレスを登録（前の登録は置き換え）・削除し、表の列と行をサーバー経由で取得する。",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 5,
+   "line_end": 49,
+   "confidence": "high",
+   "evidence": "registerNotion が検証後に notion_sources に保存し、fetchNotion* が API ルートを呼ぶ。"
+  },
+  {
+   "id": "rule:notion/register-validation",
+   "label": "Rule",
+   "name": "表のアドレスが読めない・合言葉が短すぎる登録は受け付けない",
+   "description": "表のアドレスから32桁の ID が取れなければ、または合言葉が20文字未満ならエラーにする。登録は前の登録を消して入れ直す。",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 23,
+   "line_end": 33,
+   "confidence": "high",
+   "evidence": "parseDatabaseId と長さの検査、delete のあと insert。"
+  },
+  {
+   "id": "rule:notion/token-write-only",
+   "label": "Rule",
+   "name": "合言葉は登録するときに1回送るだけで、読み出さない",
+   "description": "状態の読み取りは最後の取得時刻とエラーだけを選択し、合言葉の列は読まない。",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 5,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "select の列。コメントも明記。"
+  },
+  {
+   "id": "setting:notifications/cron-secret",
+   "label": "Setting",
+   "name": "定期実行の合言葉（CRON_SECRET）",
+   "description": "pg_cron からの呼び出しを確かめる環境変数。",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 4,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "process.env.CRON_SECRET を読む。"
+  },
+  {
+   "id": "feature:notifications/cron-auth",
+   "label": "Feature",
+   "name": "定期実行からの呼び出しの確認",
+   "description": "Supabase の pg_cron からの呼び出しかを、Authorization: Bearer <CRON_SECRET> で確かめる。",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 3,
+   "line_end": 11,
+   "confidence": "high",
+   "evidence": "authorized が環境変数と比較する。"
+  },
+  {
+   "id": "rule:notifications/cron-secret-required",
+   "label": "Rule",
+   "name": "合言葉が未設定なら全て拒否し、一定時間で比較する",
+   "description": "CRON_SECRET がなければ常に拒否し、あれば長さが同じで timingSafeEqual が一致したときだけ通す。",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 4,
+   "line_end": 11,
+   "confidence": "high",
+   "evidence": "secret の有無と timingSafeEqual。"
+  },
+  {
+   "id": "feature:notifications/delivery",
+   "label": "Feature",
+   "name": "通知を端末ごとに二重送信なく送る",
+   "description": "通知の送信を、端末ごとの記録（送信中・送信済み）で管理し、一時エラーの端末だけ再送、成功した端末には二重送信しない。重なった定期実行でも同時送信しない。",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 15,
+   "line_end": 68,
+   "confidence": "high",
+   "evidence": "deliverNotice が台帳で確保・送信・完了・解放を行う。テストで確認。"
+  },
+  {
+   "id": "setting:notifications/delivery-lease-ms",
+   "label": "Setting",
+   "name": "送信中の確保の有効時間（2分）",
+   "description": "送信中の記録は2分で期限切れになり、プロセスが止まっても次の定期実行で回復できる。送信のタイムアウトより長くする。",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 5,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "確保の期限判定に使う。テストで期限後に回復する。",
+   "const_ref": "const:src/lib/push/delivery.ts#DELIVERY_LEASE_MS",
+   "value": "2 * 60_000"
+  },
+  {
+   "id": "rule:notifications/no-resend-to-delivered-device",
+   "label": "Rule",
+   "name": "成功した端末には二重送信せず、失敗した端末だけ次回再送する",
+   "description": "端末ごとに delivered 記録を残し、あれば skip。失敗は送信済みにしない。",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 53,
+   "line_end": 66,
+   "confidence": "high",
+   "evidence": "delivered:<端末>:<キー> の記録。テストが一時エラーの端末だけ再送。"
+  },
+  {
+   "id": "rule:notifications/legacy-sent-key-skip",
+   "label": "Rule",
+   "name": "旧版で送信済みの通知キーは再送しない",
+   "description": "通知のキーそのものが送信済みの記録にあれば（旧版で全端末へ送信済み）送らない。",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 15,
+   "line_end": 55,
+   "confidence": "high",
+   "evidence": "ledger.has(notice.key) の判定。テストで確認。"
+  },
+  {
+   "id": "rule:notifications/sending-lease-prevents-overlap",
+   "label": "Rule",
+   "name": "送信中は確保して重なった実行の同時送信を防ぐ",
+   "description": "送信の前に端末ごとの確保を取り、取れなければ skip。期限切れの確保は消して取り直せる。",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 23,
+   "line_end": 31,
+   "confidence": "high",
+   "evidence": "claim が期限切れを消してから ignoreDuplicates の upsert。テストで確認。"
+  },
+  {
+   "id": "rule:notifications/release-claim-always",
+   "label": "Rule",
+   "name": "例外でも確保を解放する（所有時刻が一致するときだけ）",
+   "description": "送信が例外で終わっても finally で確保を解放する。期限切れの古い処理が新しい確保を消さないよう、確保した時刻を照合して消す。",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 36,
+   "line_end": 67,
+   "confidence": "high",
+   "evidence": "release の eq(sent_at) と finally。テストで例外後の再送。"
+  },
+  {
+   "id": "feature:notifications/web-push-send",
+   "label": "Feature",
+   "name": "端末に Web Push を送る",
+   "description": "VAPID の鍵で端末の購読先に通知を送る。結果は送れた・端末が通知を止めた（登録を消してよい）・エラーの3つ。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 27,
+   "line_end": 43,
+   "confidence": "high",
+   "evidence": "sendPush が web-push を呼び、状態コードで分類。"
+  },
+  {
+   "id": "setting:notifications/vapid-keys",
+   "label": "Setting",
+   "name": "通知の鍵（NEXT_PUBLIC_VAPID_PUBLIC_KEY・VAPID_PRIVATE_KEY）",
+   "description": "Web Push の送信に必要な VAPID の公開鍵と秘密鍵。未設定なら送れずエラー。画面の購読にも公開鍵を使う。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 19,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "環境変数がなければ throw。"
+  },
+  {
+   "id": "setting:notifications/vapid-subject",
+   "label": "Setting",
+   "name": "送り先に伝える連絡先（VAPID_SUBJECT）",
+   "description": "通知の送り先（Apple など）に伝える連絡先。既定はサイトの URL。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 22,
+   "line_end": 23,
+   "confidence": "high",
+   "evidence": "環境変数がなければ既定の URL。",
+   "value": "https://calender-app-umber.vercel.app"
+  },
+  {
+   "id": "rule:notifications/gone-device-removable",
+   "label": "Rule",
+   "name": "404・410 は端末が通知を止めたとして登録を消してよい合図にする",
+   "description": "送信先が404か410を返したら「gone」を返し、登録を消してよいとする。ほかの失敗は error として記録だけ残す。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 27,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "状態コードの分岐。"
+  },
+  {
+   "id": "rule:notifications/push-ttl-30min",
+   "label": "Rule",
+   "name": "通知の有効時間は30分、緊急度は高",
+   "description": "送れなかった通知は30分で失効し、緊急度は high にする。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 31,
+   "line_end": 34,
+   "confidence": "high",
+   "evidence": "sendNotification のオプション。"
+  },
+  {
+   "id": "rule:notifications/sanitize-saved-schedule",
+   "label": "Rule",
+   "name": "画面が保存した一覧は、形と長さを確かめてから使う",
+   "description": "配列でなければ空、500件まで、key・at・title が揃わない項目は捨てる。key は200字、題名は100字、本文は300字に切り、行き先はアプリ内の場所だけ、until は数のときだけ残す。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 45,
+   "line_end": 64,
+   "confidence": "high",
+   "evidence": "cleanNotices の検査と切り詰め。テストで until を確認。"
+  },
+  {
+   "id": "feature:notifications/delivery-timing",
+   "label": "Feature",
+   "name": "いつ送るか（時刻の窓）",
+   "description": "通知を送ってよい時間の窓を決める。時刻が来ていて、遅れても指定の期限（なければ時刻から10分）までは送る。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 66,
+   "line_end": 72,
+   "confidence": "high",
+   "evidence": "isDue が at と until から判定。テストで確認。"
+  },
+  {
+   "id": "setting:notifications/grace-ms",
+   "label": "Setting",
+   "name": "遅れて届いた一覧でも送る猶予（10分）",
+   "description": "通知の時刻から10分までは送る。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 66,
+   "line_end": 67,
+   "confidence": "high",
+   "evidence": "isDue の上限に使う。",
+   "const_ref": "const:src/lib/push/send.ts#GRACE_MS",
+   "value": "10 * 60_000"
+  },
+  {
+   "id": "rule:notifications/due-window",
+   "label": "Rule",
+   "name": "時刻が来ていて、期限（なければ時刻から10分）を過ぎていない通知を送る",
+   "description": "いま送る通知は at 以降で、until と at+10分のうち遅いほうより前のものだけ。止まっていた間に過ぎても期限までは復旧後に届ける。",
+   "file": "src/lib/push/send.ts",
+   "line_start": 69,
+   "line_end": 72,
+   "confidence": "high",
+   "evidence": "isDue の式。テストが3つの境界を確認。"
+  },
+  {
+   "id": "feature:notifications/subscribe",
+   "label": "Feature",
+   "name": "この端末の通知の登録・解除とテスト送信",
+   "description": "通知の許可を聞いて端末を登録し、サーバーに購読情報（端末名つき）を保存する。解除・テスト通知・通知の一覧の保存もできる。",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 4,
+   "line_end": 86,
+   "confidence": "high",
+   "evidence": "subscribePush が許可→購読→push_subscriptions に upsert。"
+  },
+  {
+   "id": "rule:notifications/ios-needs-home-screen",
+   "label": "Rule",
+   "name": "iPhone はホーム画面に追加したアプリでないと通知を受け取れない",
+   "description": "iPhone・iPad・iPod でホーム画面のアプリとして開いていなければ、ホーム画面への追加を促す状態にする。service worker・PushManager・Notification のどれかがない環境は非対応とする。",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 18,
+   "line_end": 26,
+   "confidence": "high",
+   "evidence": "UA と display-mode の判定。"
+  },
+  {
+   "id": "rule:notifications/permission-asked-on-tap",
+   "label": "Rule",
+   "name": "通知の許可はボタンを押した操作の中で聞く",
+   "description": "iPhone は操作の中でしか許可を聞けないので、ボタン押下の処理の中で許可を求め、許可されなければ「設定」から許可する案内を出す。",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 41,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "コメントと requestPermission の判定。"
+  },
+  {
+   "id": "feature:sync/server-plan",
+   "label": "Feature",
+   "name": "サーバーで、あるユーザーの配置を組み直す",
+   "description": "定期実行と iCal 配信から使う。取り込み元の iCal を読み直し、ヘルスケアの直近の睡眠を重ねて、アプリと同じ処理で配置を組み直す。",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 15,
+   "line_end": 52,
+   "confidence": "high",
+   "evidence": "planOnServer が stored → 睡眠 → iCal → replan を行う。"
+  },
+  {
+   "id": "rule:sync/server-ical-fallback-last-events",
+   "label": "Rule",
+   "name": "取り込めなかった元は前回の結果で補い、前回もなければ組み直さない",
+   "description": "取り込みに失敗したら失敗を記録し、前回の結果で補って組み直す。前回の結果もなければ、予定が欠けて枠がずれるので組み直さない。1つの失敗で毎時の組み直しと通知がすべて止まらないようにする。",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 17,
+   "line_end": 51,
+   "confidence": "high",
+   "evidence": "catch で lastEventsOf を使い、なければ failed。テストで確認。"
+  },
+  {
+   "id": "rule:sync/server-save-last-events",
+   "label": "Rule",
+   "name": "取り込めた予定は次の失敗に備えて前回の結果として残す",
+   "description": "取り込みに成功したら最後の取得時刻を更新し、予定の一覧も保存する（保存用の列がなければ何もしない）。",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 35,
+   "line_end": 38,
+   "confidence": "high",
+   "evidence": "last_fetched_at と last_events の update。"
+  },
+  {
+   "id": "rule:sync/server-import-window",
+   "label": "Rule",
+   "name": "サーバーの取り込みは8日前から16日先まで",
+   "description": "サーバーでの iCal の取り込みは、現在の8日前〜16日先の予定を対象にする。",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 34,
+   "line_end": 34,
+   "confidence": "high",
+   "evidence": "parseIcs に渡す範囲。"
+  },
+  {
+   "id": "rule:sync/server-overlay-recent-health-sleep",
+   "label": "Rule",
+   "name": "直近3日のヘルスケアの睡眠を重ねて組み直す",
+   "description": "ヘルスケアの睡眠は health_sleep にだけ届くので、アプリを開く前でも寝坊に合わせて組み直せるよう、直近3日の夜をデータに重ねる。読めなければ保存済みの分だけで組む。",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 23,
+   "line_end": 25,
+   "confidence": "high",
+   "evidence": "recentNights が3日前以降の行を読む。"
+  },
+  {
+   "id": "rule:sync/server-plan-needs-valid-data",
+   "label": "Rule",
+   "name": "保存データが読めなければ組み直さない",
+   "description": "保存された app_state が読めない形のときは、組み直しを行わず data の理由を返す。",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 21,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "fromStoredV2 が失敗なら ok:false。"
+  },
+  {
+   "id": "feature:notifications/server-replan",
+   "label": "Feature",
+   "name": "通知の一覧をサーバーで組み直して保存する",
+   "description": "毎時の定期実行と、ヘルスケアの睡眠が届いたとき（寝坊に合わせて通知を直す）に、サーバーで配置を組み直し、通知の一覧を push_schedule に保存する。",
+   "file": "src/lib/server/push.ts",
+   "line_start": 8,
+   "line_end": 28,
+   "confidence": "high",
+   "evidence": "replanPush が planOnServer → buildNotices → upsert。"
+  },
+  {
+   "id": "rule:notifications/replan-does-not-write-app-state",
+   "label": "Rule",
+   "name": "組み直しは push_schedule だけを書き、app_state は書かない",
+   "description": "通知の一覧の組み直しでは、アプリのデータ（app_state）は書き換えない。組み直せなかったときは一覧を書き換えない。",
+   "file": "src/lib/server/push.ts",
+   "line_start": 8,
+   "line_end": 28,
+   "confidence": "high",
+   "evidence": "コメントと、失敗時の早期 return。"
+  },
+  {
+   "id": "feature:weather/place-search",
+   "label": "Feature",
+   "name": "天気の場所を市区町村の名前から探す",
+   "description": "Open-Meteo の検索で、市区町村名から候補の場所（最大5件、都道府県などつき）を出す。",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 10,
+   "line_end": 19,
+   "confidence": "high",
+   "evidence": "searchPlaces が geocoding API を呼ぶ。"
+  },
+  {
+   "id": "feature:weather/rain-chance",
+   "label": "Feature",
+   "name": "場所ごとの日ごとの雨の確率を取る",
+   "description": "Open-Meteo から16日分の時間ごとの雨の確率を取り、日付（日本時間）ごとの活動する時間帯の最大％にする。",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 37,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "fetchRainChance が forecast を呼び dailyRainChance に渡す。"
+  },
+  {
+   "id": "setting:weather/active-hours",
+   "label": "Setting",
+   "name": "雨を数える活動する時間帯（6時〜22時）",
+   "description": "散歩・洗濯・外出をする時間帯として6時から22時の雨の確率だけを見る。夜中だけの雨で1日を雨の日にしない。",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 21,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "dailyRainChance の時間の条件に使う。",
+   "const_ref": "const:src/lib/weather/openMeteo.ts#ACTIVE_HOURS",
+   "value": "{ from: 6, to: 22 }"
+  },
+  {
+   "id": "rule:weather/daily-max-in-active-hours",
+   "label": "Rule",
+   "name": "1日の雨の確率は活動する時間帯の最大値",
+   "description": "各時間の雨の確率のうち6時以上22時未満のものだけを見て、日ごとの最大を取る。夜中だけの雨や値がない時間は無視する。",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 24,
+   "line_end": 35,
+   "confidence": "high",
+   "evidence": "hour の範囲判定と Math.max。テストで夜中の90%・95%が無視される。"
+  },
+  {
+   "id": "rule:weather/forecast-16-days",
+   "label": "Rule",
+   "name": "予報は16日分を日本時間で取る",
+   "description": "予報は16日分を Asia/Tokyo の時刻で取り、日付は日本時間のキーにする。",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 37,
+   "line_end": 41,
+   "confidence": "high",
+   "evidence": "forecast_days=16 と timezone。"
+  }
+ ],
+ "edges": [
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/open-only-in-app-path",
+   "to": "feature:notifications",
+   "file": "src/lib/appPath.ts",
+   "line_start": 5,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/appPath.ts#appPath",
+   "to": "rule:notifications/open-only-in-app-path",
+   "file": "src/lib/appPath.ts",
+   "line_start": 5,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/appPath.test.ts",
+   "to": "rule:notifications/open-only-in-app-path",
+   "file": "src/lib/appPath.test.ts",
+   "line_start": 4,
+   "line_end": 10
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/send.ts",
+   "to": "rule:notifications/open-only-in-app-path",
+   "file": "src/lib/push/send.ts",
+   "line_start": 53,
+   "line_end": 53
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/parse-body",
+   "to": "feature:health-sleep",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 83,
+   "line_end": 126
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/parse-body",
+   "to": "integration:apple-shortcuts-health",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 5,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#parseSleepBody",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 83,
+   "line_end": 85
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#inspectSleepBody",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 88,
+   "line_end": 126
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.ts",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 1,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 30,
+   "line_end": 35
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/body-formats",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 88,
+   "line_end": 126
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#inspectSleepBody",
+   "to": "rule:health-sleep/body-formats",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 88,
+   "line_end": 126
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:health-sleep/max-samples",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 30,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/health/sleep.ts#MAX_SAMPLES",
+   "to": "setting:health-sleep/max-samples",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 31,
+   "line_end": 31
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:health-sleep/parse-body",
+   "to": "setting:health-sleep/max-samples",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 125,
+   "line_end": 125
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/time-without-zone-is-jst",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 44,
+   "line_end": 58
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#parseTime",
+   "to": "rule:health-sleep/time-without-zone-is-jst",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 45,
+   "line_end": 58
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "rule:health-sleep/time-without-zone-is-jst",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 7,
+   "line_end": 17
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/12-hour-notation",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 50,
+   "line_end": 53
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#parseTime",
+   "to": "rule:health-sleep/12-hour-notation",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 50,
+   "line_end": 53
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "rule:health-sleep/12-hour-notation",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/date-without-time-rejected",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 47,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#parseTime",
+   "to": "rule:health-sleep/date-without-time-rejected",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 47,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "rule:health-sleep/date-without-time-rejected",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 15,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/value-classification",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 60,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#sleepKind",
+   "to": "rule:health-sleep/value-classification",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 61,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "rule:health-sleep/value-classification",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 19,
+   "line_end": 28
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/drop-invalid-samples",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 74,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#sample",
+   "to": "rule:health-sleep/drop-invalid-samples",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 74,
+   "line_end": 80
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/inspect-unread",
+   "to": "feature:health-sleep/parse-body",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 87,
+   "line_end": 126
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#inspectSleepBody",
+   "to": "feature:health-sleep/inspect-unread",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 108,
+   "line_end": 125
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "feature:health-sleep/inspect-unread",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 68,
+   "line_end": 75
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/nightly-summary",
+   "to": "feature:health-sleep",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 128,
+   "line_end": 150
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#summarizeSleep",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 129,
+   "line_end": 150
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/health/sleep.ts#SleepNight",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 18,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 38,
+   "line_end": 66
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/asleep-only-and-overlap-merge",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 130,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#summarizeSleep",
+   "to": "rule:health-sleep/asleep-only-and-overlap-merge",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 130,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "rule:health-sleep/asleep-only-and-overlap-merge",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 39,
+   "line_end": 49
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:health-sleep/session-gap-minutes",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 34,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/health/sleep.ts#SESSION_GAP_MINUTES",
+   "to": "setting:health-sleep/session-gap-minutes",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 38,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/short-wake-same-sleep",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 132,
+   "line_end": 141
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:health-sleep/short-wake-same-sleep",
+   "to": "setting:health-sleep/session-gap-minutes",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 132,
+   "line_end": 141
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#summarizeSleep",
+   "to": "rule:health-sleep/short-wake-same-sleep",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 132,
+   "line_end": 141
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "rule:health-sleep/short-wake-same-sleep",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 51,
+   "line_end": 57
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:health-sleep/min-night-minutes",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 32,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/health/sleep.ts#MIN_NIGHT_MINUTES",
+   "to": "setting:health-sleep/min-night-minutes",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 33,
+   "line_end": 33
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/nap-not-a-night",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 143,
+   "line_end": 145
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:health-sleep/nap-not-a-night",
+   "to": "setting:health-sleep/min-night-minutes",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 143,
+   "line_end": 145
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#summarizeSleep",
+   "to": "rule:health-sleep/nap-not-a-night",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 143,
+   "line_end": 145
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/health/sleep.test.ts",
+   "to": "rule:health-sleep/nap-not-a-night",
+   "file": "src/lib/health/sleep.test.ts",
+   "line_start": 59,
+   "line_end": 65
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/night-is-wake-day-longest",
+   "to": "feature:health-sleep/nightly-summary",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 145,
+   "line_end": 148
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#summarizeSleep",
+   "to": "rule:health-sleep/night-is-wake-day-longest",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 145,
+   "line_end": 148
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/token-format",
+   "to": "feature:health-sleep/token",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 28,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/health/sleep.ts#HEALTH_TOKEN",
+   "to": "rule:health-sleep/token-format",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 29,
+   "line_end": 29
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/load-nights",
+   "to": "feature:health-sleep",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 152,
+   "line_end": 159
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/load-nights",
+   "to": "integration:supabase-db",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 152,
+   "line_end": 159
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/health/sleep.ts#nightsFromRows",
+   "to": "feature:health-sleep/load-nights",
+   "file": "src/lib/health/sleep.ts",
+   "line_start": 153,
+   "line_end": 159
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#loadSleepNights",
+   "to": "feature:health-sleep/load-nights",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 34,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/token",
+   "to": "feature:health-sleep",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 11,
+   "line_end": 31
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/token",
+   "to": "integration:supabase-db",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 18,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#loadHealthToken",
+   "to": "feature:health-sleep/token",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 11,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#createHealthToken",
+   "to": "feature:health-sleep/token",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 18,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#deleteHealthToken",
+   "to": "feature:health-sleep/token",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 28,
+   "line_end": 31
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/token-hash-only",
+   "to": "feature:health-sleep/token",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 17,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#createHealthToken",
+   "to": "rule:health-sleep/token-hash-only",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 18,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/feed.ts#newSecret",
+   "to": "rule:health-sleep/token-hash-only",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 25,
+   "line_end": 29
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/shortcut-launch",
+   "to": "feature:health-sleep",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 40,
+   "line_end": 60
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/shortcut-launch",
+   "to": "integration:apple-shortcuts-health",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 40,
+   "line_end": 41
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/shortcut-launch",
+   "to": "integration:browser-storage",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 42,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#markHealthAsked",
+   "to": "feature:health-sleep/shortcut-launch",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 44,
+   "line_end": 50
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#takeHealthAsked",
+   "to": "feature:health-sleep/shortcut-launch",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 52,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/sync/health.ts",
+   "to": "feature:health-sleep/shortcut-launch",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 1,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:health-sleep/shortcut-name",
+   "to": "feature:health-sleep/shortcut-launch",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 40,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/sync/health.ts#SLEEP_SHORTCUT_URL",
+   "to": "setting:health-sleep/shortcut-name",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 41,
+   "line_end": 41
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/asked-within-10-minutes",
+   "to": "feature:health-sleep/shortcut-launch",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 42,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#takeHealthAsked",
+   "to": "rule:health-sleep/asked-within-10-minutes",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 52,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/health.ts#markHealthAsked",
+   "to": "rule:health-sleep/asked-within-10-minutes",
+   "file": "src/lib/sync/health.ts",
+   "line_start": 44,
+   "line_end": 50
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/export-ics",
+   "to": "feature:ical",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 21,
+   "line_end": 46
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/export-ics",
+   "to": "integration:ical-export-feed",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 21,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/export.ts#buildIcs",
+   "to": "feature:ical/export-ics",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 25,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/ical/export.ts#ExportEvent",
+   "to": "feature:ical/export-ics",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 5,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "feature:ical/export-ics",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 138,
+   "line_end": 162
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/export-time-format",
+   "to": "feature:ical/export-ics",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 16,
+   "line_end": 24
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/export.ts#dateOnly",
+   "to": "rule:ical/export-time-format",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 16,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/export.ts#buildIcs",
+   "to": "rule:ical/export-time-format",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 38,
+   "line_end": 39
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/export-stable-uid",
+   "to": "feature:ical/export-ics",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 5,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/export.ts#buildIcs",
+   "to": "rule:ical/export-stable-uid",
+   "file": "src/lib/ical/export.ts",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/feed.ts#feedEvents",
+   "to": "rule:ical/export-stable-uid",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 22,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/feed-events",
+   "to": "feature:ical",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 12,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/feed.ts#feedEvents",
+   "to": "feature:ical/feed-events",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 16,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/feed.ts",
+   "to": "feature:ical/feed-events",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 1,
+   "line_end": 3
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/feed.test.ts",
+   "to": "feature:ical/feed-events",
+   "file": "src/lib/ical/feed.test.ts",
+   "line_start": 8,
+   "line_end": 26
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-excludes-google",
+   "to": "feature:ical/feed-events",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 12,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/feed.ts#feedEvents",
+   "to": "rule:ical/feed-excludes-google",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 29,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/feed.test.ts",
+   "to": "rule:ical/feed-excludes-google",
+   "file": "src/lib/ical/feed.test.ts",
+   "line_start": 10,
+   "line_end": 25
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:ical/feed-past-days",
+   "to": "feature:ical/feed-events",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 5,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/feed.ts#FEED_PAST_MS",
+   "to": "setting:ical/feed-past-days",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:ical/feed-future-days",
+   "to": "feature:ical/feed-events",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 6,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/feed.ts#FEED_FUTURE_MS",
+   "to": "setting:ical/feed-future-days",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 8,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-range",
+   "to": "feature:ical/feed-events",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 18,
+   "line_end": 18
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:ical/feed-range",
+   "to": "setting:ical/feed-past-days",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 18,
+   "line_end": 18
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:ical/feed-range",
+   "to": "setting:ical/feed-future-days",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 18,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/feed.ts#feedEvents",
+   "to": "rule:ical/feed-range",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 18,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/feed.test.ts",
+   "to": "rule:ical/feed-range",
+   "file": "src/lib/ical/feed.test.ts",
+   "line_start": 9,
+   "line_end": 25
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-block-label",
+   "to": "feature:ical/feed-events",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 10,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/feed.ts#KIND_LABEL",
+   "to": "rule:ical/feed-block-label",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 10,
+   "line_end": 10
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/feed.ts#feedEvents",
+   "to": "rule:ical/feed-block-label",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 26,
+   "line_end": 26
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-token-format",
+   "to": "feature:ical/feed-secret-url",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 38,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/feed.ts#FEED_TOKEN",
+   "to": "rule:ical/feed-token-format",
+   "file": "src/lib/ical/feed.ts",
+   "line_start": 39,
+   "line_end": 39
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/feed-secret-url",
+   "to": "feature:ical",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 3,
+   "line_end": 47
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/feed-secret-url",
+   "to": "integration:supabase-db",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 32,
+   "line_end": 42
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/feed-secret-url",
+   "to": "integration:ical-export-feed",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 41,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/feed.ts#loadFeed",
+   "to": "feature:ical/feed-secret-url",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 12,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/feed.ts#createFeed",
+   "to": "feature:ical/feed-secret-url",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 32,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/feed.ts#deleteFeed",
+   "to": "feature:ical/feed-secret-url",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 44,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/sync/feed.ts",
+   "to": "feature:ical/feed-secret-url",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 1,
+   "line_end": 3
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-token-random-hash-only",
+   "to": "feature:ical/feed-secret-url",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 24,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/feed.ts#newSecret",
+   "to": "rule:ical/feed-token-random-hash-only",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 25,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/feed.ts#base64url",
+   "to": "rule:ical/feed-token-random-hash-only",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 18,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-regenerate-invalidates-old",
+   "to": "feature:ical/feed-secret-url",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 31,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/feed.ts#createFeed",
+   "to": "rule:ical/feed-regenerate-invalidates-old",
+   "file": "src/lib/sync/feed.ts",
+   "line_start": 32,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/server-fetch",
+   "to": "feature:ical",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 7,
+   "line_end": 51
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/server-fetch",
+   "to": "integration:ical-import",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 7,
+   "line_end": 51
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/fetch.ts#fetchIcsText",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 8,
+   "line_end": 51
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/fetch.ts",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/fetch.test.ts",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.test.ts",
+   "line_start": 7,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:ical/fetch-max-redirects",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 5,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/fetch.ts#MAX_REDIRECTS",
+   "to": "setting:ical/fetch-max-redirects",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 5,
+   "line_end": 5
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:ical/fetch-timeout-ms",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 4,
+   "line_end": 4
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/fetch.ts#TIMEOUT_MS",
+   "to": "setting:ical/fetch-timeout-ms",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 4,
+   "line_end": 4
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:ical/fetch-max-bytes",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 3,
+   "line_end": 3
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/fetch.ts#MAX_BYTES",
+   "to": "setting:ical/fetch-max-bytes",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 3,
+   "line_end": 3
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/fetch-follow-redirects-manually",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 11,
+   "line_end": 43
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:ical/fetch-follow-redirects-manually",
+   "to": "setting:ical/fetch-max-redirects",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 11,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/fetch.ts#fetchIcsText",
+   "to": "rule:ical/fetch-follow-redirects-manually",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 11,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/fetch.test.ts",
+   "to": "rule:ical/fetch-follow-redirects-manually",
+   "file": "src/lib/ical/fetch.test.ts",
+   "line_start": 7,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/fetch-google-login-hint",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 33,
+   "line_end": 37
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/fetch.ts#fetchIcsText",
+   "to": "rule:ical/fetch-google-login-hint",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 33,
+   "line_end": 37
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/fetch-error-hides-url",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/fetch.ts#fetchIcsText",
+   "to": "rule:ical/fetch-error-hides-url",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 30,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/fetch-size-limit",
+   "to": "feature:ical/server-fetch",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 47,
+   "line_end": 49
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:ical/fetch-size-limit",
+   "to": "setting:ical/fetch-max-bytes",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 47,
+   "line_end": 49
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/fetch.ts#fetchIcsText",
+   "to": "rule:ical/fetch-size-limit",
+   "file": "src/lib/ical/fetch.ts",
+   "line_start": 47,
+   "line_end": 49
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:ical/allowed-hosts",
+   "to": "feature:ical/source-validation",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 1,
+   "line_end": 2
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/source.ts#ALLOWED_HOSTS",
+   "to": "setting:ical/allowed-hosts",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 2,
+   "line_end": 2
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/source-validation",
+   "to": "feature:ical",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 4,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/source.ts#normalizeIcsUrl",
+   "to": "feature:ical/source-validation",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 8,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "feature:ical/source-validation",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 164,
+   "line_end": 178
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/source-https-allowlist-only",
+   "to": "feature:ical/source-validation",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 1,
+   "line_end": 18
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:ical/source-https-allowlist-only",
+   "to": "setting:ical/allowed-hosts",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 1,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/source.ts#normalizeIcsUrl",
+   "to": "rule:ical/source-https-allowlist-only",
+   "file": "src/lib/ical/source.ts",
+   "line_start": 8,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "rule:ical/source-https-allowlist-only",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 165,
+   "line_end": 177
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/import-parse",
+   "to": "feature:ical",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 43,
+   "line_end": 93
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/import-parse",
+   "to": "integration:ical-import",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 43,
+   "line_end": 93
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#parseIcs",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 47,
+   "line_end": 93
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#toEvent",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 29,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/import.ts",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 1,
+   "line_end": 2
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 69,
+   "line_end": 136
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:ical/max-occurrences",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 5,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/ical/import.ts#MAX_OCCURRENCES",
+   "to": "setting:ical/max-occurrences",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/import-expand-recurring",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 75,
+   "line_end": 82
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:ical/import-expand-recurring",
+   "to": "setting:ical/max-occurrences",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 75,
+   "line_end": 82
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#parseIcs",
+   "to": "rule:ical/import-expand-recurring",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 75,
+   "line_end": 82
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "rule:ical/import-expand-recurring",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 73,
+   "line_end": 84
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/import-exceptions",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 57,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#parseIcs",
+   "to": "rule:ical/import-exceptions",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 57,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "rule:ical/import-exceptions",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 73,
+   "line_end": 90
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/import-cancelled-skipped",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 41,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#isCancelled",
+   "to": "rule:ical/import-cancelled-skipped",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 41,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#parseIcs",
+   "to": "rule:ical/import-cancelled-skipped",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 70,
+   "line_end": 70
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "rule:ical/import-cancelled-skipped",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 104,
+   "line_end": 109
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/import-range-overlap",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 66,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#parseIcs",
+   "to": "rule:ical/import-range-overlap",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 66,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "rule:ical/import-range-overlap",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 104,
+   "line_end": 109
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/import-local-wall-clock",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 16,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#toMs",
+   "to": "rule:ical/import-local-wall-clock",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 20,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "rule:ical/import-local-wall-clock",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 91,
+   "line_end": 132
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/import-moved-later-occurrence",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 83,
+   "line_end": 90
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#parseIcs",
+   "to": "rule:ical/import-moved-later-occurrence",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 83,
+   "line_end": 90
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/ical/ical.test.ts",
+   "to": "rule:ical/import-moved-later-occurrence",
+   "file": "src/lib/ical/ical.test.ts",
+   "line_start": 180,
+   "line_end": 200
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/import-untitled-and-details",
+   "to": "feature:ical/import-parse",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 29,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/ical/import.ts#toEvent",
+   "to": "rule:ical/import-untitled-and-details",
+   "file": "src/lib/ical/import.ts",
+   "line_start": 29,
+   "line_end": 39
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/sources-registry",
+   "to": "feature:ical",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 5,
+   "line_end": 55
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/sources-registry",
+   "to": "integration:supabase-db",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 22,
+   "line_end": 44
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/sources-registry",
+   "to": "integration:ical-import",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 46,
+   "line_end": 55
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/ical.ts#listSources",
+   "to": "feature:ical/sources-registry",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 22,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/ical.ts#addSource",
+   "to": "feature:ical/sources-registry",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 34,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/ical.ts#removeSource",
+   "to": "feature:ical/sources-registry",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 41,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/ical.ts#syncImports",
+   "to": "feature:ical/sources-registry",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 46,
+   "line_end": 55
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/sync/ical.ts",
+   "to": "feature:ical/sources-registry",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 1,
+   "line_end": 4
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/url-hidden-from-screen",
+   "to": "feature:ical/sources-registry",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 5,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/ical.ts#listSources",
+   "to": "rule:ical/url-hidden-from-screen",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 23,
+   "line_end": 23
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/sync/ical.ts#IcalSource",
+   "to": "rule:ical/url-hidden-from-screen",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 6,
+   "line_end": 11
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/add-validates-url",
+   "to": "feature:ical/sources-registry",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 33,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/ical.ts#addSource",
+   "to": "rule:ical/add-validates-url",
+   "file": "src/lib/sync/ical.ts",
+   "line_start": 35,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:auth/local-debug",
+   "to": "feature:auth/local-debug-mode",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 1,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/localDebug.ts#LOCAL_DEBUG",
+   "to": "setting:auth/local-debug",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:auth/local-debug-mode",
+   "to": "feature:auth",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 1,
+   "line_end": 6
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:auth/local-debug-mode",
+   "to": "setting:auth/local-debug",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 1,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/localDebug.ts",
+   "to": "feature:auth/local-debug-mode",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 1,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/local-debug-disabled-in-production",
+   "to": "feature:auth/local-debug-mode",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 4,
+   "line_end": 6
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:auth/local-debug-disabled-in-production",
+   "to": "setting:auth/local-debug",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 4,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/localDebug.ts#LOCAL_DEBUG",
+   "to": "rule:auth/local-debug-disabled-in-production",
+   "file": "src/lib/localDebug.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:auth/login-guard",
+   "to": "feature:auth",
+   "file": "src/proxy.ts",
+   "line_start": 5,
+   "line_end": 54
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:auth/login-guard",
+   "to": "setting:auth/local-debug",
+   "file": "src/proxy.ts",
+   "line_start": 5,
+   "line_end": 54
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:auth/login-guard",
+   "to": "integration:supabase-auth",
+   "file": "src/proxy.ts",
+   "line_start": 19,
+   "line_end": 37
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/proxy.ts#proxy",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 10,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/proxy.ts",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 1,
+   "line_end": 3
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/unauthenticated-redirect",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 40,
+   "line_end": 49
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/proxy.ts#proxy",
+   "to": "rule:auth/unauthenticated-redirect",
+   "file": "src/proxy.ts",
+   "line_start": 40,
+   "line_end": 49
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/logged-in-skips-login-page",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 50,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/proxy.ts#proxy",
+   "to": "rule:auth/logged-in-skips-login-page",
+   "file": "src/proxy.ts",
+   "line_start": 50,
+   "line_end": 52
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/verify-with-getuser",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 34,
+   "line_end": 37
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/proxy.ts#proxy",
+   "to": "rule:auth/verify-with-getuser",
+   "file": "src/proxy.ts",
+   "line_start": 34,
+   "line_end": 37
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/session-auto-extend",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 5,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/proxy.ts#proxy",
+   "to": "rule:auth/session-auto-extend",
+   "file": "src/proxy.ts",
+   "line_start": 24,
+   "line_end": 30
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/public-paths-skip-login-check",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 11,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/proxy.ts#proxy",
+   "to": "rule:auth/public-paths-skip-login-check",
+   "file": "src/proxy.ts",
+   "line_start": 11,
+   "line_end": 15
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/local-debug-bypass",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 16,
+   "line_end": 17
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:auth/local-debug-bypass",
+   "to": "setting:auth/local-debug",
+   "file": "src/proxy.ts",
+   "line_start": 16,
+   "line_end": 17
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/proxy.ts#proxy",
+   "to": "rule:auth/local-debug-bypass",
+   "file": "src/proxy.ts",
+   "line_start": 16,
+   "line_end": 17
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/proxy-skips-static-assets",
+   "to": "feature:auth/login-guard",
+   "file": "src/proxy.ts",
+   "line_start": 56,
+   "line_end": 59
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/proxy.ts#config",
+   "to": "rule:auth/proxy-skips-static-assets",
+   "file": "src/proxy.ts",
+   "line_start": 56,
+   "line_end": 59
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/app-state",
+   "to": "feature:sync",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 4,
+   "line_end": 51
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:sync/app-state",
+   "to": "setting:auth/local-debug",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 4,
+   "line_end": 51
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/app-state",
+   "to": "integration:supabase-db",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 27,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#loadRemote",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 27,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#saveRemote",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 36,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#currentUserId",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 20,
+   "line_end": 24
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#signOut",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 49,
+   "line_end": 51
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/sync/remote.ts",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 1,
+   "line_end": 4
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/local-debug-skips-server",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 21,
+   "line_end": 37
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:sync/local-debug-skips-server",
+   "to": "setting:auth/local-debug",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 21,
+   "line_end": 37
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#currentUserId",
+   "to": "rule:sync/local-debug-skips-server",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 21,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#loadRemote",
+   "to": "rule:sync/local-debug-skips-server",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 28,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#saveRemote",
+   "to": "rule:sync/local-debug-skips-server",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 37,
+   "line_end": 37
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/save-requires-login",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 38,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#saveRemote",
+   "to": "rule:sync/save-requires-login",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 38,
+   "line_end": 39
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/current-user-from-stored-session",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 19,
+   "line_end": 24
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#currentUserId",
+   "to": "rule:sync/current-user-from-stored-session",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 20,
+   "line_end": 24
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/save-returns-server-time",
+   "to": "feature:sync/app-state",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 35,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/remote.ts#saveRemote",
+   "to": "rule:sync/save-returns-server-time",
+   "file": "src/lib/sync/remote.ts",
+   "line_start": 40,
+   "line_end": 46
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:auth/supabase-clients",
+   "to": "feature:auth",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 1,
+   "line_end": 11
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:auth/supabase-clients",
+   "to": "setting:auth/supabase-url-and-key",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 1,
+   "line_end": 11
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:auth/supabase-clients",
+   "to": "setting:auth/supabase-secret-key",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 1,
+   "line_end": 11
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:auth/supabase-clients",
+   "to": "integration:supabase-auth",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 1,
+   "line_end": 11
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:auth/supabase-clients",
+   "to": "integration:supabase-db",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 1,
+   "line_end": 11
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/supabase/env.ts#supabaseEnv",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 2,
+   "line_end": 11
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/supabase/client.ts#createClient",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/client.ts",
+   "line_start": 5,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/supabase/server.ts#createClient",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/server.ts",
+   "line_start": 6,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/supabase/admin.ts#createAdminClient",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/admin.ts",
+   "line_start": 7,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:auth/supabase-url-and-key",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 3,
+   "line_end": 4
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/missing-env-error",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 5,
+   "line_end": 9
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/supabase/env.ts#supabaseEnv",
+   "to": "rule:auth/missing-env-error",
+   "file": "src/lib/supabase/env.ts",
+   "line_start": 5,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:auth/supabase-secret-key",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/admin.ts",
+   "line_start": 3,
+   "line_end": 11
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/admin-client-server-only",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/admin.ts",
+   "line_start": 3,
+   "line_end": 12
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:auth/admin-client-server-only",
+   "to": "setting:auth/supabase-secret-key",
+   "file": "src/lib/supabase/admin.ts",
+   "line_start": 3,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/supabase/admin.ts#createAdminClient",
+   "to": "rule:auth/admin-client-server-only",
+   "file": "src/lib/supabase/admin.ts",
+   "line_start": 7,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/server-client-cookie-session",
+   "to": "feature:auth/supabase-clients",
+   "file": "src/lib/supabase/server.ts",
+   "line_start": 5,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/supabase/server.ts#createClient",
+   "to": "rule:auth/server-client-cookie-session",
+   "file": "src/lib/supabase/server.ts",
+   "line_start": 6,
+   "line_end": 21
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/build-schedule",
+   "to": "feature:notifications",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 46,
+   "line_end": 187
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/build-schedule",
+   "to": "setting:notifications/lead-minutes",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 46,
+   "line_end": 187
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/build-schedule",
+   "to": "setting:notifications/horizon-ms",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 46,
+   "line_end": 187
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 57,
+   "line_end": 187
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/notify/build.ts#NoticeInput",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 19,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/notify/build.ts#Notice",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 5,
+   "line_end": 17
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 25,
+   "line_end": 128
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/lead-minutes",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 39,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/notify/build.ts#NOTICE_LEAD_MINUTES",
+   "to": "setting:notifications/lead-minutes",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 39,
+   "line_end": 39
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/horizon-ms",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 40,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/notify/build.ts#NOTICE_HORIZON_MS",
+   "to": "setting:notifications/horizon-ms",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 40,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/smoke-cutoff-minutes",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 41,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/notify/build.ts#SMOKE_CUTOFF_MINUTES",
+   "to": "setting:notifications/smoke-cutoff-minutes",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 42,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/watch-charge-minutes",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 43,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/notify/build.ts#WATCH_CHARGE_MINUTES",
+   "to": "setting:notifications/watch-charge-minutes",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 44,
+   "line_end": 44
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/event-lead",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 73,
+   "line_end": 88
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:notifications/event-lead",
+   "to": "setting:notifications/lead-minutes",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 73,
+   "line_end": 88
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/event-lead",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 73,
+   "line_end": 88
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/event-lead",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 26,
+   "line_end": 32
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/quiet-hours",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 61,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/quiet-hours",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 61,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/quiet-hours",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 119,
+   "line_end": 127
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/review-regression.test.ts",
+   "to": "rule:notifications/quiet-hours",
+   "file": "src/lib/review-regression.test.ts",
+   "line_start": 52,
+   "line_end": 58
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/horizon-limit",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 60,
+   "line_end": 71
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:notifications/horizon-limit",
+   "to": "setting:notifications/horizon-ms",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 60,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/horizon-limit",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 60,
+   "line_end": 71
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/travel-time-ask-once",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 89,
+   "line_end": 99
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/travel-time-ask-once",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 89,
+   "line_end": 99
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/travel-time-ask-once",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 86,
+   "line_end": 91
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/task-progress-check",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 100,
+   "line_end": 104
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/task-progress-check",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 100,
+   "line_end": 104
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/task-progress-check",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 78,
+   "line_end": 84
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/block-start",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 107,
+   "line_end": 118
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/block-start",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 107,
+   "line_end": 118
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/block-start",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 34,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/habit-first-five-minutes",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 105,
+   "line_end": 114
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/habit-first-five-minutes",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 105,
+   "line_end": 114
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/habit-first-five-minutes",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 44,
+   "line_end": 49
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/task-notice-opens-task",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 115,
+   "line_end": 117
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/task-notice-opens-task",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 115,
+   "line_end": 117
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/morning-summary",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 120,
+   "line_end": 133
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/morning-summary",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 120,
+   "line_end": 133
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/morning-summary",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 57,
+   "line_end": 62
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/contact-day-in-morning",
+   "to": "feature:notifications/morning-summary-group",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 130,
+   "line_end": 130
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/contact-day-in-morning",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 130,
+   "line_end": 130
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/contact-day-in-morning",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 51,
+   "line_end": 55
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/morning-summary-group",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 120,
+   "line_end": 133
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "feature:notifications/morning-summary-group",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 125,
+   "line_end": 133
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/prep-start",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 136,
+   "line_end": 149
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/prep-start",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 136,
+   "line_end": 149
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/prep-start",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 64,
+   "line_end": 76
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/evening-energy-ask",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 150,
+   "line_end": 160
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/evening-energy-ask",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 150,
+   "line_end": 160
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/evening-energy-ask",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 111,
+   "line_end": 117
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/smoke-cutoff",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 161,
+   "line_end": 168
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:notifications/smoke-cutoff",
+   "to": "setting:notifications/smoke-cutoff-minutes",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 161,
+   "line_end": 168
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/smoke-cutoff",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 161,
+   "line_end": 168
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/smoke-cutoff",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 99,
+   "line_end": 109
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/watch-charge",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 168,
+   "line_end": 175
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:notifications/watch-charge",
+   "to": "setting:notifications/watch-charge-minutes",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 168,
+   "line_end": 175
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/watch-charge",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 168,
+   "line_end": 175
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/watch-charge",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 93,
+   "line_end": 97
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/bed-prep",
+   "to": "feature:notifications/build-schedule",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 176,
+   "line_end": 184
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/build.ts#buildNotices",
+   "to": "rule:notifications/bed-prep",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 176,
+   "line_end": 184
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/build.test.ts",
+   "to": "rule:notifications/bed-prep",
+   "file": "src/lib/notify/build.test.ts",
+   "line_start": 99,
+   "line_end": 109
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/late-delivery-until",
+   "to": "feature:notifications/delivery-timing",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 12,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/notify/build.ts#Notice",
+   "to": "rule:notifications/late-delivery-until",
+   "file": "src/lib/notify/build.ts",
+   "line_start": 5,
+   "line_end": 17
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/close-gone-task",
+   "to": "feature:notifications",
+   "file": "src/lib/notify/close.ts",
+   "line_start": 1,
+   "line_end": 15
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/close-gone-task",
+   "to": "integration:service-worker",
+   "file": "src/lib/notify/close.ts",
+   "line_start": 7,
+   "line_end": 11
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/close.ts#closeGoneTaskNotices",
+   "to": "feature:notifications/close-gone-task",
+   "file": "src/lib/notify/close.ts",
+   "line_start": 5,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/close.test.ts",
+   "to": "feature:notifications/close-gone-task",
+   "file": "src/lib/notify/close.test.ts",
+   "line_start": 6,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/close-only-removed-task-notices",
+   "to": "feature:notifications/close-gone-task",
+   "file": "src/lib/notify/close.ts",
+   "line_start": 1,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notify/close.ts#closeGoneTaskNotices",
+   "to": "rule:notifications/close-only-removed-task-notices",
+   "file": "src/lib/notify/close.ts",
+   "line_start": 9,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notify/close.test.ts",
+   "to": "rule:notifications/close-only-removed-task-notices",
+   "file": "src/lib/notify/close.test.ts",
+   "line_start": 8,
+   "line_end": 11
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notion/read-table",
+   "to": "feature:notion",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 1,
+   "line_end": 89
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notion/read-table",
+   "to": "setting:notion/api-version",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 1,
+   "line_end": 89
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/read-table",
+   "to": "integration:notion-api",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 1,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/api.ts#readSchema",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 29,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/api.ts#readRows",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 52,
+   "line_end": 89
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/api.ts#call",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 7,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notion/api.test.ts",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.test.ts",
+   "line_start": 12,
+   "line_end": 35
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notion/api-version",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 3,
+   "line_end": 4
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/notion/api.ts#VERSION",
+   "to": "setting:notion/api-version",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 4,
+   "line_end": 4
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/api-error-messages",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 14,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/api.ts#call",
+   "to": "rule:notion/api-error-messages",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 14,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/schema-columns",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 28,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/api.ts#readSchema",
+   "to": "rule:notion/schema-columns",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 31,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/skip-archived-rows",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 65,
+   "line_end": 65
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/api.ts#readRows",
+   "to": "rule:notion/skip-archived-rows",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 65,
+   "line_end": 65
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/missing-column-keeps-tasks",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 55,
+   "line_end": 58
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/api.ts#readRows",
+   "to": "rule:notion/missing-column-keeps-tasks",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 55,
+   "line_end": 58
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notion/api.test.ts",
+   "to": "rule:notion/missing-column-keeps-tasks",
+   "file": "src/lib/notion/api.test.ts",
+   "line_start": 18,
+   "line_end": 28
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/row-limit-1000",
+   "to": "feature:notion/read-table",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 51,
+   "line_end": 85
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/api.ts#readRows",
+   "to": "rule:notion/row-limit-1000",
+   "file": "src/lib/notion/api.ts",
+   "line_start": 59,
+   "line_end": 59
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/notion/api.test.ts",
+   "to": "rule:notion/row-limit-1000",
+   "file": "src/lib/notion/api.test.ts",
+   "line_start": 30,
+   "line_end": 34
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/parse-database-id",
+   "to": "feature:notion/register",
+   "file": "src/lib/notion/id.ts",
+   "line_start": 1,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/id.ts#parseDatabaseId",
+   "to": "rule:notion/parse-database-id",
+   "file": "src/lib/notion/id.ts",
+   "line_start": 2,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notion/own-source",
+   "to": "feature:notion",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 4,
+   "line_end": 23
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notion/own-source",
+   "to": "setting:auth/supabase-secret-key",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 4,
+   "line_end": 23
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/own-source",
+   "to": "integration:supabase-auth",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 9,
+   "line_end": 11
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/own-source",
+   "to": "integration:supabase-db",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/source.ts#ownNotionSource",
+   "to": "feature:notion/own-source",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 8,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/source.ts#markNotionFetched",
+   "to": "feature:notion/own-source",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 18,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/own-source-errors",
+   "to": "feature:notion/own-source",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 11,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/source.ts#ownNotionSource",
+   "to": "rule:notion/own-source-errors",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 11,
+   "line_end": 14
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/record-fetch-status",
+   "to": "feature:notion/own-source",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 18,
+   "line_end": 23
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/notion/source.ts#markNotionFetched",
+   "to": "rule:notion/record-fetch-status",
+   "file": "src/lib/notion/source.ts",
+   "line_start": 18,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notion/register",
+   "to": "feature:notion",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 5,
+   "line_end": 49
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/register",
+   "to": "integration:notion-api",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 47,
+   "line_end": 49
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/register",
+   "to": "integration:supabase-db",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 24,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/notion.ts#registerNotion",
+   "to": "feature:notion/register",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 24,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/notion.ts#removeNotion",
+   "to": "feature:notion/register",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 35,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/notion.ts#fetchNotionSchema",
+   "to": "feature:notion/register",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 47,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/notion.ts#fetchNotionRows",
+   "to": "feature:notion/register",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 48,
+   "line_end": 49
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/notion.ts#loadNotionStatus",
+   "to": "feature:notion/register",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 16,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/sync/notion.ts",
+   "to": "feature:notion/register",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/register-validation",
+   "to": "feature:notion/register",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 23,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/notion.ts#registerNotion",
+   "to": "rule:notion/register-validation",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 25,
+   "line_end": 32
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/token-write-only",
+   "to": "feature:notion/register",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 5,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/notion.ts#loadNotionStatus",
+   "to": "rule:notion/token-write-only",
+   "file": "src/lib/sync/notion.ts",
+   "line_start": 17,
+   "line_end": 20
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/cron-secret",
+   "to": "feature:notifications/cron-auth",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 4,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/cron-auth",
+   "to": "feature:notifications",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 3,
+   "line_end": 11
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/cron-auth",
+   "to": "setting:notifications/cron-secret",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 3,
+   "line_end": 11
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/cron-auth",
+   "to": "integration:supabase-pg-cron",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 3,
+   "line_end": 3
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/cron.ts#authorized",
+   "to": "feature:notifications/cron-auth",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 4,
+   "line_end": 11
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/cron-secret-required",
+   "to": "feature:notifications/cron-auth",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 4,
+   "line_end": 11
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:notifications/cron-secret-required",
+   "to": "setting:notifications/cron-secret",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 4,
+   "line_end": 11
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/cron.ts#authorized",
+   "to": "rule:notifications/cron-secret-required",
+   "file": "src/lib/push/cron.ts",
+   "line_start": 7,
+   "line_end": 10
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/delivery",
+   "to": "feature:notifications",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 15,
+   "line_end": 68
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/delivery",
+   "to": "setting:notifications/delivery-lease-ms",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 15,
+   "line_end": 68
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/delivery",
+   "to": "integration:web-push",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 46,
+   "line_end": 68
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/delivery",
+   "to": "integration:supabase-db",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 16,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/delivery.ts#deliverNotice",
+   "to": "feature:notifications/delivery",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 46,
+   "line_end": 68
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/delivery.ts#deliveryLedger",
+   "to": "feature:notifications/delivery",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 16,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/delivery.test.ts",
+   "to": "feature:notifications/delivery",
+   "file": "src/lib/push/delivery.test.ts",
+   "line_start": 25,
+   "line_end": 70
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/delivery-lease-ms",
+   "to": "feature:notifications/delivery",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 5,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/push/delivery.ts#DELIVERY_LEASE_MS",
+   "to": "setting:notifications/delivery-lease-ms",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/no-resend-to-delivered-device",
+   "to": "feature:notifications/delivery",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 53,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/delivery.ts#deliverNotice",
+   "to": "rule:notifications/no-resend-to-delivered-device",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 53,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/delivery.test.ts",
+   "to": "rule:notifications/no-resend-to-delivered-device",
+   "file": "src/lib/push/delivery.test.ts",
+   "line_start": 25,
+   "line_end": 34
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/legacy-sent-key-skip",
+   "to": "feature:notifications/delivery",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 15,
+   "line_end": 55
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/delivery.ts#deliverNotice",
+   "to": "rule:notifications/legacy-sent-key-skip",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 55,
+   "line_end": 55
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/delivery.test.ts",
+   "to": "rule:notifications/legacy-sent-key-skip",
+   "file": "src/lib/push/delivery.test.ts",
+   "line_start": 56,
+   "line_end": 62
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/sending-lease-prevents-overlap",
+   "to": "feature:notifications/delivery",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 23,
+   "line_end": 31
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:notifications/sending-lease-prevents-overlap",
+   "to": "setting:notifications/delivery-lease-ms",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 23,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/delivery.ts#deliveryLedger",
+   "to": "rule:notifications/sending-lease-prevents-overlap",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 23,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/delivery.ts#deliverNotice",
+   "to": "rule:notifications/sending-lease-prevents-overlap",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 57,
+   "line_end": 57
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/delivery.test.ts",
+   "to": "rule:notifications/sending-lease-prevents-overlap",
+   "file": "src/lib/push/delivery.test.ts",
+   "line_start": 36,
+   "line_end": 54
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/release-claim-always",
+   "to": "feature:notifications/delivery",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 36,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/delivery.ts#deliveryLedger",
+   "to": "rule:notifications/release-claim-always",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 36,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/delivery.ts#deliverNotice",
+   "to": "rule:notifications/release-claim-always",
+   "file": "src/lib/push/delivery.ts",
+   "line_start": 64,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/delivery.test.ts",
+   "to": "rule:notifications/release-claim-always",
+   "file": "src/lib/push/delivery.test.ts",
+   "line_start": 64,
+   "line_end": 70
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/web-push-send",
+   "to": "feature:notifications",
+   "file": "src/lib/push/send.ts",
+   "line_start": 27,
+   "line_end": 43
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/web-push-send",
+   "to": "setting:notifications/vapid-keys",
+   "file": "src/lib/push/send.ts",
+   "line_start": 27,
+   "line_end": 43
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/web-push-send",
+   "to": "setting:notifications/vapid-subject",
+   "file": "src/lib/push/send.ts",
+   "line_start": 27,
+   "line_end": 43
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/web-push-send",
+   "to": "integration:web-push",
+   "file": "src/lib/push/send.ts",
+   "line_start": 28,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/send.ts#sendPush",
+   "to": "feature:notifications/web-push-send",
+   "file": "src/lib/push/send.ts",
+   "line_start": 28,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/send.ts#configure",
+   "to": "feature:notifications/web-push-send",
+   "file": "src/lib/push/send.ts",
+   "line_start": 17,
+   "line_end": 25
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/send.ts",
+   "to": "feature:notifications/web-push-send",
+   "file": "src/lib/push/send.ts",
+   "line_start": 1,
+   "line_end": 14
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/vapid-keys",
+   "to": "feature:notifications/web-push-send",
+   "file": "src/lib/push/send.ts",
+   "line_start": 19,
+   "line_end": 21
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/vapid-subject",
+   "to": "feature:notifications/web-push-send",
+   "file": "src/lib/push/send.ts",
+   "line_start": 22,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/gone-device-removable",
+   "to": "feature:notifications/web-push-send",
+   "file": "src/lib/push/send.ts",
+   "line_start": 27,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/send.ts#sendPush",
+   "to": "rule:notifications/gone-device-removable",
+   "file": "src/lib/push/send.ts",
+   "line_start": 37,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/push-ttl-30min",
+   "to": "feature:notifications/web-push-send",
+   "file": "src/lib/push/send.ts",
+   "line_start": 31,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/send.ts#sendPush",
+   "to": "rule:notifications/push-ttl-30min",
+   "file": "src/lib/push/send.ts",
+   "line_start": 31,
+   "line_end": 35
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/sanitize-saved-schedule",
+   "to": "feature:notifications/web-push-send",
+   "file": "src/lib/push/send.ts",
+   "line_start": 45,
+   "line_end": 64
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/send.ts#cleanNotices",
+   "to": "rule:notifications/sanitize-saved-schedule",
+   "file": "src/lib/push/send.ts",
+   "line_start": 46,
+   "line_end": 64
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/due.test.ts",
+   "to": "rule:notifications/sanitize-saved-schedule",
+   "file": "src/lib/push/due.test.ts",
+   "line_start": 19,
+   "line_end": 26
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/delivery-timing",
+   "to": "feature:notifications",
+   "file": "src/lib/push/send.ts",
+   "line_start": 66,
+   "line_end": 72
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/delivery-timing",
+   "to": "setting:notifications/grace-ms",
+   "file": "src/lib/push/send.ts",
+   "line_start": 66,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/send.ts#isDue",
+   "to": "feature:notifications/delivery-timing",
+   "file": "src/lib/push/send.ts",
+   "line_start": 70,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/due.test.ts",
+   "to": "feature:notifications/delivery-timing",
+   "file": "src/lib/push/due.test.ts",
+   "line_start": 7,
+   "line_end": 17
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/grace-ms",
+   "to": "feature:notifications/delivery-timing",
+   "file": "src/lib/push/send.ts",
+   "line_start": 66,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/push/send.ts#GRACE_MS",
+   "to": "setting:notifications/grace-ms",
+   "file": "src/lib/push/send.ts",
+   "line_start": 67,
+   "line_end": 67
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/due-window",
+   "to": "feature:notifications/delivery-timing",
+   "file": "src/lib/push/send.ts",
+   "line_start": 69,
+   "line_end": 72
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:notifications/due-window",
+   "to": "setting:notifications/grace-ms",
+   "file": "src/lib/push/send.ts",
+   "line_start": 69,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/push/send.ts#isDue",
+   "to": "rule:notifications/due-window",
+   "file": "src/lib/push/send.ts",
+   "line_start": 70,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/push/due.test.ts",
+   "to": "rule:notifications/due-window",
+   "file": "src/lib/push/due.test.ts",
+   "line_start": 7,
+   "line_end": 17
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/subscribe",
+   "to": "feature:notifications",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 4,
+   "line_end": 86
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/subscribe",
+   "to": "setting:notifications/vapid-keys",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 4,
+   "line_end": 86
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/subscribe",
+   "to": "integration:web-push",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 42,
+   "line_end": 58
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/subscribe",
+   "to": "integration:supabase-db",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 51,
+   "line_end": 57
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/subscribe",
+   "to": "integration:service-worker",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 47,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#subscribePush",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 42,
+   "line_end": 58
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#unsubscribePush",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 60,
+   "line_end": 65
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#sendTestPush",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 67,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#saveSchedule",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 74,
+   "line_end": 77
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#deviceName",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 79,
+   "line_end": 86
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#currentSubscription",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 28,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#keyBytes",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 33,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/sync/push.ts",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 1,
+   "line_end": 4
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/ios-needs-home-screen",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 18,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#pushSupport",
+   "to": "rule:notifications/ios-needs-home-screen",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 19,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/sync/push.ts#PushSupport",
+   "to": "rule:notifications/ios-needs-home-screen",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 16,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/permission-asked-on-tap",
+   "to": "feature:notifications/subscribe",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 41,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/sync/push.ts#subscribePush",
+   "to": "rule:notifications/permission-asked-on-tap",
+   "file": "src/lib/sync/push.ts",
+   "line_start": 45,
+   "line_end": 46
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/server-plan",
+   "to": "feature:sync",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 15,
+   "line_end": 52
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/server-plan",
+   "to": "integration:supabase-db",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 20,
+   "line_end": 52
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/server-plan",
+   "to": "integration:ical-import",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 30,
+   "line_end": 38
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/server-plan",
+   "to": "feature:health-sleep",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 23,
+   "line_end": 25
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/plan.ts#planOnServer",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 20,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/server/plan.ts#ServerPlan",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 11,
+   "line_end": 13
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/server/plan.test.ts",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/plan.test.ts",
+   "line_start": 31,
+   "line_end": 45
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/review-regression.test.ts",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/review-regression.test.ts",
+   "line_start": 45,
+   "line_end": 50
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/server-ical-fallback-last-events",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 17,
+   "line_end": 51
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/plan.ts#planOnServer",
+   "to": "rule:sync/server-ical-fallback-last-events",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 39,
+   "line_end": 50
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/plan.ts#lastEventsOf",
+   "to": "rule:sync/server-ical-fallback-last-events",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 55,
+   "line_end": 62
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/server/plan.test.ts",
+   "to": "rule:sync/server-ical-fallback-last-events",
+   "file": "src/lib/server/plan.test.ts",
+   "line_start": 31,
+   "line_end": 45
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/server-save-last-events",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 35,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/plan.ts#planOnServer",
+   "to": "rule:sync/server-save-last-events",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 35,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/server-import-window",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 34,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/plan.ts#planOnServer",
+   "to": "rule:sync/server-import-window",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 34,
+   "line_end": 34
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/server-overlay-recent-health-sleep",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 23,
+   "line_end": 25
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/plan.ts#planOnServer",
+   "to": "rule:sync/server-overlay-recent-health-sleep",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 23,
+   "line_end": 25
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/plan.ts#recentNights",
+   "to": "rule:sync/server-overlay-recent-health-sleep",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 65,
+   "line_end": 76
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/server-plan-needs-valid-data",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 21,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/plan.ts#planOnServer",
+   "to": "rule:sync/server-plan-needs-valid-data",
+   "file": "src/lib/server/plan.ts",
+   "line_start": 21,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/server-replan",
+   "to": "feature:notifications",
+   "file": "src/lib/server/push.ts",
+   "line_start": 8,
+   "line_end": 28
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/server-replan",
+   "to": "feature:sync/server-plan",
+   "file": "src/lib/server/push.ts",
+   "line_start": 13,
+   "line_end": 14
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/server-replan",
+   "to": "integration:supabase-db",
+   "file": "src/lib/server/push.ts",
+   "line_start": 26,
+   "line_end": 26
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/server-replan",
+   "to": "integration:supabase-pg-cron",
+   "file": "src/lib/server/push.ts",
+   "line_start": 10,
+   "line_end": 10
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/push.ts#replanPush",
+   "to": "feature:notifications/server-replan",
+   "file": "src/lib/server/push.ts",
+   "line_start": 12,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/server/push.ts#PushReplan",
+   "to": "feature:notifications/server-replan",
+   "file": "src/lib/server/push.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/replan-does-not-write-app-state",
+   "to": "feature:notifications/server-replan",
+   "file": "src/lib/server/push.ts",
+   "line_start": 8,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/server/push.ts#replanPush",
+   "to": "rule:notifications/replan-does-not-write-app-state",
+   "file": "src/lib/server/push.ts",
+   "line_start": 14,
+   "line_end": 14
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:weather/place-search",
+   "to": "feature:weather",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 10,
+   "line_end": 19
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:weather/place-search",
+   "to": "integration:open-meteo",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 14,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/weather/openMeteo.ts#searchPlaces",
+   "to": "feature:weather/place-search",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 11,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/weather/openMeteo.ts#PlaceCandidate",
+   "to": "feature:weather/place-search",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 5,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/weather/openMeteo.ts",
+   "to": "feature:weather/place-search",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 1,
+   "line_end": 3
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:weather/rain-chance",
+   "to": "feature:weather",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 37,
+   "line_end": 46
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:weather/rain-chance",
+   "to": "setting:weather/active-hours",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 37,
+   "line_end": 46
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:weather/rain-chance",
+   "to": "integration:open-meteo",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 38,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/weather/openMeteo.ts#fetchRainChance",
+   "to": "feature:weather/rain-chance",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 38,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/weather/openMeteo.ts#dailyRainChance",
+   "to": "feature:weather/rain-chance",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 25,
+   "line_end": 35
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/weather/openMeteo.test.ts",
+   "to": "feature:weather/rain-chance",
+   "file": "src/lib/weather/openMeteo.test.ts",
+   "line_start": 4,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:weather/active-hours",
+   "to": "feature:weather/rain-chance",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 21,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/weather/openMeteo.ts#ACTIVE_HOURS",
+   "to": "setting:weather/active-hours",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 22,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:weather/daily-max-in-active-hours",
+   "to": "feature:weather/rain-chance",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 24,
+   "line_end": 35
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:weather/daily-max-in-active-hours",
+   "to": "setting:weather/active-hours",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 24,
+   "line_end": 35
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/weather/openMeteo.ts#dailyRainChance",
+   "to": "rule:weather/daily-max-in-active-hours",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 25,
+   "line_end": 35
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/weather/openMeteo.test.ts",
+   "to": "rule:weather/daily-max-in-active-hours",
+   "file": "src/lib/weather/openMeteo.test.ts",
+   "line_start": 4,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:weather/forecast-16-days",
+   "to": "feature:weather/rain-chance",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 37,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/weather/openMeteo.ts#fetchRainChance",
+   "to": "rule:weather/forecast-16-days",
+   "file": "src/lib/weather/openMeteo.ts",
+   "line_start": 39,
+   "line_end": 41
+  }
+ ]
+}

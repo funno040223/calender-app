@@ -1,0 +1,3464 @@
+{
+ "batch": "b11_components_misc",
+ "nodes": [
+  {
+   "id": "feature:app/shell",
+   "label": "Feature",
+   "name": "アプリ全体の枠（タブ・お知らせ・タスク編集）",
+   "description": "全画面の外側にあり、画面の切り替えタブ、画面下のお知らせ、タスク編集シート、背景の取り込みをまとめて受け持つ。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 77,
+   "line_end": 353,
+   "confidence": "high",
+   "evidence": "AppShell が子画面を包み、ナビ・お知らせ・編集シートを描く"
+  },
+  {
+   "id": "feature:app/tab-navigation",
+   "label": "Feature",
+   "name": "画面の切り替えタブ（今日・カレンダー・タスク・記録・設定）",
+   "description": "5つの画面を、広い画面では左のナビ、スマホでは下のタブで切り替える。いまの画面を強調表示する。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 23,
+   "line_end": 29,
+   "confidence": "high",
+   "evidence": "TABS の5項目を2つのナビに描いている"
+  },
+  {
+   "id": "rule:app/today-tab-warning-badge",
+   "label": "Rule",
+   "name": "今日のタブに警告の件数を出す",
+   "description": "今日のタブにだけ、警告の件数を赤いバッジで出す。0件のときは出さない。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 68,
+   "line_end": 75,
+   "confidence": "high",
+   "evidence": "Badge は n<=0 で何も描かず、href が / のときだけ置かれる"
+  },
+  {
+   "id": "rule:app/quick-add-hidden-on-settings-stats",
+   "label": "Rule",
+   "name": "設定・記録の画面ではタスクのクイック追加欄を出さない",
+   "description": "タスクを足す欄は今日・カレンダー・タスクの画面だけに出し、設定と記録では出さない（このときスマホ以外では下の欄ごと隠す）。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 201,
+   "line_end": 202,
+   "confidence": "high",
+   "evidence": "pathname が /settings か /stats のとき showQuickAdd が false"
+  },
+  {
+   "id": "feature:app/toast-undo",
+   "label": "Feature",
+   "name": "操作のあとに出るお知らせと「元に戻す」",
+   "description": "追加・保存・完了・削除のあと、画面の下に短いお知らせを出し、直前の操作を元に戻せる。数秒で自動で消える。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 81,
+   "line_end": 109,
+   "confidence": "high",
+   "evidence": "toast の状態、タイマー、元に戻すボタン"
+  },
+  {
+   "id": "setting:app/toast-ms",
+   "label": "Setting",
+   "name": "お知らせを出しておく時間（5秒）",
+   "description": "お知らせを自動で消すまでの時間。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 39,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "TOAST_MS の値でタイマーを張る",
+   "const_ref": "const:src/components/app/AppShell.tsx#TOAST_MS",
+   "value": 5000
+  },
+  {
+   "id": "rule:app/toast-cleared-on-next-operation",
+   "label": "Rule",
+   "name": "次の操作をしたら前のお知らせを消す",
+   "description": "別の操作（自動でない更新・パッチ）をしたら、出ているお知らせを消す。背景の自動更新では消さない。「元に戻す」で別の操作を戻さないため。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 93,
+   "line_end": 108,
+   "confidence": "high",
+   "evidence": "update は auto でないとき、patch は常にお知らせを消す"
+  },
+  {
+   "id": "rule:app/undo-button-only-when-undoable",
+   "label": "Rule",
+   "name": "元に戻せるときだけ「元に戻す」を出す",
+   "description": "元に戻せる履歴があるときだけボタンを出し、押すと戻してお知らせを閉じる。なければ空きだけ置く。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 281,
+   "line_end": 294,
+   "confidence": "high",
+   "evidence": "store.canUndo で分岐"
+  },
+  {
+   "id": "feature:app/toast-next-placement",
+   "label": "Feature",
+   "name": "お知らせに「次はいつ入るか」を添える",
+   "description": "タスクの追加・保存や習慣の「できなかった」のあと、お知らせに、そのタスク・習慣が次に配置された日時（今日／明日／日付 ＋ 開始時刻）を出す。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 41,
+   "line_end": 66,
+   "confidence": "high",
+   "evidence": "placementOf / habitPlacementOf / whenOf が toast に添える文字を作る"
+  },
+  {
+   "id": "rule:app/task-placement-fallback-label",
+   "label": "Rule",
+   "name": "入らないタスクは理由を短く出す",
+   "description": "タスクの次の枠がないとき、締切に足りなければ「入りきりません」、締切の2週間前になっていなければ「まだ先」を出し、それ以外は何も出さない。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 55,
+   "line_end": 66,
+   "confidence": "high",
+   "evidence": "placementOf の分岐"
+  },
+  {
+   "id": "rule:app/habit-next-block-only-future",
+   "label": "Rule",
+   "name": "できなかった習慣は、これから先の最初の枠を「次は」と出す",
+   "description": "習慣のお知らせには、その習慣のこれから先の枠のうち最も早いものだけを「次は…」で出す。なければ何も出さない。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 49,
+   "line_end": 52,
+   "confidence": "high",
+   "evidence": "refId が一致し start が now より後のブロックの最初"
+  },
+  {
+   "id": "feature:weather/auto-refresh",
+   "label": "Feature",
+   "name": "天気予報の自動の取り直し",
+   "description": "場所が設定されていれば、開いたときと一定間隔ごとに雨の確率を取り直して保存する。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 114,
+   "line_end": 134,
+   "confidence": "high",
+   "evidence": "fetchRainChance の結果を rainForecast に入れる"
+  },
+  {
+   "id": "setting:weather/refresh-interval",
+   "label": "Setting",
+   "name": "天気予報を取り直す間隔（3時間）",
+   "description": "前回の取得から3時間たつまでは天気を取り直さない。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 32,
+   "line_end": 32,
+   "confidence": "high",
+   "evidence": "WEATHER_REFRESH_MS = 3時間",
+   "const_ref": "const:src/components/app/AppShell.tsx#WEATHER_REFRESH_MS",
+   "value": 10800000
+  },
+  {
+   "id": "setting:app/background-retry-interval",
+   "label": "Setting",
+   "name": "取り込みに失敗したとき次に試すまで（10分）",
+   "description": "天気・Notion を取れなかったとき、次に試すまでの最短の間隔。保存のたびに取りにいかないため。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 34,
+   "line_end": 34,
+   "confidence": "high",
+   "evidence": "RETRY_MS = 10分",
+   "const_ref": "const:src/components/app/AppShell.tsx#RETRY_MS",
+   "value": 600000
+  },
+  {
+   "id": "rule:weather/refresh-conditions",
+   "label": "Rule",
+   "name": "天気は場所があり同期が済んでいて、間隔が空いたときだけ取る",
+   "description": "同期の読み込みが終わり、場所が設定され、前回の取得から3時間・前回の試行から10分たち、取得中でないときだけ取る。10分ごとに確認する。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 121,
+   "line_end": 134,
+   "confidence": "high",
+   "evidence": "early return の条件と setInterval"
+  },
+  {
+   "id": "rule:weather/failure-keeps-previous",
+   "label": "Rule",
+   "name": "天気を取れなければ前の予報のままにする",
+   "description": "取得に失敗したときは警告を出すだけで、保存済みの予報を変えない。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 128,
+   "line_end": 129,
+   "confidence": "high",
+   "evidence": "catch で console.warn のみ"
+  },
+  {
+   "id": "feature:notion/auto-import",
+   "label": "Feature",
+   "name": "Notion の締切の自動の取り込み",
+   "description": "Notion の列が選ばれていれば、開いたときと30分ごとに表の行を取り込み、タスクに反映する。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 136,
+   "line_end": 154,
+   "confidence": "high",
+   "evidence": "fetchNotionRows → applyNotionRows"
+  },
+  {
+   "id": "rule:notion/import-conditions",
+   "label": "Rule",
+   "name": "Notion は日付の列を選んであり、30分以上たったときだけ取り込む",
+   "description": "同期が終わり日付の列が選ばれ、前回の取得から30分・前回の試行から10分たち、取得中でないときだけ取る。10分ごとに確認する。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 141,
+   "line_end": 154,
+   "confidence": "high",
+   "evidence": "early return の条件"
+  },
+  {
+   "id": "rule:notion/failure-keeps-tasks",
+   "label": "Rule",
+   "name": "Notion を読めなければ前のタスクのままにする",
+   "description": "読み込みに失敗しても警告を出すだけで、既にあるタスクは変えない。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 148,
+   "line_end": 149,
+   "confidence": "high",
+   "evidence": "catch で console.warn のみ"
+  },
+  {
+   "id": "feature:health-sleep/auto-read",
+   "label": "Feature",
+   "name": "ヘルスケアの睡眠の自動の読み込み",
+   "description": "ショートカットが送った夜ごとの睡眠のまとめを、開いたときと画面に戻ってきたときに読み、60日ぶんを残す。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 156,
+   "line_end": 190,
+   "confidence": "high",
+   "evidence": "loadSleepNights の結果を healthSleep にマージ"
+  },
+  {
+   "id": "rule:health-sleep/read-throttle",
+   "label": "Rule",
+   "name": "睡眠は10分に1回まで読む",
+   "description": "通常の確認は前回から10分たつまで読まない（10分ごとに確認）。直近21日ぶんを取りにいく。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 160,
+   "line_end": 164,
+   "confidence": "high",
+   "evidence": "healthTried の時刻比較と 21日"
+  },
+  {
+   "id": "rule:health-sleep/force-read-after-shortcut",
+   "label": "Rule",
+   "name": "ショートカットを動かして戻ったらすぐ読み、8秒後にもう一度読む",
+   "description": "睡眠を送るショートカットを頼んだあとで画面に戻ったら、待たずに読み、届くのが遅れる場合のため8秒後にもう一度読む。頼んでいなければ通常の間隔。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 175,
+   "line_end": 182,
+   "confidence": "high",
+   "evidence": "takeHealthAsked のとき check(true) と 8000ms の再読み"
+  },
+  {
+   "id": "rule:health-sleep/keep-60-days",
+   "label": "Rule",
+   "name": "睡眠の記録は60日ぶんだけ残し、変わらなければ更新しない",
+   "description": "読んだ夜を既存とまとめ、60日より古い日付は捨てる。内容が同じなら状態を更新しない。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 163,
+   "line_end": 169,
+   "confidence": "high",
+   "evidence": "from でフィルタし、JSON が同じなら d を返す"
+  },
+  {
+   "id": "feature:app/calendar-colors-apply",
+   "label": "Feature",
+   "name": "選んだカレンダーの色を画面全体に反映する",
+   "description": "設定で選んだ色を、全画面で使う色の変数（--cal-<id>）に上書きする。選んでいなければ初期の色に戻す。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 192,
+   "line_end": 200,
+   "confidence": "high",
+   "evidence": "calendarColors から CSS 変数を設定・削除"
+  },
+  {
+   "id": "setting:app/calendar-colors",
+   "label": "Setting",
+   "name": "カレンダーごとの表示色",
+   "description": "カレンダーの種類ごとに、ユーザーが選んだ色。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 196,
+   "line_end": 196,
+   "confidence": "medium",
+   "evidence": "state.calendarColors を読んでいる。設定画面側はこのバッチの外"
+  },
+  {
+   "id": "feature:app/task-edit-host",
+   "label": "Feature",
+   "name": "タスクの追加・編集・完了・削除をシートで受ける",
+   "description": "どの画面からでもタスクの編集シートを開け、保存・追加・完了・削除のあとにお知らせを出す。枠を空ける・戻す操作も受け付ける。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 203,
+   "line_end": 223,
+   "confidence": "high",
+   "evidence": "addTask / saveTask / deleteTask と TaskForm の onComplete・onKeepFree"
+  },
+  {
+   "id": "rule:app/loading-gate",
+   "label": "Rule",
+   "name": "サーバーの状態が決まるまで入力・記録の画面を出さない",
+   "description": "初回の読み込みが終わるまで、画面の代わりに点の読み込み表示を出す。読み込みに失敗しても端末の控えで続けられる。",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 230,
+   "line_end": 241,
+   "confidence": "high",
+   "evidence": "store.initialLoaded が false の間は return"
+  },
+  {
+   "id": "rule:app/shell-browser-only",
+   "label": "Rule",
+   "name": "アプリの枠はブラウザだけで描画する",
+   "description": "保存データ（localStorage）と画面幅を使うので、サーバー側では描かず、ブラウザで読み込む間は「読み込み中…」を出す。",
+   "file": "src/components/app/AppShellLoader.tsx",
+   "line_start": 6,
+   "line_end": 12,
+   "confidence": "high",
+   "evidence": "dynamic import の ssr:false とコメント"
+  },
+  {
+   "id": "feature:app/app-context",
+   "label": "Feature",
+   "name": "画面の共通の入り口（useApp）",
+   "description": "画面の部品が、保存データ・更新・タスク編集シートを開く・お知らせを出す、をどこからでも使えるようにする。",
+   "file": "src/components/app/StoreProvider.tsx",
+   "line_start": 6,
+   "line_end": 19,
+   "confidence": "high",
+   "evidence": "AppContext と useApp"
+  },
+  {
+   "id": "rule:app/use-app-inside-shell-only",
+   "label": "Rule",
+   "name": "useApp は枠の中でしか使えない",
+   "description": "枠の外で useApp を呼ぶと、エラーを投げる。",
+   "file": "src/components/app/StoreProvider.tsx",
+   "line_start": 15,
+   "line_end": 19,
+   "confidence": "high",
+   "evidence": "null のとき throw"
+  },
+  {
+   "id": "feature:pwa/offline-notice",
+   "label": "Feature",
+   "name": "オフラインのお知らせ",
+   "description": "電波がないときだけ、この端末の控えを表示していて、つながったら保存する旨を画面の下に出す。",
+   "file": "src/components/app/OfflineNotice.tsx",
+   "line_start": 14,
+   "line_end": 27,
+   "confidence": "high",
+   "evidence": "navigator.onLine と online/offline イベント"
+  },
+  {
+   "id": "rule:pwa/offline-notice-only-offline",
+   "label": "Rule",
+   "name": "オフラインのときだけお知らせを出す",
+   "description": "電波があるときは何も描かない。サーバー側の描画では常にオフラインではないとみなす。",
+   "file": "src/components/app/OfflineNotice.tsx",
+   "line_start": 16,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "useSyncExternalStore の getServerSnapshot は false"
+  },
+  {
+   "id": "feature:pwa/service-worker-registration",
+   "label": "Feature",
+   "name": "サービスワーカーの登録と控え直し",
+   "description": "電波がなくても開けるようにする仕組み（/sw.js）を登録し、画面が変わるたびに控え直しを頼む。",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 6,
+   "line_end": 27,
+   "confidence": "high",
+   "evidence": "register と postMessage('warm')"
+  },
+  {
+   "id": "rule:pwa/sw-production-only",
+   "label": "Rule",
+   "name": "サービスワーカーは本番でだけ登録する",
+   "description": "開発中は部品が毎回変わるので登録しない。ブラウザが対応していないときも登録しない。",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 6,
+   "line_end": 14,
+   "confidence": "high",
+   "evidence": "NODE_ENV が production でなければ return"
+  },
+  {
+   "id": "rule:pwa/sw-rewarm-on-navigation",
+   "label": "Rule",
+   "name": "画面を切り替えたら控え直しを頼む（ログイン画面とオフラインを除く）",
+   "description": "ログイン後の画面の切り替えは読み込み直しにならないため、切り替えのたびに控え直しを頼む。ログイン画面と電波がないときは頼まない。",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 6,
+   "line_end": 24,
+   "confidence": "high",
+   "evidence": "pathname の変化で active に 'warm' を送る"
+  },
+  {
+   "id": "feature:app/tab-icons",
+   "label": "Feature",
+   "name": "タブのアイコン",
+   "description": "タブ・ナビに使う今日・カレンダー・タスク・記録・設定のアイコンと、リンクのアイコンを描く。",
+   "file": "src/components/app/icons.tsx",
+   "line_start": 1,
+   "line_end": 65,
+   "confidence": "high",
+   "evidence": "各アイコンは同じ線の太さの svg"
+  },
+  {
+   "id": "feature:stats/insights-card",
+   "label": "Feature",
+   "name": "気づきのカード",
+   "description": "予定と実際の差から見つけた傾向を、画面の上に出す。直近の週数も添える。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 26,
+   "line_end": 61,
+   "confidence": "high",
+   "evidence": "buildInsights の結果を並べる"
+  },
+  {
+   "id": "rule:stats/insights-hidden-when-empty",
+   "label": "Rule",
+   "name": "気づきがなければカードを出さない",
+   "description": "はっきりした傾向がないときは、カードごと表示しない。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 30,
+   "line_end": 31,
+   "confidence": "high",
+   "evidence": "list が空なら null。テストも傾向がないと出ないことを確かめている"
+  },
+  {
+   "id": "rule:stats/insight-action",
+   "label": "Rule",
+   "name": "気づきにはボタンかリンクを添えられる",
+   "description": "気づきにアクションがあれば、リンクなら画面へ移動し、ボタンなら設定を変えて「…にしました」と知らせる。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 39,
+   "line_end": 56,
+   "confidence": "high",
+   "evidence": "action.type が link かどうかで分岐、update と notify"
+  },
+  {
+   "id": "rule:stats/insight-shows-counts",
+   "label": "Rule",
+   "name": "気づきは割合でなく「12回中9回」の回数で見せる",
+   "description": "夜の集中の枠が12回中9回できなかったとき、そのままの回数を文で出す。",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 47,
+   "line_end": 49,
+   "confidence": "medium",
+   "evidence": "テストの期待文。文の組み立ては別のモジュール"
+  },
+  {
+   "id": "rule:stats/insight-avoid-night-focus",
+   "label": "Rule",
+   "name": "夜（20時〜）に集中の枠が崩れるなら「入れない」時間帯にできる",
+   "description": "夜の集中の枠がよくできていないという気づきのボタンで、20時から翌朝4時までを「集中を入れない」時間帯（強制）に加え、お知らせを出し、気づきを消す。",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 50,
+   "line_end": 54,
+   "confidence": "high",
+   "evidence": "avoidWindows の末尾と notify、気づきの消去をテストが確かめる"
+  },
+  {
+   "id": "feature:stats/summary-card",
+   "label": "Feature",
+   "name": "今週のまとめカード",
+   "description": "今週（月曜から）と先週を並べて、予定どおり起きた日・寝た日、習慣の回数、作業した時間を出す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 69,
+   "line_end": 101,
+   "confidence": "high",
+   "evidence": "4つのタイルに今週と先週の値"
+  },
+  {
+   "id": "rule:stats/week-starts-monday",
+   "label": "Rule",
+   "name": "週は月曜始まりで数える",
+   "description": "今週は今日を含む週の月曜から。先週は7日前の月曜から。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 73,
+   "line_end": 80,
+   "confidence": "high",
+   "evidence": "mondayOf を起点に 7日を足す"
+  },
+  {
+   "id": "rule:stats/this-week-work-until-now",
+   "label": "Rule",
+   "name": "今週の作業した時間は今までの分だけ数える",
+   "description": "作業した時間の集計の終わりは、週の終わりと今のうち早いほう。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 77,
+   "line_end": 77,
+   "confidence": "high",
+   "evidence": "Math.min(to, now)"
+  },
+  {
+   "id": "rule:stats/no-data-dash",
+   "label": "Rule",
+   "name": "対象の日がない割合は「—」にする",
+   "description": "予定どおり起きた・寝た日の対象が0日なら、割合ではなく「—」を出す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 81,
+   "line_end": 81,
+   "confidence": "high",
+   "evidence": "total が0なら —"
+  },
+  {
+   "id": "feature:stats/reward-card",
+   "label": "Feature",
+   "name": "ご褒美のお金のカード",
+   "description": "ご褒美の残り、今週たまった額と内訳、使った金額の記録（直近5件、取り消し可）を出す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 112,
+   "line_end": 197,
+   "confidence": "high",
+   "evidence": "rewardBalance / rewardBreakdown / rewardSpends"
+  },
+  {
+   "id": "rule:stats/reward-spend-input",
+   "label": "Rule",
+   "name": "使った金額は正の数だけ記録する",
+   "description": "金額を四捨五入して、1円以上のときだけ使った記録に加える。メモは空なら付けない。記録したら入力欄を閉じる。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 121,
+   "line_end": 128,
+   "confidence": "high",
+   "evidence": "n<=0 や非数なら何もしない"
+  },
+  {
+   "id": "rule:stats/reward-week-breakdown",
+   "label": "Rule",
+   "name": "今週の内訳は、たまった額がある出どころだけを帯にする",
+   "description": "起床・朝ルーティン・就寝・習慣・タスク・記録の出どころごとに今週の額を出し、0円のものは出さない。合計は1回だけ丸める（残高と同じ数え方）。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 129,
+   "line_end": 132,
+   "confidence": "high",
+   "evidence": "filter(yen>0) と rewardEarned"
+  },
+  {
+   "id": "rule:stats/reward-recent-five",
+   "label": "Rule",
+   "name": "使った記録は新しい順に5件だけ出し、取り消せる",
+   "description": "使った記録のうち新しい5件を並べ、×で取り消せる。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 133,
+   "line_end": 133,
+   "confidence": "high",
+   "evidence": "sort して slice(0,5)"
+  },
+  {
+   "id": "feature:stats/habit-week-card",
+   "label": "Feature",
+   "name": "今週の習慣のカード",
+   "description": "習慣ごとに月〜日の点（やった・少しだけ・記録なし・これから）と、今週の回数・週の目安を出す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 209,
+   "line_end": 255,
+   "confidence": "high",
+   "evidence": "habitWeeks の行と HabitDot"
+  },
+  {
+   "id": "rule:stats/habit-dot-states",
+   "label": "Rule",
+   "name": "習慣の点は やった＝塗り、少しだけ＝薄く、これから＝点線で区別する",
+   "description": "マークが done なら塗り、five なら薄い塗り、それ以外は、これからの日は点線・今日は少し濃い枠・過ぎた日は細い枠。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 200,
+   "line_end": 207,
+   "confidence": "high",
+   "evidence": "HabitDot の cls の分岐"
+  },
+  {
+   "id": "rule:stats/habit-streak-shown-over-one",
+   "label": "Rule",
+   "name": "連続は2以上のときだけ出す",
+   "description": "習慣の連続日数（週）は、2を超えたときだけ「連続 N」を出す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 234,
+   "line_end": 239,
+   "confidence": "high",
+   "evidence": "streak > 1"
+  },
+  {
+   "id": "rule:stats/habits-hidden-when-none",
+   "label": "Rule",
+   "name": "習慣がなければカードを出さない",
+   "description": "対象の習慣が1つもないときはカードごと出さない。目安がある習慣だけ「回数 / 目安」にする。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 216,
+   "line_end": 216,
+   "confidence": "high",
+   "evidence": "rows が空なら null、target があるときだけ / を出す"
+  },
+  {
+   "id": "feature:stats/work-card",
+   "label": "Feature",
+   "name": "作業のカード",
+   "description": "直近6週の作業した時間と予定の時間を棒で並べ、最近終わったタスクを出す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 257,
+   "line_end": 313,
+   "confidence": "high",
+   "evidence": "workMinutes を6週ぶん、doneTasks を5件"
+  },
+  {
+   "id": "rule:stats/work-six-weeks",
+   "label": "Rule",
+   "name": "作業は直近6週を週ごとに並べる",
+   "description": "今週を含む6週ぶんについて、作業した時間（今まで）と予定の時間を出す。棒の高さは、最大の値と60分のうち大きいほうを基準にする。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 262,
+   "line_end": 266,
+   "confidence": "high",
+   "evidence": "Array.from length 6 と max"
+  },
+  {
+   "id": "rule:stats/done-tasks-recent",
+   "label": "Rule",
+   "name": "終わったタスクは直近8週の新しい5件を出す",
+   "description": "完了日が56日以内のタスクを新しい順に5件まで出す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 268,
+   "line_end": 268,
+   "confidence": "high",
+   "evidence": "56*DAY_MS と slice(0,5)"
+  },
+  {
+   "id": "rule:stats/work-hidden-when-empty",
+   "label": "Rule",
+   "name": "予定も終わったタスクもなければカードを出さない",
+   "description": "6週のどこにも予定の時間がなく、終わったタスクもないとき、カードを出さない。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 269,
+   "line_end": 269,
+   "confidence": "high",
+   "evidence": "条件の早期 return"
+  },
+  {
+   "id": "feature:stats/fatigue-card",
+   "label": "Feature",
+   "name": "朝の疲れのカード",
+   "description": "直近14日の朝の疲れ（5段階）を点で出す。濃いほど疲れている。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 317,
+   "line_end": 354,
+   "confidence": "high",
+   "evidence": "wakeLogs の fatigue を日ごとに"
+  },
+  {
+   "id": "rule:stats/fatigue-hidden-when-none",
+   "label": "Rule",
+   "name": "疲れの記録が14日に1件もなければカードを出さない",
+   "description": "14日のどの日にも朝の疲れの記録がなければ、カードを出さない。記録のない日は空の丸。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 322,
+   "line_end": 323,
+   "confidence": "high",
+   "evidence": "values が全部 undefined なら null"
+  },
+  {
+   "id": "feature:stats/night-card",
+   "label": "Feature",
+   "name": "夜のカード",
+   "description": "直近7日について、寝床に入った・起きた時刻（縦線）と眠っていた時間（帯）を並べ、寝つくまでと起き上がるまでの時間を出す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 356,
+   "line_end": 418,
+   "confidence": "high",
+   "evidence": "nightOf の bed・up・asleep・awake"
+  },
+  {
+   "id": "rule:stats/night-window",
+   "label": "Rule",
+   "name": "夜のグラフは前の日の21時から当日15時までを見せる",
+   "description": "昼まで寝た日も入るように、横軸は前の日の21時から18時間ぶん。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 366,
+   "line_end": 368,
+   "confidence": "high",
+   "evidence": "START と SPAN"
+  },
+  {
+   "id": "rule:stats/night-hidden-when-none",
+   "label": "Rule",
+   "name": "夜の記録が1つもなければカードを出さない",
+   "description": "7日のどの日にも寝た・起きた時刻も眠った時刻もなければ、カードを出さない。差が出せない日は「—」。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 365,
+   "line_end": 365,
+   "confidence": "high",
+   "evidence": "条件の早期 return と gap"
+  },
+  {
+   "id": "feature:stats/smoking-card",
+   "label": "Feature",
+   "name": "タバコのカード",
+   "description": "直近14日の吸った時刻を点（1点＝1本）で出し、本数と1日の平均を示す。多い少ないは評価しない。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 420,
+   "line_end": 468,
+   "confidence": "high",
+   "evidence": "smokeLogs の点と平均"
+  },
+  {
+   "id": "rule:stats/smoking-prev-two-weeks",
+   "label": "Rule",
+   "name": "前の2週間の平均は、吸った記録があるときだけ並べる",
+   "description": "直近14日の本数と1日平均に、その前の14日に記録があれば平均を添える。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 426,
+   "line_end": 439,
+   "confidence": "high",
+   "evidence": "prev > 0 のとき表示"
+  },
+  {
+   "id": "rule:stats/smoking-no-evaluation",
+   "label": "Rule",
+   "name": "タバコの本数は評価せず、点と数字だけを出す",
+   "description": "色の良し悪しや目標との比較は出さず、時刻の点・本数・平均だけを示す。",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 420,
+   "line_end": 420,
+   "confidence": "medium",
+   "evidence": "関数の説明コメントに『評価しない』とあり、表示にも評価要素がない"
+  },
+  {
+   "id": "feature:tasks/outlook-card",
+   "label": "Feature",
+   "name": "見通しのカード",
+   "description": "今週と来週について、タスクに使う時間と空き時間、順調・きつい・間に合わないを出す。間に合わないタスクは足りない時間つきで並べ、押すとそのタスクを開く。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 19,
+   "line_end": 54,
+   "confidence": "high",
+   "evidence": "buildOutlook の結果"
+  },
+  {
+   "id": "setting:tasks/min-slack-minutes-per-day",
+   "label": "Setting",
+   "name": "1日の余白の最低分",
+   "description": "見通しの判定に使う、1日に残す余白の最低分。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 27,
+   "line_end": 27,
+   "confidence": "medium",
+   "evidence": "state.settings.minSlackMinutesPerDay を渡している。設定画面はこのバッチの外"
+  },
+  {
+   "id": "rule:tasks/outlook-three-status",
+   "label": "Rule",
+   "name": "見通しは 順調・きつい・間に合わない の3つで見せる",
+   "description": "週ごとの状態を3つのラベルと色で示す。1つ目は今週、2つ目は来週。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 13,
+   "line_end": 17,
+   "confidence": "high",
+   "evidence": "STATUS の3項目と、i===0 で今週"
+  },
+  {
+   "id": "rule:tasks/outlook-week-expands-days",
+   "label": "Rule",
+   "name": "押した週だけ、日ごとの内訳を開く",
+   "description": "週の行を押すと、その週の日ごとの内訳が開く。別の週を押すと切り替わり、同じ週を押すと閉じる。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 22,
+   "line_end": 23,
+   "confidence": "high",
+   "evidence": "open の状態は1つだけ"
+  },
+  {
+   "id": "feature:tasks/outlook-days",
+   "label": "Feature",
+   "name": "見通しの日ごとの内訳",
+   "description": "週の7日それぞれについて、置いたタスクの時間、空き時間、その日の締切のタスクを出す。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 56,
+   "line_end": 91,
+   "confidence": "high",
+   "evidence": "blocks と freeGaps を日ごとに合計"
+  },
+  {
+   "id": "rule:tasks/outlook-days-from-now",
+   "label": "Rule",
+   "name": "今日の内訳は今から先だけ数え、過ぎた日は薄くする",
+   "description": "日ごとのタスクと空きの時間は、今以降の分だけを合計する。すでに終わった日は薄く表示する。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 59,
+   "line_end": 72,
+   "confidence": "high",
+   "evidence": "from = max(日の始まり, 今) と opacity-40"
+  },
+  {
+   "id": "rule:tasks/date-only-deadline-previous-day",
+   "label": "Rule",
+   "name": "日付だけの締切は前の日の分として出す",
+   "description": "締切が日付だけ（翌日の0時）のタスクは、その前の日の内訳に出す。時刻つきの締切は時刻を添える。間に合わないものは赤くする。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 69,
+   "line_end": 84,
+   "confidence": "high",
+   "evidence": "deadline - 1 を日に割り当て"
+  },
+  {
+   "id": "feature:tasks/task-list",
+   "label": "Feature",
+   "name": "タスクの一覧",
+   "description": "タスクを、締切が近い順と締切なしの2つのカードに並べる。1行ごとに完了の丸、期限・種類・所要時間、関連する予定、置けた状況を出す。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 93,
+   "line_end": 189,
+   "confidence": "high",
+   "evidence": "TasksScreen のカード2つと row"
+  },
+  {
+   "id": "rule:tasks/effective-deadline",
+   "label": "Rule",
+   "name": "実質の締切は、締切と関連する予定の開始の早いほう",
+   "description": "関連する予定が終日でなければ、その開始と締切の早いほうを実質の締切とする。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 97,
+   "line_end": 100,
+   "confidence": "high",
+   "evidence": "Math.min(deadline, event.start)"
+  },
+  {
+   "id": "rule:tasks/sort-order",
+   "label": "Rule",
+   "name": "並び順は 実質の締切 → 優先度の高い順 → タイトル",
+   "description": "実質の締切が近い順、同じなら優先度が高い順、それも同じならタイトル順。実質の締切がないものは「締切なし」へ分ける。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 101,
+   "line_end": 105,
+   "confidence": "high",
+   "evidence": "sorted と withDeadline / without"
+  },
+  {
+   "id": "rule:tasks/lead-days-defer",
+   "label": "Rule",
+   "name": "締切の2週間前になるまでは「まだ先」と出す",
+   "description": "まだ1枠も置かれておらず、締切の2週間前（TASK_LEAD_DAYS）より前のタスクは「まだ先」と表示する。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 113,
+   "line_end": 121,
+   "confidence": "high",
+   "evidence": "later の条件と status"
+  },
+  {
+   "id": "rule:tasks/row-status-text",
+   "label": "Rule",
+   "name": "置けた状況は 足りない > まだ先 > 予定 x / y の順で出す",
+   "description": "締切に足りないときは足りない時間を赤で、まだ先ならその旨を、置いた時間が必要な時間に満たなければ「予定 x / y」を出し、満たしていれば何も出さない。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 115,
+   "line_end": 121,
+   "confidence": "high",
+   "evidence": "status の三段の分岐"
+  },
+  {
+   "id": "rule:tasks/row-labels",
+   "label": "Rule",
+   "name": "1行には 期限・種類・所要時間、高優先度の「!」、関連する予定を出す",
+   "description": "期限がなく関連する予定があれば「予定の前まで」。所要時間が決まっていなければ「（目安）」。優先度が高いと「!」。関連する予定が見つからなければ赤で知らせる。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 137,
+   "line_end": 150,
+   "confidence": "high",
+   "evidence": "行の表示の分岐"
+  },
+  {
+   "id": "rule:tasks/complete-from-list",
+   "label": "Rule",
+   "name": "一覧の丸を押すとタスクを完了にして知らせる",
+   "description": "一覧の左の丸を押すと完了にして「…を完了」のお知らせを出す。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 124,
+   "line_end": 134,
+   "confidence": "high",
+   "evidence": "completeTask と notify"
+  },
+  {
+   "id": "rule:tasks/empty-message",
+   "label": "Rule",
+   "name": "タスクが0件なら「タスクはありません。」と出す",
+   "description": "1件もなければ一覧のカードは出さず、短い文だけを出す。",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 178,
+   "line_end": 180,
+   "confidence": "high",
+   "evidence": "length===0 の分岐"
+  },
+  {
+   "id": "feature:tasks/task-form",
+   "label": "Feature",
+   "name": "タスクの編集フォーム",
+   "description": "タスクのタイトル・締切・所要時間・優先度・種類・関連する予定・置き方を入力し、追加・保存・完了・削除できるシート。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 66,
+   "line_end": 349,
+   "confidence": "high",
+   "evidence": "TaskForm の入力と保存処理"
+  },
+  {
+   "id": "rule:tasks/form-title-required",
+   "label": "Rule",
+   "name": "タイトルが空なら保存できない",
+   "description": "前後の空白を除いたタイトルが空なら「タイトルを入力してください」と出し、保存しない。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 104,
+   "line_end": 105,
+   "confidence": "high",
+   "evidence": "trim して空なら setError"
+  },
+  {
+   "id": "rule:tasks/form-deadline-date-only-means-end-of-day",
+   "label": "Rule",
+   "name": "締切は時刻を空にすると、その日の終わり（翌日0:00）になる",
+   "description": "締切ありのとき日付は必須。時刻が空なら翌日の0時を締切とし、編集で開くときは日付だけで表す。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 33,
+   "line_end": 36,
+   "confidence": "high",
+   "evidence": "toDraft の endOfDay と submit の day + DAY_MS"
+  },
+  {
+   "id": "rule:tasks/form-deadline-kind",
+   "label": "Rule",
+   "name": "期限は「提出・約束の締切」か「自分の目標日」を選べる",
+   "description": "締切ありのとき、期限の種類を選ぶ。初期値は提出・約束の締切（fixed）。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 213,
+   "line_end": 213,
+   "confidence": "high",
+   "evidence": "deadlineKind の select と toDraft の既定"
+  },
+  {
+   "id": "rule:tasks/form-duration-validation",
+   "label": "Rule",
+   "name": "所要時間は決まっている・幅がある・わからないから選び、不正な値は保存しない",
+   "description": "決まっているなら1分以上。幅があるなら「短いとき ≦ 長いとき」で両方1分以上。分は四捨五入する。わからないなら所要時間を持たせず、種類の目安で計画する。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 124,
+   "line_end": 135,
+   "confidence": "high",
+   "evidence": "mode ごとの検証とエラー文"
+  },
+  {
+   "id": "rule:tasks/form-duration-hint",
+   "label": "Rule",
+   "name": "所要時間の計画のされ方を、選んだ決め方に合わせて短く示す",
+   "description": "幅があれば真ん中くらいの時間、わからなければ種類の目安（なければ60分）、決まっていれば締切までにその時間ぶんを置く、と示す。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 256,
+   "line_end": 262,
+   "confidence": "high",
+   "evidence": "mode ごとの文"
+  },
+  {
+   "id": "rule:tasks/form-duration-change-resets-remaining",
+   "label": "Rule",
+   "name": "所要時間を変えたら、前に計算した残り時間と取り込みの目安を外す",
+   "description": "所要時間（または幅）を変えて保存すると、残り時間を消す。Notion 由来のタスクは目安の自動設定を切り、ほかは目安の印を消して、自分の値を優先する。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 136,
+   "line_end": 141,
+   "confidence": "high",
+   "evidence": "remainingMinutes と autoDuration の処理"
+  },
+  {
+   "id": "rule:tasks/form-priority-default",
+   "label": "Rule",
+   "name": "優先度は低・中・高の3段階で、新規は中",
+   "description": "優先度を3段階から選ぶ。初期値は中（2）。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 56,
+   "line_end": 60,
+   "confidence": "high",
+   "evidence": "PRIORITIES と toDraft の既定"
+  },
+  {
+   "id": "rule:tasks/form-tag-hint",
+   "label": "Rule",
+   "name": "種類で、置き方の方針を短く示す",
+   "description": "種類が集中なら長い空き時間にまとめて、それ以外は予定の合間の短い時間に詰める、と示す。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 279,
+   "line_end": 283,
+   "confidence": "high",
+   "evidence": "tag.mode が focus かどうか"
+  },
+  {
+   "id": "rule:tasks/form-related-event-choices",
+   "label": "Rule",
+   "name": "関連する予定の候補は、終日でない今後60日の予定",
+   "description": "計画の時刻より後、60日以内の、終日でない予定を開始順に出す。すでに選んでいる予定が範囲外でも先頭に残し、見つからなければ「見つからない」と示す。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 91,
+   "line_end": 96,
+   "confidence": "high",
+   "evidence": "upcoming の条件と options"
+  },
+  {
+   "id": "rule:tasks/form-timing",
+   "label": "Rule",
+   "name": "置き方は「早めに片付ける」か「直前に寄せる」",
+   "description": "直前に寄せるを選んだときだけ timing を保存し、早めは既定として何も持たせない。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 144,
+   "line_end": 144,
+   "confidence": "high",
+   "evidence": "justBefore のときだけ next.timing"
+  },
+  {
+   "id": "rule:tasks/form-first-stretch-switches",
+   "label": "Rule",
+   "name": "「ほかを後に回す」「時間帯の外にも入れる」は選んであるときだけ出して外せる",
+   "description": "締切に足りないとき選ぶ設定を、選んでいる場合だけスイッチで見せ、外せるようにする。オフにすると保存から消す。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 145,
+   "line_end": 148,
+   "confidence": "high",
+   "evidence": "task.first / task.stretch のときだけ表示"
+  },
+  {
+   "id": "feature:tasks/form-placements",
+   "label": "Feature",
+   "name": "タスクの配置の一覧と「空ける」",
+   "description": "編集中のタスクが置かれた日時の一覧を出し、これから先の枠は「空ける」で外して、その時間を空けておける（「戻す」で元に戻す）。置けていなければその旨と、締切に足りない時間を示す。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 165,
+   "line_end": 203,
+   "confidence": "high",
+   "evidence": "blocks・freed・shortfall の表示"
+  },
+  {
+   "id": "rule:tasks/form-keep-free-future-only",
+   "label": "Rule",
+   "name": "「空ける」はこれから始まる枠だけに出す",
+   "description": "計画の時刻より後に始まる枠にだけ「空ける」を出す。空けた枠は終わっていない分だけ一覧に残り、「戻す」で戻せる。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 98,
+   "line_end": 98,
+   "confidence": "high",
+   "evidence": "b.start > plannedAt、k.end > plannedAt"
+  },
+  {
+   "id": "rule:tasks/form-delete-confirm",
+   "label": "Rule",
+   "name": "タスクの削除は確認してから行う",
+   "description": "編集中のタスクにだけ完了ボタンと、確認つきの削除ボタンを出す。",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 336,
+   "line_end": 345,
+   "confidence": "high",
+   "evidence": "DangerButton の confirm"
+  },
+  {
+   "id": "feature:ui/shared-parts",
+   "label": "Feature",
+   "name": "画面の共通の部品",
+   "description": "ボタン・入力欄・一覧・カード・シートなど、全画面で使う見た目の部品。",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 1,
+   "line_end": 371,
+   "confidence": "high",
+   "evidence": "controls と Sheet が共通部品を提供"
+  },
+  {
+   "id": "rule:ui/screen-header-sticky",
+   "label": "Rule",
+   "name": "画面の見出しはスクロールしても上に残す",
+   "description": "見出しは上に貼りつき、下の内容は少し透けて見える。",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 32,
+   "line_end": 33,
+   "confidence": "high",
+   "evidence": "sticky top-0 と backdrop-blur"
+  },
+  {
+   "id": "rule:ui/row-clickable-chevron",
+   "label": "Rule",
+   "name": "押せる行にだけ右の「›」を出す",
+   "description": "Row は onClick があるときだけボタンにして「›」を付け、なければ表示だけの行にする。",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 120,
+   "line_end": 130,
+   "confidence": "high",
+   "evidence": "onClick の有無で分岐"
+  },
+  {
+   "id": "rule:ui/segmented-columns",
+   "label": "Rule",
+   "name": "選択肢が5つ以上なら3列で折り返す",
+   "description": "選択肢が4つまでは1行、5つ以上は文字が切れないよう3列で折り返す。列数は指定もできる。",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 163,
+   "line_end": 165,
+   "confidence": "high",
+   "evidence": "options.length > 4 のとき grid-cols-3"
+  },
+  {
+   "id": "rule:ui/number-input-commit",
+   "label": "Rule",
+   "name": "数の入力は欄を離れるか Enter で確定し、範囲に丸める",
+   "description": "空欄は許すときだけ「値なし」、そうでなければ元に戻す。数でなければ戻し、刻みが1未満ならその刻みで丸め、最小・最大に収める。値が変わったときだけ確定する。",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 248,
+   "line_end": 263,
+   "confidence": "high",
+   "evidence": "commit の分岐"
+  },
+  {
+   "id": "rule:ui/time-input-commit",
+   "label": "Rule",
+   "name": "時刻の入力は欄を離れたときに確定し、不正なら元に戻す",
+   "description": "HH:MM として読めないときは元の表示に戻す。値が変わったときだけ、0時からの分で確定する（1日の長さで割った余りで比べる）。",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 301,
+   "line_end": 305,
+   "confidence": "high",
+   "evidence": "hhmmToMinutes の失敗で戻す"
+  },
+  {
+   "id": "rule:ui/danger-confirm",
+   "label": "Rule",
+   "name": "危険なボタンは確認のダイアログで「はい」と答えたときだけ実行する",
+   "description": "確認の文があるときは確認を出し、了承されたときだけ実行する。文がなければすぐ実行する。",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 325,
+   "line_end": 325,
+   "confidence": "high",
+   "evidence": "window.confirm の結果で onClick"
+  },
+  {
+   "id": "feature:ui/sheet",
+   "label": "Feature",
+   "name": "下から出るシート",
+   "description": "画面の下から出るシート。広い画面では中央のダイアログ、左から出る版もある。外の暗い部分を押すか Esc で閉じる。",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 5,
+   "line_end": 52,
+   "confidence": "high",
+   "evidence": "Sheet の配置と閉じ方"
+  },
+  {
+   "id": "rule:ui/sheet-close",
+   "label": "Rule",
+   "name": "シートは Esc・背景・「×」のどれでも閉じられる",
+   "description": "Esc キー、背景の暗い部分、右上の閉じるボタンのいずれでも閉じる。",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 17,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "keydown と onClick"
+  },
+  {
+   "id": "rule:ui/sheet-layout-by-width",
+   "label": "Rule",
+   "name": "シートはスマホでは下から、広い画面では中央に出す",
+   "description": "side が bottom のときは下の取っ手つき（スマホ）、広い画面では中央の幅420pxのダイアログ。left のときは左の列。",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 25,
+   "line_end": 29,
+   "confidence": "high",
+   "evidence": "panel のクラスの分岐"
+  }
+ ],
+ "edges": [
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 243,
+   "line_end": 352
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:app/tab-navigation",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 23,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/app/AppShell.tsx#TABS",
+   "to": "feature:app/tab-navigation",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 23,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#isActive",
+   "to": "feature:app/tab-navigation",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:app/tab-navigation",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 247,
+   "line_end": 329
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/today-tab-warning-badge",
+   "to": "feature:app/tab-navigation",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 68,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#Badge",
+   "to": "rule:app/today-tab-warning-badge",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 68,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:app/today-tab-warning-badge",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 111,
+   "line_end": 112
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/quick-add-hidden-on-settings-stats",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 201,
+   "line_end": 202
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:app/quick-add-hidden-on-settings-stats",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 201,
+   "line_end": 202
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:app/toast-undo",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 81,
+   "line_end": 109
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:app/toast-undo",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 276,
+   "line_end": 297
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:app/toast-ms",
+   "to": "feature:app/toast-undo",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 39,
+   "line_end": 39
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:app/toast-undo",
+   "to": "setting:app/toast-ms",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 88,
+   "line_end": 92
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/app/AppShell.tsx#TOAST_MS",
+   "to": "setting:app/toast-ms",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 39,
+   "line_end": 39
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/toast-cleared-on-next-operation",
+   "to": "feature:app/toast-undo",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 93,
+   "line_end": 108
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:app/toast-cleared-on-next-operation",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 93,
+   "line_end": 108
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/undo-button-only-when-undoable",
+   "to": "feature:app/toast-undo",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 281,
+   "line_end": 294
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:app/undo-button-only-when-undoable",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 281,
+   "line_end": 294
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:app/toast-next-placement",
+   "to": "feature:app/toast-undo",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 41,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#whenOf",
+   "to": "feature:app/toast-next-placement",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 42,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#habitPlacementOf",
+   "to": "feature:app/toast-next-placement",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 49,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#placementOf",
+   "to": "feature:app/toast-next-placement",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 55,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:app/toast-next-placement",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 224,
+   "line_end": 228
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/task-placement-fallback-label",
+   "to": "feature:app/toast-next-placement",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 55,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#placementOf",
+   "to": "rule:app/task-placement-fallback-label",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 60,
+   "line_end": 66
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/habit-next-block-only-future",
+   "to": "feature:app/toast-next-placement",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 49,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#habitPlacementOf",
+   "to": "rule:app/habit-next-block-only-future",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 49,
+   "line_end": 52
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:weather/auto-refresh",
+   "to": "feature:weather",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 114,
+   "line_end": 134
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:weather/auto-refresh",
+   "to": "integration:open-meteo",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 126,
+   "line_end": 127
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:weather/auto-refresh",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 114,
+   "line_end": 134
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:weather/refresh-interval",
+   "to": "feature:weather/auto-refresh",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:weather/auto-refresh",
+   "to": "setting:weather/refresh-interval",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 123,
+   "line_end": 123
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/app/AppShell.tsx#WEATHER_REFRESH_MS",
+   "to": "setting:weather/refresh-interval",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:app/background-retry-interval",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 34,
+   "line_end": 34
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:weather/auto-refresh",
+   "to": "setting:app/background-retry-interval",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 123,
+   "line_end": 123
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notion/auto-import",
+   "to": "setting:app/background-retry-interval",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 143,
+   "line_end": 143
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/app/AppShell.tsx#RETRY_MS",
+   "to": "setting:app/background-retry-interval",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 34,
+   "line_end": 34
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:weather/refresh-conditions",
+   "to": "feature:weather/auto-refresh",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 121,
+   "line_end": 134
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:weather/refresh-conditions",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 121,
+   "line_end": 134
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:weather/failure-keeps-previous",
+   "to": "feature:weather/auto-refresh",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 128,
+   "line_end": 129
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:weather/failure-keeps-previous",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 128,
+   "line_end": 129
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notion/auto-import",
+   "to": "feature:notion",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 136,
+   "line_end": 154
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/auto-import",
+   "to": "integration:notion-api",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 146,
+   "line_end": 147
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:notion/auto-import",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 136,
+   "line_end": 154
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/import-conditions",
+   "to": "feature:notion/auto-import",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 141,
+   "line_end": 154
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:notion/import-conditions",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 141,
+   "line_end": 154
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/failure-keeps-tasks",
+   "to": "feature:notion/auto-import",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 148,
+   "line_end": 149
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:notion/failure-keeps-tasks",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 148,
+   "line_end": 149
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/auto-read",
+   "to": "feature:health-sleep",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 156,
+   "line_end": 190
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/auto-read",
+   "to": "integration:apple-shortcuts-health",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 156,
+   "line_end": 156
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:health-sleep/auto-read",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 156,
+   "line_end": 190
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/read-throttle",
+   "to": "feature:health-sleep/auto-read",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 160,
+   "line_end": 164
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:health-sleep/read-throttle",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 160,
+   "line_end": 164
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/force-read-after-shortcut",
+   "to": "feature:health-sleep/auto-read",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 175,
+   "line_end": 182
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:health-sleep/force-read-after-shortcut",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 175,
+   "line_end": 182
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/keep-60-days",
+   "to": "feature:health-sleep/auto-read",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 163,
+   "line_end": 169
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:health-sleep/keep-60-days",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 163,
+   "line_end": 169
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:app/calendar-colors-apply",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 192,
+   "line_end": 200
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:app/calendar-colors-apply",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 192,
+   "line_end": 200
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:app/calendar-colors",
+   "to": "feature:app/calendar-colors-apply",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 196,
+   "line_end": 196
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:app/calendar-colors-apply",
+   "to": "setting:app/calendar-colors",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 196,
+   "line_end": 198
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "setting:app/calendar-colors",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 193,
+   "line_end": 200
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:app/task-edit-host",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 203,
+   "line_end": 223
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:app/task-edit-host",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 333,
+   "line_end": 350
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "feature:app/task-edit-host",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 203,
+   "line_end": 223
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/loading-gate",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 230,
+   "line_end": 241
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#AppShell",
+   "to": "rule:app/loading-gate",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 230,
+   "line_end": 241
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:app/shell",
+   "to": "feature:sync",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 230,
+   "line_end": 232
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/shell-browser-only",
+   "to": "feature:app/shell",
+   "file": "src/components/app/AppShellLoader.tsx",
+   "line_start": 6,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShellLoader.tsx#AppShellLoader",
+   "to": "rule:app/shell-browser-only",
+   "file": "src/components/app/AppShellLoader.tsx",
+   "line_start": 14,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/app/AppShellLoader.tsx",
+   "to": "rule:app/shell-browser-only",
+   "file": "src/components/app/AppShellLoader.tsx",
+   "line_start": 6,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:app/app-context",
+   "to": "feature:app/shell",
+   "file": "src/components/app/StoreProvider.tsx",
+   "line_start": 6,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/StoreProvider.tsx#useApp",
+   "to": "feature:app/app-context",
+   "file": "src/components/app/StoreProvider.tsx",
+   "line_start": 15,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/app/StoreProvider.tsx#AppContext",
+   "to": "feature:app/app-context",
+   "file": "src/components/app/StoreProvider.tsx",
+   "line_start": 13,
+   "line_end": 13
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/app/StoreProvider.tsx",
+   "to": "feature:app/app-context",
+   "file": "src/components/app/StoreProvider.tsx",
+   "line_start": 6,
+   "line_end": 19
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/use-app-inside-shell-only",
+   "to": "feature:app/app-context",
+   "file": "src/components/app/StoreProvider.tsx",
+   "line_start": 15,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/StoreProvider.tsx#useApp",
+   "to": "rule:app/use-app-inside-shell-only",
+   "file": "src/components/app/StoreProvider.tsx",
+   "line_start": 16,
+   "line_end": 18
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:pwa/offline-notice",
+   "to": "feature:pwa",
+   "file": "src/components/app/OfflineNotice.tsx",
+   "line_start": 14,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/OfflineNotice.tsx#OfflineNotice",
+   "to": "feature:pwa/offline-notice",
+   "file": "src/components/app/OfflineNotice.tsx",
+   "line_start": 15,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/OfflineNotice.tsx#subscribe",
+   "to": "feature:pwa/offline-notice",
+   "file": "src/components/app/OfflineNotice.tsx",
+   "line_start": 5,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/offline-notice-only-offline",
+   "to": "feature:pwa/offline-notice",
+   "file": "src/components/app/OfflineNotice.tsx",
+   "line_start": 16,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/OfflineNotice.tsx#OfflineNotice",
+   "to": "rule:pwa/offline-notice-only-offline",
+   "file": "src/components/app/OfflineNotice.tsx",
+   "line_start": 16,
+   "line_end": 21
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:pwa/service-worker-registration",
+   "to": "feature:pwa",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 6,
+   "line_end": 27
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:pwa/service-worker-registration",
+   "to": "integration:service-worker",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 15,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/ServiceWorker.tsx#ServiceWorker",
+   "to": "feature:pwa/service-worker-registration",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 10,
+   "line_end": 27
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/sw-production-only",
+   "to": "feature:pwa/service-worker-registration",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 6,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/ServiceWorker.tsx#ServiceWorker",
+   "to": "rule:pwa/sw-production-only",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 13,
+   "line_end": 18
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/sw-rewarm-on-navigation",
+   "to": "feature:pwa/service-worker-registration",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 6,
+   "line_end": 24
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/ServiceWorker.tsx#ServiceWorker",
+   "to": "rule:pwa/sw-rewarm-on-navigation",
+   "file": "src/components/app/ServiceWorker.tsx",
+   "line_start": 20,
+   "line_end": 24
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:app/tab-icons",
+   "to": "feature:app/tab-navigation",
+   "file": "src/components/app/icons.tsx",
+   "line_start": 1,
+   "line_end": 65
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/icons.tsx#TodayIcon",
+   "to": "feature:app/tab-icons",
+   "file": "src/components/app/icons.tsx",
+   "line_start": 15,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/icons.tsx#CalendarIcon",
+   "to": "feature:app/tab-icons",
+   "file": "src/components/app/icons.tsx",
+   "line_start": 24,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/icons.tsx#TasksIcon",
+   "to": "feature:app/tab-icons",
+   "file": "src/components/app/icons.tsx",
+   "line_start": 33,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/icons.tsx#StatsIcon",
+   "to": "feature:app/tab-icons",
+   "file": "src/components/app/icons.tsx",
+   "line_start": 41,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/icons.tsx#SettingsIcon",
+   "to": "feature:app/tab-icons",
+   "file": "src/components/app/icons.tsx",
+   "line_start": 49,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/icons.tsx#LinkIcon",
+   "to": "feature:app/tab-icons",
+   "file": "src/components/app/icons.tsx",
+   "line_start": 59,
+   "line_end": 65
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:stats/insights-card",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 26,
+   "line_end": 61
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:stats/insights-card",
+   "to": "feature:insights",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 30,
+   "line_end": 30
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Insights",
+   "to": "feature:stats/insights-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 27,
+   "line_end": 61
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/insights-hidden-when-empty",
+   "to": "feature:stats/insights-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 30,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Insights",
+   "to": "rule:stats/insights-hidden-when-empty",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 30,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/stats/StatsScreen.test.tsx",
+   "to": "rule:stats/insights-hidden-when-empty",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 56,
+   "line_end": 60
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/insight-action",
+   "to": "feature:stats/insights-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 39,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Insights",
+   "to": "rule:stats/insight-action",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 39,
+   "line_end": 56
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/insight-shows-counts",
+   "to": "feature:stats/insights-card",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 47,
+   "line_end": 49
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/stats/StatsScreen.test.tsx",
+   "to": "rule:stats/insight-shows-counts",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 47,
+   "line_end": 49
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/insight-avoid-night-focus",
+   "to": "feature:stats/insights-card",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 50,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/stats/StatsScreen.test.tsx",
+   "to": "rule:stats/insight-avoid-night-focus",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 47,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.test.tsx#withBlocks",
+   "to": "rule:stats/insight-avoid-night-focus",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 17,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.test.tsx#Harness",
+   "to": "feature:stats/insights-card",
+   "file": "src/components/stats/StatsScreen.test.tsx",
+   "line_start": 30,
+   "line_end": 37
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:stats/summary-card",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 69,
+   "line_end": 101
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:stats/summary-card",
+   "to": "feature:night",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 77,
+   "line_end": 77
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Summary",
+   "to": "feature:stats/summary-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 70,
+   "line_end": 101
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/week-starts-monday",
+   "to": "feature:stats/summary-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 73,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Summary",
+   "to": "rule:stats/week-starts-monday",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 73,
+   "line_end": 80
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/this-week-work-until-now",
+   "to": "feature:stats/summary-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 77,
+   "line_end": 77
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Summary",
+   "to": "rule:stats/this-week-work-until-now",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 77,
+   "line_end": 77
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/no-data-dash",
+   "to": "feature:stats/summary-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 81,
+   "line_end": 81
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Summary",
+   "to": "rule:stats/no-data-dash",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 81,
+   "line_end": 81
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:stats/reward-card",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 112,
+   "line_end": 197
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:stats/reward-card",
+   "to": "feature:rewards",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 129,
+   "line_end": 139
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Reward",
+   "to": "feature:stats/reward-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 113,
+   "line_end": 197
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/stats/StatsScreen.tsx#SOURCE_COLOR",
+   "to": "feature:stats/reward-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 103,
+   "line_end": 110
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/reward-spend-input",
+   "to": "feature:stats/reward-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 121,
+   "line_end": 128
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Reward",
+   "to": "rule:stats/reward-spend-input",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 121,
+   "line_end": 128
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/reward-week-breakdown",
+   "to": "feature:stats/reward-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 129,
+   "line_end": 132
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Reward",
+   "to": "rule:stats/reward-week-breakdown",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 129,
+   "line_end": 132
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/reward-recent-five",
+   "to": "feature:stats/reward-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 133,
+   "line_end": 133
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Reward",
+   "to": "rule:stats/reward-recent-five",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 133,
+   "line_end": 133
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:stats/habit-week-card",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 209,
+   "line_end": 255
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:stats/habit-week-card",
+   "to": "feature:habits",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 215,
+   "line_end": 215
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Habits",
+   "to": "feature:stats/habit-week-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 210,
+   "line_end": 255
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#HabitDot",
+   "to": "feature:stats/habit-week-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 200,
+   "line_end": 207
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/stats/StatsScreen.tsx#WEEKDAYS",
+   "to": "feature:stats/habit-week-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 67,
+   "line_end": 67
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/habit-dot-states",
+   "to": "feature:stats/habit-week-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 200,
+   "line_end": 207
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#HabitDot",
+   "to": "rule:stats/habit-dot-states",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 200,
+   "line_end": 207
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/habit-streak-shown-over-one",
+   "to": "feature:stats/habit-week-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 234,
+   "line_end": 239
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Habits",
+   "to": "rule:stats/habit-streak-shown-over-one",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 234,
+   "line_end": 239
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/habits-hidden-when-none",
+   "to": "feature:stats/habit-week-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 216,
+   "line_end": 216
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Habits",
+   "to": "rule:stats/habits-hidden-when-none",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 216,
+   "line_end": 216
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:stats/work-card",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 257,
+   "line_end": 313
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:stats/work-card",
+   "to": "feature:tasks",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 268,
+   "line_end": 268
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Work",
+   "to": "feature:stats/work-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 258,
+   "line_end": 313
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/work-six-weeks",
+   "to": "feature:stats/work-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 262,
+   "line_end": 266
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Work",
+   "to": "rule:stats/work-six-weeks",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 262,
+   "line_end": 266
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/done-tasks-recent",
+   "to": "feature:stats/work-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 268,
+   "line_end": 268
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Work",
+   "to": "rule:stats/done-tasks-recent",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 268,
+   "line_end": 268
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/work-hidden-when-empty",
+   "to": "feature:stats/work-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 269,
+   "line_end": 269
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Work",
+   "to": "rule:stats/work-hidden-when-empty",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 269,
+   "line_end": 269
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:stats/fatigue-card",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 317,
+   "line_end": 354
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Fatigue",
+   "to": "feature:stats/fatigue-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 318,
+   "line_end": 354
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/stats/StatsScreen.tsx#FATIGUE_LABEL",
+   "to": "feature:stats/fatigue-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 315,
+   "line_end": 315
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/fatigue-hidden-when-none",
+   "to": "feature:stats/fatigue-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 322,
+   "line_end": 323
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Fatigue",
+   "to": "rule:stats/fatigue-hidden-when-none",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 322,
+   "line_end": 323
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:stats/night-card",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 356,
+   "line_end": 418
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:stats/night-card",
+   "to": "feature:night",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 364,
+   "line_end": 364
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Nights",
+   "to": "feature:stats/night-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 360,
+   "line_end": 418
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/night-window",
+   "to": "feature:stats/night-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 366,
+   "line_end": 368
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Nights",
+   "to": "rule:stats/night-window",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 366,
+   "line_end": 368
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/night-hidden-when-none",
+   "to": "feature:stats/night-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 365,
+   "line_end": 365
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Nights",
+   "to": "rule:stats/night-hidden-when-none",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 365,
+   "line_end": 370
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:stats/smoking-card",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 420,
+   "line_end": 468
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Smoking",
+   "to": "feature:stats/smoking-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 421,
+   "line_end": 468
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/smoking-prev-two-weeks",
+   "to": "feature:stats/smoking-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 426,
+   "line_end": 439
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Smoking",
+   "to": "rule:stats/smoking-prev-two-weeks",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 426,
+   "line_end": 439
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:stats/smoking-no-evaluation",
+   "to": "feature:stats/smoking-card",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 420,
+   "line_end": 420
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#Smoking",
+   "to": "rule:stats/smoking-no-evaluation",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 433,
+   "line_end": 467
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/stats/StatsScreen.tsx#StatsScreen",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 470,
+   "line_end": 490
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/stats/StatsScreen.tsx",
+   "to": "feature:stats",
+   "file": "src/components/stats/StatsScreen.tsx",
+   "line_start": 470,
+   "line_end": 490
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:tasks/outlook-card",
+   "to": "feature:tasks",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 19,
+   "line_end": 54
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:tasks/outlook-card",
+   "to": "feature:planner",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 24,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#Outlook",
+   "to": "feature:tasks/outlook-card",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 20,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/tasks/TasksScreen.tsx#STATUS",
+   "to": "feature:tasks/outlook-card",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 13,
+   "line_end": 17
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:tasks/min-slack-minutes-per-day",
+   "to": "feature:tasks/outlook-card",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 27,
+   "line_end": 27
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:tasks/outlook-card",
+   "to": "setting:tasks/min-slack-minutes-per-day",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 24,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#Outlook",
+   "to": "setting:tasks/min-slack-minutes-per-day",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 24,
+   "line_end": 29
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/outlook-three-status",
+   "to": "feature:tasks/outlook-card",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 13,
+   "line_end": 17
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/tasks/TasksScreen.tsx#STATUS",
+   "to": "rule:tasks/outlook-three-status",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 13,
+   "line_end": 17
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#Outlook",
+   "to": "rule:tasks/outlook-three-status",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 35,
+   "line_end": 36
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/outlook-week-expands-days",
+   "to": "feature:tasks/outlook-card",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 22,
+   "line_end": 23
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#Outlook",
+   "to": "rule:tasks/outlook-week-expands-days",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 22,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:tasks/outlook-days",
+   "to": "feature:tasks/outlook-card",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 56,
+   "line_end": 91
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#OutlookDays",
+   "to": "feature:tasks/outlook-days",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 57,
+   "line_end": 91
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/outlook-days-from-now",
+   "to": "feature:tasks/outlook-days",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 59,
+   "line_end": 72
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#OutlookDays",
+   "to": "rule:tasks/outlook-days-from-now",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 59,
+   "line_end": 72
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/date-only-deadline-previous-day",
+   "to": "feature:tasks/outlook-days",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 69,
+   "line_end": 84
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#OutlookDays",
+   "to": "rule:tasks/date-only-deadline-previous-day",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 69,
+   "line_end": 84
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:tasks/task-list",
+   "to": "feature:tasks",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 93,
+   "line_end": 189
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "feature:tasks/task-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 93,
+   "line_end": 189
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "feature:tasks",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 158,
+   "line_end": 188
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "feature:tasks/outlook-card",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 177,
+   "line_end": 177
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#OutlookDays",
+   "to": "feature:tasks/outlook-card",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 57,
+   "line_end": 91
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:tasks/task-list",
+   "to": "feature:planner",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 109,
+   "line_end": 114
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/effective-deadline",
+   "to": "feature:tasks/task-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 97,
+   "line_end": 100
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "rule:tasks/effective-deadline",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 97,
+   "line_end": 100
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/sort-order",
+   "to": "feature:tasks/task-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 101,
+   "line_end": 105
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "rule:tasks/sort-order",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 101,
+   "line_end": 105
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/lead-days-defer",
+   "to": "feature:tasks/task-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 113,
+   "line_end": 121
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "rule:tasks/lead-days-defer",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 113,
+   "line_end": 121
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/app/AppShell.tsx#placementOf",
+   "to": "rule:tasks/lead-days-defer",
+   "file": "src/components/app/AppShell.tsx",
+   "line_start": 63,
+   "line_end": 65
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/row-status-text",
+   "to": "feature:tasks/task-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 115,
+   "line_end": 121
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "rule:tasks/row-status-text",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 115,
+   "line_end": 121
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/row-labels",
+   "to": "feature:tasks/task-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 137,
+   "line_end": 150
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "rule:tasks/row-labels",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 137,
+   "line_end": 150
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/complete-from-list",
+   "to": "feature:tasks/task-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 124,
+   "line_end": 134
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "rule:tasks/complete-from-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 124,
+   "line_end": 134
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/empty-message",
+   "to": "feature:tasks/task-list",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 178,
+   "line_end": 180
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TasksScreen.tsx#TasksScreen",
+   "to": "rule:tasks/empty-message",
+   "file": "src/components/tasks/TasksScreen.tsx",
+   "line_start": 178,
+   "line_end": 180
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:tasks/task-form",
+   "to": "feature:tasks",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 66,
+   "line_end": 349
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 66,
+   "line_end": 349
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#toDraft",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 32,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/tasks/TaskForm.tsx#PRIORITIES",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 56,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#Label",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 62,
+   "line_end": 64
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/tasks/TaskForm.tsx",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 12,
+   "line_end": 30
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-title-required",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 104,
+   "line_end": 105
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-title-required",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 104,
+   "line_end": 105
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-deadline-date-only-means-end-of-day",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 33,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#toDraft",
+   "to": "rule:tasks/form-deadline-date-only-means-end-of-day",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 33,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-deadline-date-only-means-end-of-day",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 107,
+   "line_end": 112
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-deadline-kind",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 213,
+   "line_end": 213
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-deadline-kind",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 213,
+   "line_end": 213
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#toDraft",
+   "to": "rule:tasks/form-deadline-kind",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 40,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-duration-validation",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 124,
+   "line_end": 135
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-duration-validation",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 124,
+   "line_end": 135
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-duration-hint",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 256,
+   "line_end": 262
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-duration-hint",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 256,
+   "line_end": 262
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-duration-change-resets-remaining",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 136,
+   "line_end": 141
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-duration-change-resets-remaining",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 136,
+   "line_end": 141
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:tasks/task-form",
+   "to": "feature:notion",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 139,
+   "line_end": 139
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-priority-default",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 56,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/tasks/TaskForm.tsx#PRIORITIES",
+   "to": "rule:tasks/form-priority-default",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 56,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#toDraft",
+   "to": "rule:tasks/form-priority-default",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 47,
+   "line_end": 47
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-tag-hint",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 279,
+   "line_end": 283
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-tag-hint",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 279,
+   "line_end": 283
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-related-event-choices",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 91,
+   "line_end": 96
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-related-event-choices",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 91,
+   "line_end": 96
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-timing",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 144,
+   "line_end": 144
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-timing",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 144,
+   "line_end": 144
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-first-stretch-switches",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 145,
+   "line_end": 148
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-first-stretch-switches",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 145,
+   "line_end": 148
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:tasks/form-placements",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 165,
+   "line_end": 203
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "feature:tasks/form-placements",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 165,
+   "line_end": 203
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-keep-free-future-only",
+   "to": "feature:tasks/form-placements",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 98,
+   "line_end": 98
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-keep-free-future-only",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 98,
+   "line_end": 98
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:tasks/form-delete-confirm",
+   "to": "feature:tasks/task-form",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 336,
+   "line_end": 345
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/tasks/TaskForm.tsx#TaskForm",
+   "to": "rule:tasks/form-delete-confirm",
+   "file": "src/components/tasks/TaskForm.tsx",
+   "line_start": 336,
+   "line_end": 345
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ui/shared-parts",
+   "to": "feature:app/shell",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 1,
+   "line_end": 371
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/ui/controls.tsx",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 1,
+   "line_end": 371
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/ui/controls.tsx#inputBase",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/ui/controls.tsx#inputCls",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 8,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/ui/controls.tsx#btnPrimary",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 11,
+   "line_end": 11
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/ui/controls.tsx#btnSecondary",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 13,
+   "line_end": 13
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#pillCls",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 15,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#ScreenHeader",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 19,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Group",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 46,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Card",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 59,
+   "line_end": 85
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Row",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 96,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#FieldRow",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 134,
+   "line_end": 144
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Chevron",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 87,
+   "line_end": 93
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#EmptyNote",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 357,
+   "line_end": 359
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Segmented",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 146,
+   "line_end": 185
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Switch",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 187,
+   "line_end": 197
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Chip",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 200,
+   "line_end": 213
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#NumberInput",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 219,
+   "line_end": 282
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#TimeInput",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 285,
+   "line_end": 317
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#DangerButton",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 320,
+   "line_end": 332
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#PrimaryButton",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 334,
+   "line_end": 355
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#AddRow",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 362,
+   "line_end": 371
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ui/screen-header-sticky",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 32,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#ScreenHeader",
+   "to": "rule:ui/screen-header-sticky",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 32,
+   "line_end": 33
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ui/row-clickable-chevron",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 120,
+   "line_end": 130
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Row",
+   "to": "rule:ui/row-clickable-chevron",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 120,
+   "line_end": 130
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ui/segmented-columns",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 163,
+   "line_end": 165
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#Segmented",
+   "to": "rule:ui/segmented-columns",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 163,
+   "line_end": 165
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ui/number-input-commit",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 248,
+   "line_end": 263
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#NumberInput",
+   "to": "rule:ui/number-input-commit",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 248,
+   "line_end": 263
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ui/time-input-commit",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 301,
+   "line_end": 305
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#TimeInput",
+   "to": "rule:ui/time-input-commit",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 301,
+   "line_end": 305
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ui/danger-confirm",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 325,
+   "line_end": 325
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/controls.tsx#DangerButton",
+   "to": "rule:ui/danger-confirm",
+   "file": "src/components/ui/controls.tsx",
+   "line_start": 320,
+   "line_end": 332
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ui/sheet",
+   "to": "feature:ui/shared-parts",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 5,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/Sheet.tsx#Sheet",
+   "to": "feature:ui/sheet",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 6,
+   "line_end": 52
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ui/sheet-close",
+   "to": "feature:ui/sheet",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 17,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/Sheet.tsx#Sheet",
+   "to": "rule:ui/sheet-close",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 17,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ui/sheet-layout-by-width",
+   "to": "feature:ui/sheet",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 25,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/ui/Sheet.tsx#Sheet",
+   "to": "rule:ui/sheet-layout-by-width",
+   "file": "src/components/ui/Sheet.tsx",
+   "line_start": 25,
+   "line_end": 29
+  }
+ ]
+}

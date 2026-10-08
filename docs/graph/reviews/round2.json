@@ -1,0 +1,244 @@
+{
+ "sampled": [
+  {
+   "id": "rule:habits/after-midnight-bath-is-last-night",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/scheduler/review2.test.ts:113-121",
+   "reason": "テストは0時過ぎに置かれた入浴のあと、翌日昼の組み直しで次の晩（10/2 12:00〜10/3 9:00）に入浴が1件あることを確かめており、説明と一致する。実装側（planner の起きている日の数え方）への IMPLEMENTS はなく、テストだけが出典。"
+  },
+  {
+   "id": "rule:weather/stale-forecast",
+   "kind": "node",
+   "verdict": "誤り",
+   "evidence": "src/lib/mock/state.ts:722-731",
+   "reason": "説明は「取得から24時間以上たったものは使わず」だが、実装は now - fetchedAt <= FORECAST_FRESH_MS（24時間）を新しいとみなすので、ちょうど24時間の予報は使う（境界の違い）。また実装へのエッジがなく、rule:weather/stale-forecast-ignored（state.ts:726-727）と同じ内容の重複。",
+   "correct_content": "取得から24時間を超えた予報は使わない（24時間ちょうどまでは使う）。手で雨にした日（rainyDays）は残り、notRainyDays の日は除く。実装は rainyDayKeys（state.ts:725-732）。"
+  },
+  {
+   "id": "feature:calendar/related-focus",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/components/calendar/CalendarApp.tsx:34-44,58,183",
+   "reason": "FocusStyle が選んだまとまり以外を opacity 0.35 にし、まとまりに輪郭を付ける。group は hoverGroup ?? focusGroup で、押す・重ねるの両方に対応しており説明どおり。"
+  },
+  {
+   "id": "rule:notifications/watch-charge",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/notify/build.ts:168-175",
+   "reason": "charge = bed - WATCH_CHARGE_MINUTES、homeAt が charge より後かつ bed より前なら homeAt を使う。説明と一致。"
+  },
+  {
+   "id": "rule:habits/form-interval-range",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/components/settings/Habits.tsx:41,64-65,139-144",
+   "reason": "valid は1以上、hi > 60 と lo > hi を弾き、初期値は 4・7。説明と一致。"
+  },
+  {
+   "id": "setting:calendar/imported-travel-choices",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/components/calendar/CalendarApp.tsx:345-351",
+   "reason": "取り込んだ予定の「移動（片道）」の選択肢 [10,15,20,30,45,60,90] 分がその場に書かれている（ほかに「場所から」「家にいる」）。"
+  },
+  {
+   "id": "rule:today/evening-card-window",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/components/today/EveningCard.tsx:23-24,40",
+   "reason": "from = homeAt ?? eveningFrom、now < from-60分 または now >= bed なら出さない。見出しも homeAt の有無で切り替わり、説明と一致。"
+  },
+  {
+   "id": "feature:app/shell-layout",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/app/(app)/layout.tsx:3-5, src/components/app/AppShellLoader.tsx:6-12",
+   "reason": "レイアウトが AppShellLoader で子を包み、AppShell は ssr:false で読み込む。説明は正しいが、ブラウザだけで描画する根拠は AppShellLoader 側にあり、rule:app/shell-browser-only と内容が重なる。所属が feature:sync で feature:app/shell ではない点はやや不自然。"
+  },
+  {
+   "id": "rule:planner/allday-away",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/scheduler/planner.ts:209-213",
+   "reason": "終日の予定で awayFromHome かつ end > now・start < horizonEnd なら away に入れて continue（busy には入れない＝タスクは入れられる）。テスト planner.test.ts:475-488 とも一致。"
+  },
+  {
+   "id": "feature:planner/public-api",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/scheduler/index.ts:1-7",
+   "reason": "types と plan・computeDayPlans・resolveTravel・parseQuickAdd・buildOutlook・dayLoadOf などを再公開しており説明どおり。"
+  },
+  {
+   "id": "rule:notifications/subscription-constraints",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "supabase/migrations/0003_push.sql:6-15",
+   "reason": "endpoint は ^https:// かつ1000字以内、p256dh 200・auth 100・device 100 の上限、unique(user_id, endpoint)。説明と一致。"
+  },
+  {
+   "id": "rule:planner/habit-today-onward",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/scheduler/planner.ts:538, 369",
+   "reason": "週の回数などの習慣は windowOf(d).end > now の日だけを対象にする。間隔の習慣も placeByInterval 内（369行）で同じ判定がある。"
+  },
+  {
+   "id": "rule:habits/morning-order",
+   "kind": "node",
+   "verdict": "誤り",
+   "evidence": "src/lib/scheduler/cue.test.ts:118-131, src/lib/scheduler/types.ts:111, src/lib/scheduler/planner.ts:422",
+   "reason": "説明は「朝食は朝ルーティンの直後」「朝食がない日の散歩は朝ルーティンの直後」としているが、テストの朝ルーティンは15分（DEFAULT_SETTINGS.routineMinutes）で、朝食は起床+20分＝朝ルーティンの終わりの5分後（CUE_GAP_MINUTES）。朝食なしの散歩も同じく5分後で、散歩だけ5分後とする説明は食い違う。",
+   "correct_content": "朝ルーティン → 朝食 → 散歩の順に、それぞれ前の場面の終わりの5分後（CUE_GAP_MINUTES）に置く。朝食がない日の散歩は朝ルーティンの終わりの5分後。"
+  },
+  {
+   "id": "rule:night/late-wake-tap-closes-sleep",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/mock/bedtime.ts:6-21",
+   "reason": "mode が sleep の立て直しだけ、start より後で end+6時間（LATE_WAKE_MINUTES）より前の最も早い wokeAt ?? routineStartedAt を終わりにして mode を woke にする。説明と一致。"
+  },
+  {
+   "id": "feature:pwa/offline-notice",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/components/app/OfflineNotice.tsx:5-27",
+   "reason": "online/offline イベントと navigator.onLine で、オフラインのときだけ「この端末の控えを表示…つながったら保存」を出す。"
+  },
+  {
+   "id": "rule:planner/travel-question-queue",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/scheduler/planner.ts:233, src/lib/scheduler/travel.ts:35",
+   "reason": "resolveTravel が場所を特定できないとき unknown=true、場所があり start > now の予定を travelQuestions に入れる。説明と一致。"
+  },
+  {
+   "id": "feature:planner/energy-habits",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/scheduler/planner.ts:439-441, 754-770",
+   "reason": "whenEnergy の習慣はほかの習慣とタスクのあとで、外出の日でなく energyOn+cost が dailyEnergyBudget 以下の日だけ置く。説明どおり。"
+  },
+  {
+   "id": "rule:weather/refresh-conditions",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/components/app/AppShell.tsx:32-34,121-134",
+   "reason": "sync が loading でなく場所があり、取得中でなく、前回取得から3時間・前回試行から10分たったときだけ取る。10分ごとに check。説明と一致。"
+  },
+  {
+   "id": "feature:notion/column-config",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/mock/model.ts:119-131",
+   "reason": "NotionConfig は dateProp・stageProp・ignoreStages・stageMinutes・dismissed・fetchedAt を持つ。締切・段階の列、取り込まない段階、消したタスクという説明と一致。"
+  },
+  {
+   "id": "rule:night/bed-never-earlier-than-planned-wake",
+   "kind": "node",
+   "verdict": "正しい",
+   "evidence": "src/lib/mock/bedtime.ts:47",
+   "reason": "end = Math.max(planned(day).wake, desired) で、予定の起床より早くしない。テスト bedtime.test.ts:43-47 も同じ。"
+  },
+  {
+   "id": "IMPLEMENTS:const:src/lib/health/sleep.ts#SESSION_GAP_MINUTES->setting:health-sleep/session-gap-minutes",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/lib/health/sleep.ts:34-38",
+   "reason": "SESSION_GAP_MINUTES = 150 で、これより長く起きていたら別の眠りにする。設定ノードの説明と値（150分）が一致。"
+  },
+  {
+   "id": "IMPLEMENTS:fn:src/components/today/MorningCard.tsx#MorningCard->rule:today/morning-late-note",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/components/today/MorningCard.tsx:125-129,183-184",
+   "reason": "MorningCard が lateBy を計算し、|lateBy| >= 5 のとき「予定より◯分遅く／早く」を出す。関係は正しいが、5分の判定はエッジの出典範囲外（183行）。"
+  },
+  {
+   "id": "IMPLEMENTS:fn:src/components/calendar/CalendarView.tsx#CalendarView->rule:calendar/routine-block-not-draggable",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/components/calendar/CalendarView.tsx:700-701",
+   "reason": "editable: b.kind !== \"routine\" で朝ルーティンの枠を動かせなくしている。"
+  },
+  {
+   "id": "IMPLEMENTS:fn:src/lib/mock/insights.ts#smokeInsight->feature:insights/smoke-scenes",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/lib/mock/insights.ts:199-242",
+   "reason": "場面ごとの1時間あたりの本数を全体と比べ、倍率と本数だけを出す（評価の文はない）。"
+  },
+  {
+   "id": "PART_OF:rule:today/routine-wash-face-in-prep->feature:today/morning-routine-steps",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/lib/mock/sample.ts:263-266",
+   "reason": "朝ルーティンの初期手順のコメントに「顔を洗うなどは身支度に入れる」とあり、朝ルーティンの手順への所属は妥当。"
+  },
+  {
+   "id": "PART_OF:rule:notifications/push-ttl-30min->feature:notifications/web-push-send",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/lib/push/send.ts:31-35",
+   "reason": "sendNotification の { TTL: 30 * 60, urgency: \"high\" } で、送信機能の一部。"
+  },
+  {
+   "id": "DEPENDS_ON:feature:insights/habit-miss->feature:insights/day-log",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/lib/mock/insights.ts:245-262",
+   "reason": "habitInsight は state.dayLogs（置いた習慣・away・events・rainy）を材料にしている。"
+  },
+  {
+   "id": "DEPENDS_ON:feature:notifications/web-push-send->integration:web-push",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/lib/push/send.ts:1,17-43",
+   "reason": "web-push パッケージと VAPID の鍵で送っている。"
+  },
+  {
+   "id": "CONFIGURED_BY:rule:calendar/quick-add-chip-overrides-text->setting:calendar/quick-add-deadline-chips",
+   "kind": "edge",
+   "verdict": "正しい",
+   "evidence": "src/components/calendar/QuickAddBar.tsx:41-43",
+   "reason": "チップを選んでいれば `${chip}まで` を読んだ締切を、文中の締切より優先する。チップの選択肢で結果が変わる。"
+  },
+  {
+   "id": "CONFIGURED_BY:rule:planner/energy-day-used->setting:planner/daily-energy-budget",
+   "kind": "edge",
+   "verdict": "根拠不足",
+   "evidence": "src/lib/scheduler/planner.ts:793-797",
+   "reason": "ルール（使ったポイントを小数1桁に丸め、外出の日と体力を添える）の挙動は dailyEnergyBudget で変わらない。上限は entry.budget に写されるだけで、上限で挙動が変わるのは直後の発散の提案（798行〜）のほう。"
+  }
+ ],
+ "missing": [
+  {
+   "kind": "Edge",
+   "what": "回帰テスト7件（進行中の60分タスクが伸びない・済んだ昼食を同じ日に置き直さない・60日の記録の削除でご褒美が減らない・「来週金曜／来週月曜」の締切・取り込み元なしでもサーバーで組める・最初の起床より前は通知しない）を持つテストファイルから、どのルールへも IMPLEMENTS がない。対応するルール（rule:planner/hold-task-count、rule:planner/keep-finished-habit-today、rule:rewards/bank-carries-confirmed、rule:quick-add/weekday-deadline、rule:notifications/quiet-hours など）はあるのに、テストとの関係が抜けている",
+   "evidence": "src/lib/review-regression.test.ts:10-57"
+  },
+  {
+   "kind": "Edge",
+   "what": "授業の組み立てのテスト4件（同じ曜日・時限に作り休講の日は除く／時刻指定でも作れる／任意参加は参加する回だけ／時限がない授業は作らない）から、rule:timetable/skip-cancelled-and-closed-days・rule:timetable/course-optional-attendance などへの IMPLEMENTS がない（同じファイルのほかのテストはつながっている）",
+   "evidence": "src/lib/mock/model.test.ts:22-49"
+  },
+  {
+   "kind": "Rule",
+   "what": "習慣を消すとき、5分以下の習慣の「少しだけ」の記録を「やった」に書き換えて、たまったご褒美が減らないようにする（keepMarkValues(…, Infinity)）。rule:stats/keep-mark-values は「時間を延ばすとき」だけを書いており、rule:habits/delete-detaches-dependents にもこの点がない",
+   "evidence": "src/components/settings/Habits.tsx:183-188, src/lib/mock/stats.ts:43-48"
+  },
+  {
+   "kind": "Integration",
+   "what": "ical.js（iCal の読み取り・繰り返しの展開・VTIMEZONE の登録と、配信用の書き出し）。外部パッケージとして使っているが、FullCalendar・Web Push と違って Integration ノードがない（integration:ical-import / ical-export-feed は Google・iCloud とカレンダーアプリ側の連携として書かれている）",
+   "evidence": "package.json:20, src/lib/ical/import.ts:1,47-48, src/lib/ical/export.ts:25-35"
+  }
+ ],
+ "summary": {
+  "correct": 27,
+  "wrong": 2,
+  "insufficient": 1,
+  "missing": 4
+ }
+}

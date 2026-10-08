@@ -1,0 +1,3116 @@
+{
+ "batch": "b02_scheduler_rest",
+ "nodes": [
+  {
+   "id": "feature:rhythm/wake-calc",
+   "label": "Feature",
+   "name": "日ごとの起床・就寝時刻の計算",
+   "description": "予定・移動・既定の起床から、日ごとの起床・就寝・出発・身支度・休日の判定を計算する。前後の日も含めて計算してから範囲を切り出す。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 105,
+   "line_end": 182,
+   "confidence": "high",
+   "evidence": "computeDayPlans と computeRange が日ごとの DayPlan を組み立てる"
+  },
+  {
+   "id": "feature:rhythm/required-wake",
+   "label": "Feature",
+   "name": "予定から決まる「遅くともこの時刻に起きる」の計算",
+   "description": "その日の予定ごとに、外出か在宅か・家を出る時刻・身支度の要否を判定し、いちばん早い必要起床時刻を求める。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 40,
+   "line_end": 78,
+   "confidence": "high",
+   "evidence": "rawWakeOf が予定を1件ずつ見て required・leave・prep を決める"
+  },
+  {
+   "id": "feature:rhythm/latest-wake",
+   "label": "Feature",
+   "name": "固定の予定に間に合う最も遅い起床",
+   "description": "食事などをずらさずに、その日の各予定に間に合う最も遅い起床時刻を返す（予定がなければ無限大）。立て直しで起床を後ろへ送る上限に使う。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 80,
+   "line_end": 85,
+   "confidence": "high",
+   "evidence": "latestWakeOfDay は予定ごとの必要起床の最小値を返す"
+  },
+  {
+   "id": "feature:rhythm/waking-day",
+   "label": "Feature",
+   "name": "「起きている日」の数え方",
+   "description": "時刻がどの日の分かを1か所で決める。計画の日（起床〜就寝）の中ならその日、外なら0〜4時は前の日、それ以外は暦の日。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 8,
+   "line_end": 15,
+   "confidence": "high",
+   "evidence": "wakingDayStart のコメントと実装。配置も記録の日付けも同じ数え方"
+  },
+  {
+   "id": "rule:rhythm/waking-day-boundary",
+   "label": "Rule",
+   "name": "起床〜就寝の中ならその日、外なら4時前は前の日",
+   "description": "時刻が計画の日の起床以上・就寝未満ならその日の分。どの日にも入らない場合は、4:00 を日の境として前の日の続きか暦の日かを決める。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 13,
+   "line_end": 15,
+   "confidence": "high",
+   "evidence": "find で計画日を探し、なければ時刻から4時間分引いた日の始まりを返す"
+  },
+  {
+   "id": "setting:rhythm/day-begins-at",
+   "label": "Setting",
+   "name": "1日の始まり（4:00）",
+   "description": "これより前に始まる予定はその日の最初の予定にせず、4:00 前は前の日の続きとして数える。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 5,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "DAY_BEGINS_AT_MINUTE = 4 * 60",
+   "const_ref": "const:src/lib/scheduler/rhythm.ts#DAY_BEGINS_AT_MINUTE",
+   "value": 240
+  },
+  {
+   "id": "rule:rhythm/ignore-early-morning-events",
+   "label": "Rule",
+   "name": "4時前に始まる予定はその日の予定に数えない",
+   "description": "その日の予定は 4:00 以上〜翌0:00 未満に始まる時間指定の予定だけ。終日の予定と4時前に始まる予定は起床の計算に入れない。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 34,
+   "line_end": 38,
+   "confidence": "high",
+   "evidence": "eventsOf が allDay を除き、開始が 4:00 以降の予定だけを残す"
+  },
+  {
+   "id": "rule:rhythm/away-event-wake",
+   "label": "Rule",
+   "name": "外出する予定は、家を出る時刻から朝ルーティンと準備の分だけ前に起きる",
+   "description": "移動時間を引いた出発時刻から、朝ルーティンと身支度の時間を引いたものが必要起床。最初の予定が外出なら、その出発時刻を DayPlan.leave に残し、身支度は出発の直前を目標にする。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 61,
+   "line_end": 66,
+   "confidence": "high",
+   "evidence": "travel が在宅でないとき、開始−移動−(ルーティン+準備) を required に"
+  },
+  {
+   "id": "rule:rhythm/home-event-wake",
+   "label": "Rule",
+   "name": "在宅の予定は、開始の少し前に起きる（身支度が要る在宅の予定は外出なみ）",
+   "description": "在宅の予定は、身支度が要る（オンラインで顔を出すなど）なら朝ルーティン＋身支度の分、要らなければ「在宅の予定の前の余裕」と朝ルーティンの長いほうだけ開始より前に起きる。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 55,
+   "line_end": 60,
+   "confidence": "high",
+   "evidence": "travel.atHome のとき needsPrep で lead を切り替える"
+  },
+  {
+   "id": "rule:rhythm/earliest-event-decides-wake",
+   "label": "Rule",
+   "name": "いちばん早く起きなければならない予定が起床を決める",
+   "description": "その日の複数の予定のうち、必要起床がいちばん早いものを採用し、外出か在宅かの種別もその予定のものにする。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 51,
+   "line_end": 70,
+   "confidence": "high",
+   "evidence": "req が required より小さいときだけ required と kind を更新"
+  },
+  {
+   "id": "rule:rhythm/prep-once-before-earliest",
+   "label": "Rule",
+   "name": "身支度は1日1回、身支度の要る予定のうちいちばん早いものの前",
+   "description": "身支度の要る予定（外出、またはオンラインで顔を出す予定）が複数あっても、目標時刻がいちばん早い予定の1回だけを prepAt・prepEvent・prepAway に残す。最初の予定でなくてもよい。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 71,
+   "line_end": 75,
+   "confidence": "high",
+   "evidence": "prepGoal が最小のものだけを prepAt に採用"
+  },
+  {
+   "id": "rule:rhythm/wake-capped-by-default",
+   "label": "Rule",
+   "name": "起床は、予定から決まる時刻と既定の起床の早いほう",
+   "description": "予定のない日は既定の起床時刻。予定のある日は、必要起床と既定の起床のうち早いほうに起きる（既定より遅くは起きない）。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 129,
+   "line_end": 131,
+   "confidence": "high",
+   "evidence": "base は none なら cap、それ以外は min(required, cap)"
+  },
+  {
+   "id": "rule:rhythm/daily-shift-limit",
+   "label": "Rule",
+   "name": "隣の日との起床の差は1日30分まで（早めるほうへだけ寄せる）",
+   "description": "前の日・次の日のどちらかが早起きなら、その日の起床を1日あたり上限の分だけ段階的に早める。遅くすることはないので予定には必ず間に合う。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 87,
+   "line_end": 96,
+   "confidence": "high",
+   "evidence": "limitDailyShift が前向き・後ろ向きに min を取る"
+  },
+  {
+   "id": "rule:rhythm/ramp-outside-range",
+   "label": "Rule",
+   "name": "起床の差の上限は、計算の範囲の前後8日も見て決める",
+   "description": "範囲の頭で区切らず、前後 RAMP_DAYS 日を含めて計算してから切り出す。予定だけから決め、実際の起床・就寝の記録は見ないので、1日だけの寝坊や夜更かしは後の日の予定に響かない。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 98,
+   "line_end": 117,
+   "confidence": "high",
+   "evidence": "RAMP_DAYS のコメントと computeDayPlans の slice"
+  },
+  {
+   "id": "setting:rhythm/ramp-days",
+   "label": "Setting",
+   "name": "起床の差を見る範囲の外側の日数（8日）",
+   "description": "起床の差の上限と週のそろえが範囲の端で途切れないよう、計算の範囲の前後に足す日数。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 98,
+   "line_end": 103,
+   "confidence": "high",
+   "evidence": "RAMP_DAYS = 8",
+   "const_ref": "const:src/lib/scheduler/rhythm.ts#RAMP_DAYS",
+   "value": 8
+  },
+  {
+   "id": "rule:rhythm/fixed-wake-per-week",
+   "label": "Rule",
+   "name": "1週間そろえる設定のときは、月曜始まりの週のいちばん早い起床にそろえる",
+   "description": "起床固定モードでは、月曜始まりの週ごとに最も早い起床の時刻（その日の0時からの分）に、週の中のほかの日も早めてそろえる。起床の理由は fixed になる。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 142,
+   "line_end": 159,
+   "confidence": "high",
+   "evidence": "weekOf で週を分け、各週の最小の起床分に合わせる"
+  },
+  {
+   "id": "rule:rhythm/bed-from-next-wake",
+   "label": "Rule",
+   "name": "就寝は翌日の起床から睡眠時間を引いた時刻",
+   "description": "各日の就寝時刻は、次の日の起床−設定の睡眠時間。範囲の最後の日は、その日の起床の24時間後を次の起床とみなす。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 169,
+   "line_end": 173,
+   "confidence": "high",
+   "evidence": "nextWake − sleepMinutes"
+  },
+  {
+   "id": "rule:rhythm/holiday-when-no-events",
+   "label": "Rule",
+   "name": "予定のない日は休日（帰省など終日で家にいない日は休日にしない）",
+   "description": "休日は、遊び以外の時間指定の予定がその日の4時以降に重ならず、かつ家にいない終日の予定もない日。前の晩から0時を少し過ぎるだけの予定では休日でなくならない。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 164,
+   "line_end": 168,
+   "confidence": "high",
+   "evidence": "holiday は2つの events.some の否定の積"
+  },
+  {
+   "id": "rule:rhythm/wake-source",
+   "label": "Rule",
+   "name": "起床の理由（外出・在宅・前後の日・既定・固定）を残す",
+   "description": "起床がどの規則で決まったかを DayPlan.wakeSource に残す。前後の日で早めたら neighbors、予定で既定より早ければ away/home、それ以外は default、週そろえで早めたら fixed。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 135,
+   "line_end": 140,
+   "confidence": "high",
+   "evidence": "wakes の map で source を決めている"
+  },
+  {
+   "id": "rule:rhythm/latest-wake-for-fixed-events",
+   "label": "Rule",
+   "name": "起床を後ろへ送るときの上限は、各予定に間に合う最も遅い時刻",
+   "description": "予定のある日は、各予定に単独で間に合う必要起床の最小値。予定がない日は上限なし。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 80,
+   "line_end": 85,
+   "confidence": "high",
+   "evidence": "kind none なら Infinity、そうでなければ予定ごとの required の min"
+  },
+  {
+   "id": "setting:rhythm/default-wake",
+   "label": "Setting",
+   "name": "既定の起床時刻（初期値 9:00）",
+   "description": "予定のない日の起床時刻で、予定のある日の起床の上限。0:00 からの分で持つ。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 129,
+   "line_end": 130,
+   "confidence": "high",
+   "evidence": "settings.defaultWakeMinuteOfDay を cap として使う"
+  },
+  {
+   "id": "setting:rhythm/max-wake-shift",
+   "label": "Setting",
+   "name": "毎日の起床の差の上限（初期値 30分）",
+   "description": "隣り合う日の起床時刻の差の上限。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 132,
+   "line_end": 133,
+   "confidence": "high",
+   "evidence": "settings.maxWakeShiftMinutesPerDay を limitDailyShift に渡す"
+  },
+  {
+   "id": "setting:rhythm/fixed-wake-mode",
+   "label": "Setting",
+   "name": "起床を1週間そろえる（初期値 オフ）",
+   "description": "オンにすると月曜始まりの週ごとに起床をいちばん早い日にそろえる。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 142,
+   "line_end": 143,
+   "confidence": "high",
+   "evidence": "s.fixedWakeMode"
+  },
+  {
+   "id": "setting:rhythm/sleep-minutes",
+   "label": "Setting",
+   "name": "睡眠時間（初期値 7時間）",
+   "description": "就寝時刻を翌日の起床から逆算する長さ。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 173,
+   "line_end": 173,
+   "confidence": "high",
+   "evidence": "s.sleepMinutes"
+  },
+  {
+   "id": "setting:rhythm/routine-minutes",
+   "label": "Setting",
+   "name": "朝ルーティンの長さ（初期値 15分）",
+   "description": "起床から家を出るまでに取る朝ルーティンの時間。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 64,
+   "confidence": "high",
+   "evidence": "s.routineMinutes"
+  },
+  {
+   "id": "setting:rhythm/prep-minutes",
+   "label": "Setting",
+   "name": "身支度の長さ（初期値 40分）",
+   "description": "外出などの前に取る身支度の時間。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 64,
+   "confidence": "high",
+   "evidence": "s.prepMinutes"
+  },
+  {
+   "id": "setting:rhythm/home-wake-lead",
+   "label": "Setting",
+   "name": "在宅の予定の前の余裕（初期値 20分）",
+   "description": "身支度の要らない在宅の予定の、開始より前に起きておく分。",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 58,
+   "confidence": "high",
+   "evidence": "s.homeWakeLeadMinutes"
+  },
+  {
+   "id": "feature:recovery/rhythm-reset",
+   "label": "Feature",
+   "name": "実際の起床を出発点に起床・就寝をずらす",
+   "description": "「起きた」などの記録（リズムのリセット）から、その日の起床・就寝を実際の時刻に合わせ、翌日以降の睡眠枠が足りなければ起床を後ろへ送る。",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 4,
+   "line_end": 20,
+   "confidence": "high",
+   "evidence": "applyRhythmResets が DayPlan の wake・bed を書き換え、ずらし量を返す"
+  },
+  {
+   "id": "rule:recovery/wake-follows-actual-reset",
+   "label": "Rule",
+   "name": "疲れ以外のリセットの終わりを、その日の起床にする",
+   "description": "その日（暦日）に終わるリセットのうち「疲れている」以外で最も遅いものの終わりを、その日の起床にする。",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 10,
+   "line_end": 11,
+   "confidence": "high",
+   "evidence": "mode が tired でない r.end が日の中にあるものを新しい順に先頭"
+  },
+  {
+   "id": "rule:recovery/next-day-wake-pushed",
+   "label": "Rule",
+   "name": "前の日がずれたら、翌日の起床を睡眠時間を取れる時刻まで後ろへ送る",
+   "description": "前の日の起床をずらした場合、翌日の起床は「前の日の就寝＋睡眠時間」まで遅らせる。ただし固定の予定に間に合う最も遅い起床を超えない。",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 12,
+   "line_end": 12,
+   "confidence": "high",
+   "evidence": "shifts に前の日があるとき min(latestWake, max(wake, 前の就寝+睡眠))"
+  },
+  {
+   "id": "rule:recovery/bed-after-wake-minimum",
+   "label": "Rule",
+   "name": "起床がずれた日の就寝は、起床の直後にならないよう下限を置く",
+   "description": "ずれた日の就寝は、起床＋朝ルーティン＋寝る準備＋60分より前にならない。元の就寝のほうが遅ければ元に戻す。",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 13,
+   "line_end": 17,
+   "confidence": "high",
+   "evidence": "d.bed = max(bed, wake + (routine+windDown+60分))"
+  },
+  {
+   "id": "setting:recovery/wind-down-minutes",
+   "label": "Setting",
+   "name": "寝る準備の長さ（初期値 30分）",
+   "description": "就寝の前に取る寝る準備の時間。立て直し後の就寝の下限にも使う。",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 16,
+   "line_end": 16,
+   "confidence": "high",
+   "evidence": "settings.windDownMinutes"
+  },
+  {
+   "id": "feature:planner/outlook",
+   "label": "Feature",
+   "name": "今週・来週の見通し",
+   "description": "配置の結果だけから、週ごとにこれから使うタスク時間・空き時間・順調／きつい／間に合わないを計算する。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 22,
+   "line_end": 49,
+   "confidence": "high",
+   "evidence": "buildOutlook が WeekOutlook を週ごとに作る"
+  },
+  {
+   "id": "rule:outlook/weeks-from-monday",
+   "label": "Rule",
+   "name": "見通しの週は月曜始まりで、既定は今週と来週",
+   "description": "今日を含む週の月曜を起点に、7日ごとに週を並べる（既定2週）。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 31,
+   "line_end": 35,
+   "confidence": "high",
+   "evidence": "monday は曜日から計算し weeks ?? 2 回繰り返す"
+  },
+  {
+   "id": "rule:outlook/count-from-now",
+   "label": "Rule",
+   "name": "タスク時間と空き時間は、今より後の分だけ数える",
+   "description": "各週のタスクに使う時間と空き時間は、今以降（週が未来なら週の頭以降）の重なりだけを合計する。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 36,
+   "line_end": 40,
+   "confidence": "high",
+   "evidence": "from = max(now, start) との重なり"
+  },
+  {
+   "id": "rule:outlook/late-when-shortfall",
+   "label": "Rule",
+   "name": "締切に足りないタスクがある週は「間に合わない」",
+   "description": "週の中に締切のあるタスクで不足がある場合、その週は late とし、タスクと不足分を一覧に残す。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 42,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "late が空でなければ status は late"
+  },
+  {
+   "id": "rule:outlook/deadline-date-previous-week",
+   "label": "Rule",
+   "name": "日付だけの締切（翌日0:00）は、その前の日の週に数える",
+   "description": "締切−1ミリ秒で週を判定するので、日曜の締切（翌月曜0:00）は月曜の週ではなく前の週に入る。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 43,
+   "line_end": 44,
+   "confidence": "high",
+   "evidence": "s.deadline - 1 を週の範囲と比べる"
+  },
+  {
+   "id": "rule:outlook/tight-when-free-below-slack",
+   "label": "Rule",
+   "name": "空き時間が1日の余白×残り日数に足りなければ「きつい」",
+   "description": "間に合わない週でなければ、空き時間が 最低限の余白（分/日）×これから残る日数 を下回ると tight、そうでなければ ok。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 41,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "freeMinutes < minSlack * daysLeft"
+  },
+  {
+   "id": "setting:planner/min-slack-minutes-per-day",
+   "label": "Setting",
+   "name": "1日に残す余白の最低時間（初期値 120分）",
+   "description": "配置で守る1日の余白の最低時間。見通しでは「きつい」の判定にも使う。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 46,
+   "line_end": 46,
+   "confidence": "high",
+   "evidence": "input.minSlackMinutesPerDay"
+  },
+  {
+   "id": "feature:planner/contact-prompt",
+   "label": "Feature",
+   "name": "連絡してみる日の決定",
+   "description": "見通しが順調な週の、今日から先で最初の休日を、人に連絡してみるか聞く日として週に1日だけ選ぶ。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 51,
+   "line_end": 69,
+   "confidence": "high",
+   "evidence": "contactDays が週ごとに最初の休日を返す"
+  },
+  {
+   "id": "rule:outlook/contact-only-ok-weeks",
+   "label": "Rule",
+   "name": "連絡を聞くのは、見通しが順調な週だけ",
+   "description": "status が ok でない週は連絡の日を出さない。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 62,
+   "line_end": 63,
+   "confidence": "high",
+   "evidence": "w.status !== ok なら空"
+  },
+  {
+   "id": "rule:outlook/contact-first-holiday",
+   "label": "Rule",
+   "name": "連絡の日は、今日から先でいちばん早い休日を週に1日",
+   "description": "週の中で今日以降の休日を日付順に並べて先頭だけを選ぶ。休日がない週は聞かない。",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 64,
+   "line_end": 67,
+   "confidence": "high",
+   "evidence": "holiday かつ日付が今日以降の先頭"
+  },
+  {
+   "id": "rule:quick-add/duration",
+   "label": "Rule",
+   "name": "所要時間は「N時間M分」「N時間（半）」「N分」を読む",
+   "description": "3種類の決まった言い方から所要時間（分）を読み取り、あとに付く「くらい・ぐらい・程度・ほど」も取り除く。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 31,
+   "line_end": 36,
+   "confidence": "high",
+   "evidence": "時間+分、時間(半)、分の順に正規表現で取る"
+  },
+  {
+   "id": "rule:quick-add/date-deadline",
+   "label": "Rule",
+   "name": "「M/D」「M月D日」の締切はその日の終わりまで。過ぎた日付は来年",
+   "description": "日付の締切は、その日の翌0:00。今日より前の日付なら翌年の同じ日にする。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 39,
+   "line_end": 44,
+   "confidence": "high",
+   "evidence": "dayStart が today より前なら year+1"
+  },
+  {
+   "id": "rule:quick-add/relative-day-deadline",
+   "label": "Rule",
+   "name": "今日・明日・明後日はその日の終わりを締切にする",
+   "description": "「今日（中）」「明日／あした」「明後日／あさって」を、それぞれ今日・1日後・2日後の翌0:00 とする。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 45,
+   "line_end": 47,
+   "confidence": "high",
+   "evidence": "endOfDay(0/1/2)"
+  },
+  {
+   "id": "rule:quick-add/weekday-deadline",
+   "label": "Rule",
+   "name": "曜日の締切は月曜始まりで数え、「来週の曜日」は来週の同じ曜日",
+   "description": "「金曜」は今日から数えて次のその曜日、「来週の水曜」は月曜始まりの来週のその曜日。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 48,
+   "line_end": 54,
+   "confidence": "high",
+   "evidence": "来週指定のときは 7−(曜日の月曜起点)+target の月曜起点"
+  },
+  {
+   "id": "rule:quick-add/week-deadline",
+   "label": "Rule",
+   "name": "「来週」「今週」は週末（日曜の終わり）を締切にする",
+   "description": "「今週（中）」は今週の日曜の終わり、「来週（中）」は来週の日曜の終わり。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 55,
+   "line_end": 56,
+   "confidence": "high",
+   "evidence": "(7-weekday)%7 日後（来週は+7）"
+  },
+  {
+   "id": "rule:quick-add/until-suffix",
+   "label": "Rule",
+   "name": "「まで」「までに」は付けても付けなくても同じ",
+   "description": "締切表現のあとの「まで／までに」は任意で、読み取り後にタイトルから取り除く。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 12,
+   "line_end": 12,
+   "confidence": "high",
+   "evidence": "UNTIL は省略可能な正規表現"
+  },
+  {
+   "id": "rule:quick-add/priority-words",
+   "label": "Rule",
+   "name": "優先度は言葉で決める（急ぎ系は高、暇なときは低）",
+   "description": "「大至急・至急・急ぎ・重要・大事・！」なら優先度3、「いつでも・暇なとき・余裕があれば」なら1。それ以外は指定なし。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 58,
+   "line_end": 60,
+   "confidence": "high",
+   "evidence": "take で語を見つけて priority を設定"
+  },
+  {
+   "id": "rule:quick-add/fullwidth-digits",
+   "label": "Rule",
+   "name": "全角数字と「／」は半角にそろえてから読む",
+   "description": "全角の数字と全角スラッシュを半角にして、日付や時間を同じ正規表現で読めるようにする。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 14,
+   "line_end": 20,
+   "confidence": "high",
+   "evidence": "toHalfWidthDigits を最初に通す"
+  },
+  {
+   "id": "rule:quick-add/title-remainder",
+   "label": "Rule",
+   "name": "読み取った部分を除いた残りがタスク名。空なら全文",
+   "description": "締切・時間・優先度の語を取り除いたあと、余分な空白・句読点・先頭の「に／を」を削ったものがタイトル。何も残らなければ入力全文。",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 62,
+   "line_end": 67,
+   "confidence": "high",
+   "evidence": "rest を整形し、空なら text.trim()"
+  },
+  {
+   "id": "feature:planner/test-fixtures",
+   "label": "Feature",
+   "name": "配置の検証用の共通入力",
+   "description": "日本時間の日時を epoch ミリ秒にする関数と、既定の設定・空の予定などを持つ配置の入力を、テストで共通に使えるようにする。",
+   "file": "src/lib/scheduler/test-helpers.ts",
+   "line_start": 3,
+   "line_end": 20,
+   "confidence": "medium",
+   "evidence": "jst と baseInput（既定の設定、空の配列）"
+  },
+  {
+   "id": "rule:travel/memo-travel-minutes",
+   "label": "Rule",
+   "name": "メモの「移動30」を移動時間として読む",
+   "description": "予定のメモに「移動30」とあれば、その分数を移動時間として家を出る時刻を決める。",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 79,
+   "line_end": 83,
+   "confidence": "high",
+   "evidence": "テストでメモ『移動30』から出発 9:30 になる"
+  },
+  {
+   "id": "rule:travel/unknown-place-question",
+   "label": "Rule",
+   "name": "登録のない場所の予定は、移動時間を聞く対象にする",
+   "description": "場所が登録されておらず移動時間も分からない外出予定は、travelQuestions に予定IDと場所を出す。",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 85,
+   "line_end": 89,
+   "confidence": "high",
+   "evidence": "plan の結果の travelQuestions が期待される"
+  },
+  {
+   "id": "rule:habits/cue-after-meal",
+   "label": "Rule",
+   "name": "食事のあとのきっかけの習慣は、食事の終わりの5分後に置く",
+   "description": "きっかけが「食事のあと」の習慣は、その食事の枠の終わりから5分後に始める。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 32,
+   "line_end": 37,
+   "confidence": "high",
+   "evidence": "テストが meal.end+5分 を期待"
+  },
+  {
+   "id": "rule:habits/cue-after-routine",
+   "label": "Rule",
+   "name": "朝ルーティンのあとのきっかけの習慣は、起床+朝ルーティン+5分後に置く",
+   "description": "きっかけが「朝ルーティン」の習慣は、朝ルーティンが終わった5分後に始める。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 39,
+   "line_end": 43,
+   "confidence": "high",
+   "evidence": "テストが wake+(15+5)分 を期待"
+  },
+  {
+   "id": "rule:habits/cue-home-only-outing-days",
+   "label": "Rule",
+   "name": "帰宅後のきっかけの習慣は、外出のない日には置かない",
+   "description": "きっかけが「帰宅後」の習慣は、外出した日だけ置き、帰宅して30分休んだ5分後に始める。外出のない日は置かず、飛ばした扱いにもしない。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 45,
+   "line_end": 53,
+   "confidence": "high",
+   "evidence": "17:30帰宅→18:05開始、翌日は0件、skippedHabits も0"
+  },
+  {
+   "id": "rule:habits/cue-skip-when-busy",
+   "label": "Rule",
+   "name": "きっかけのあとが埋まっていれば、その日は置かない",
+   "description": "きっかけの場面の直後の時間が予定で埋まっていれば、遠くへ動かさず、その日はその習慣を置かない（置くなら場面から35分以内）。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 55,
+   "line_end": 61,
+   "confidence": "high",
+   "evidence": "場面の35分以内でなければ置かれない"
+  },
+  {
+   "id": "rule:habits/exercise-before-bath",
+   "label": "Rule",
+   "name": "家での運動は週3回、入浴の5分前に終わるように置く",
+   "description": "きっかけが「入浴の前」の週3回の習慣は、入浴の開始の5分前に終わる枠に置く。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 79,
+   "line_end": 87,
+   "confidence": "high",
+   "evidence": "3回、b.end = 入浴.start−5分"
+  },
+  {
+   "id": "rule:habits/exercise-before-bath-fallback",
+   "label": "Rule",
+   "name": "入浴の直前が埋まっていれば、30分前までの空きに置き、それもなければその日は置かない",
+   "description": "入浴の前が予定で埋まっているとき、入浴の始まりから35分以内で入浴より前の空きがあれば置き、なければその日は置かない。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 89,
+   "line_end": 99,
+   "confidence": "high",
+   "evidence": "e1.end <= 入浴.start かつ差が35分以内"
+  },
+  {
+   "id": "rule:habits/morning-order",
+   "label": "Rule",
+   "name": "朝は 朝ルーティン → 朝食 → 散歩 の順に、あいだを空けずに置く",
+   "description": "朝食は朝ルーティンの直後、散歩は朝食の5分後。朝食がない日の散歩は朝ルーティンの直後に置く。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 118,
+   "line_end": 131,
+   "confidence": "high",
+   "evidence": "bf.start=wake+20分、walk.start=bf.end+5分、朝食なしは wake+20分"
+  },
+  {
+   "id": "rule:habits/meal-gap-3h",
+   "label": "Rule",
+   "name": "食事どうしは、始まりを3時間あける",
+   "description": "昼食は朝食の始まりから3時間以上あけて置く。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 133,
+   "line_end": 138,
+   "confidence": "high",
+   "evidence": "l.start − bf.start ≥ 3時間"
+  },
+  {
+   "id": "rule:habits/cook-before-meal",
+   "label": "Rule",
+   "name": "自炊は食事のちょうど5分前に終える",
+   "description": "きっかけが「食事の前」の自炊は、その食事の開始の5分前に終わるように置く。",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 140,
+   "line_end": 145,
+   "confidence": "high",
+   "evidence": "c.end = l.start − 5分"
+  },
+  {
+   "id": "rule:planner/home-time-of-last-outing",
+   "label": "Rule",
+   "name": "外出した日は、最後の外出から帰る時刻を DayPlan.homeAt に出す",
+   "description": "移動を含めた最後の外出の終わりを帰宅時刻とする（17時終わり・片道30分なら17:30）。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 22,
+   "line_end": 25,
+   "confidence": "high",
+   "evidence": "homeAt が 17:30"
+  },
+  {
+   "id": "rule:planner/low-energy-evening-no-tasks",
+   "label": "Rule",
+   "name": "帰宅時の体力が少ない夜は、帰宅から就寝までタスクを入れない",
+   "description": "eveningEnergy が low の日は、帰宅から就寝の間にタスクの枠を置かず、日の体力の記録にも low が残る。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 27,
+   "line_end": 33,
+   "confidence": "high",
+   "evidence": "tonight のタスクが空、dayEnergy.evening が low"
+  },
+  {
+   "id": "rule:planner/normal-energy-evening-admin-limit",
+   "label": "Rule",
+   "name": "帰宅時の体力がふつうの夜は、事務系のタスクだけを合わせて60分まで",
+   "description": "eveningEnergy が normal の夜は、集中のタスクは置かず、事務系タスクを合計60分以内で置く。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 35,
+   "line_end": 41,
+   "confidence": "high",
+   "evidence": "集中の作業は夜になく、合計 ≤ 60分"
+  },
+  {
+   "id": "rule:planner/recovery-suggestion-no-late-nap",
+   "label": "Rule",
+   "name": "体力が少ない夜は回復の候補を出すが、昼寝は16時以降には出さない",
+   "description": "low の夜に回復の候補（昼寝・ゲームなど）を提案するとき、latestStartMinuteOfDay を過ぎた候補は選ばない。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 43,
+   "line_end": 50,
+   "confidence": "high",
+   "evidence": "候補の昼寝は 16:00 まで、結果はゲーム"
+  },
+  {
+   "id": "rule:habits/anchor-wake-bed-windows",
+   "label": "Rule",
+   "name": "起床・就寝からの時間帯：散歩は起床から150分以内、入浴は就寝の150〜75分前に収める",
+   "description": "時間帯を起床や就寝からの相対で指定した習慣は、その日の起床・就寝に合わせた枠に置く。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 60,
+   "line_end": 69,
+   "confidence": "high",
+   "evidence": "walk は wake〜wake+150分、bath は bed−150〜bed−75"
+  },
+  {
+   "id": "rule:habits/rain-alternative",
+   "label": "Rule",
+   "name": "雨の日にした日は、習慣を雨の日の代わり（タイトルと長さ）に差し替える",
+   "description": "雨の日の代わりを持つ習慣は、雨の日扱いの日にはその代わりのタイトル・所要時間で置く。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 71,
+   "line_end": 77,
+   "confidence": "high",
+   "evidence": "w.title が代替名、長さ15分"
+  },
+  {
+   "id": "rule:planner/prep-only-for-meeting-or-outing",
+   "label": "Rule",
+   "name": "身支度は、外出する予定・会議リンクのある予定・身支度が要るとした予定の日だけ取り、出発の直前に置く",
+   "description": "在宅の普通の予定の日には身支度を置かない。外出や会議リンクがある日は、予定の直前に40分の身支度を置く。朝ルーティンのすぐあとに出る日だけ、朝ルーティンと身支度を続けて1つにする。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 81,
+   "line_end": 94,
+   "confidence": "high",
+   "evidence": "prep 判定の4ケースと early の連結"
+  },
+  {
+   "id": "rule:habits/keep-last-when-dropping",
+   "label": "Rule",
+   "name": "締切のために習慣を外すときは、「なるべく残す」習慣を最後にする",
+   "description": "締切までに大きな空きが要るとき、飛ばせる習慣のうち keepLast のものを残し、ほかを先に外す。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 96,
+   "line_end": 109,
+   "confidence": "high",
+   "evidence": "walk（keepLast）は残り other は外れる"
+  },
+  {
+   "id": "rule:habits/on-track-holiday-only",
+   "label": "Rule",
+   "name": "「順調な休日」の習慣は、締切に間に合わないタスクがない休日にだけ置く",
+   "description": "頻度が onTrackHoliday の習慣は、不足のあるタスクがなく、予定のない休日にだけ置く。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 111,
+   "line_end": 119,
+   "confidence": "high",
+   "evidence": "通常は置かれ、不足ありと予定ありの日は置かれない"
+  },
+  {
+   "id": "rule:planner/prep-before-evening-outing",
+   "label": "Rule",
+   "name": "朝が在宅でも、夕方に外出する日は出発の前に身支度を置く",
+   "description": "身支度は最初の予定ではなく、身支度の要る予定のうち最も早いものの前に置く。夕方の外出なら出発30分前に身支度の枠が終わる。",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 123,
+   "line_end": 131,
+   "confidence": "high",
+   "evidence": "prep.end = 17:30（外出18時−移動30分）"
+  },
+  {
+   "id": "rule:habits/meal-windows-after-late-wake",
+   "label": "Rule",
+   "name": "遅く起きても、昼食は14:30まで、夕食は21時までの時間帯を守る",
+   "description": "起床が10〜13時でも、昼食は12:00〜14:30、夕食は21:00までに終える。11時以降の起床では朝食を省く。",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 14,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "hour=10..13 の it.each の期待"
+  },
+  {
+   "id": "rule:habits/no-lunch-after-window",
+   "label": "Rule",
+   "name": "昼食の時間帯を過ぎて起きても、昼食を15時以降へ自動で送らない",
+   "description": "15時起床では昼食を置かない。",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 29,
+   "line_end": 31,
+   "confidence": "high",
+   "evidence": "afterWake(15) に昼食がない"
+  },
+  {
+   "id": "rule:recovery/tired-mode-drops-optional",
+   "label": "Rule",
+   "name": "疲労休止（疲れている）では、任意の朝食とタスクを省き、昼食と夕食の時刻は維持する",
+   "description": "mode が tired のリセットの間は、飛ばせる朝食やタスクを置かず、昼食12:00・夕食18:00の時刻は変えない。",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 32,
+   "line_end": 37,
+   "confidence": "high",
+   "evidence": "task と朝食が0件、昼夕の start が既定"
+  },
+  {
+   "id": "rule:planner/prep-right-before-afternoon-outing-after-late-wake",
+   "label": "Rule",
+   "name": "寝坊したあとも、身支度は午後の外出の直前に置く",
+   "description": "起床が遅れても、身支度は出発（予定の開始−移動）の直前に置く。",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 38,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "prep.start = 15:30−40分"
+  },
+  {
+   "id": "rule:habits/weekly-count-monday-week",
+   "label": "Rule",
+   "name": "週に何回かの習慣は月曜始まりの週で数え、毎日組み直しても回数を超えない",
+   "description": "今週やった日を引いて残りの回数だけ置く。回数に達した週は置かない。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 17,
+   "line_end": 40,
+   "confidence": "high",
+   "evidence": "週3回で毎日組み直して合計3回、達していれば0件"
+  },
+  {
+   "id": "rule:habits/waiting-follow-up-kept",
+   "label": "Rule",
+   "name": "洗濯のように待ち時間のある習慣は、回し始めたあとの組み直しでも干す枠と片付けを残す",
+   "description": "洗濯を回し始めたら、90分後の干す枠を固定し、片付けは洗濯の終わりから干す枠までの間に置く。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 44,
+   "line_end": 56,
+   "confidence": "high",
+   "evidence": "hang が wash.start+90分、tidy が間に入る"
+  },
+  {
+   "id": "rule:habits/skip-today",
+   "label": "Rule",
+   "name": "「今日は飛ばす」にした日には、その習慣（と片付けなど子の習慣）を置かない",
+   "description": "飛ばした日には置かず、ほかの日には置く。待ち時間の子の習慣も従う。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 58,
+   "line_end": 63,
+   "confidence": "high",
+   "evidence": "tidy が飛ばし日に0件、洗濯は置かれる"
+  },
+  {
+   "id": "rule:habits/started-block-counts-as-done",
+   "label": "Rule",
+   "name": "週に何回かの習慣は、始まった枠の日をやった日として数える",
+   "description": "記録しない習慣は、始まった枠があった日を habitDoneDays に残し、次の日の組み直しで数える。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 81,
+   "line_end": 90,
+   "confidence": "high",
+   "evidence": "tue.habitDoneDays が月曜"
+  },
+  {
+   "id": "rule:habits/tracked-count-by-log",
+   "label": "Rule",
+   "name": "「記録する」習慣は、やった記録（やった・少しだけ）で週の回数を数える",
+   "description": "記録する習慣は枠の始まりではなく habitLogs の done / five を週の回数に入れる。3回そろえば今週は置かない。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 92,
+   "line_end": 99,
+   "confidence": "high",
+   "evidence": "ログ3件で今週の枠が0"
+  },
+  {
+   "id": "rule:planner/plan-until-bed-after-midnight",
+   "label": "Rule",
+   "name": "0時を過ぎてまだ寝る前なら、前の日の就寝までを計画に入れ、寝る準備の通知も残す",
+   "description": "0:10 の時点でも計画の最初の日は前日で、就寝まで空き時間を持ち、寝る準備の通知が残る。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 103,
+   "line_end": 111,
+   "confidence": "high",
+   "evidence": "dayPlans[0] が前日、bed が翌2時、bedprep の通知あり"
+  },
+  {
+   "id": "rule:habits/after-midnight-bath-is-last-night",
+   "label": "Rule",
+   "name": "0時を過ぎてから始めた入浴は前の晩の分。次の晩にも入浴を置く",
+   "description": "日付が変わってからの入浴は前日の分と数え、翌日の晩の入浴も置く。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 113,
+   "line_end": 121,
+   "confidence": "high",
+   "evidence": "noon の組み直しで次の入浴が1件"
+  },
+  {
+   "id": "rule:planner/after-midnight-return-belongs-to-previous-day",
+   "label": "Rule",
+   "name": "0時を過ぎた帰宅は前の日の帰宅。次の日の休日は変えない",
+   "description": "夜中に終わる予定からの帰宅時刻は前の日に属し、翌日に帰宅時刻を持たず、休日のままにする。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 123,
+   "line_end": 130,
+   "confidence": "high",
+   "evidence": "dayPlans[0].homeAt が翌0:50、[1] は未設定で holiday"
+  },
+  {
+   "id": "rule:notifications/deleted-task-clears-notices",
+   "label": "Rule",
+   "name": "タスクを消すと、そのタスクの枠の通知（始まり・進み具合）を一覧から外す",
+   "description": "タスクを削除して組み直すと、そのタスクIDを含む通知が0件になる。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 134,
+   "line_end": 144,
+   "confidence": "high",
+   "evidence": "s2 の通知が空"
+  },
+  {
+   "id": "rule:planner/task-lead-two-weeks",
+   "label": "Rule",
+   "name": "タスクは締切の2週間前から置く。配置期間より先の締切でも期間の中の日なら置き（警告なし）、4週間より先はまだ置かない",
+   "description": "20日先の締切は6日目以降に置いて所要時間をすべて満たし、不足の警告は出ない。40日先は置かない。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 150,
+   "line_end": 157,
+   "confidence": "high",
+   "evidence": "t20 が合計120分で6日目以降、t40 なし、shortfalls 0"
+  },
+  {
+   "id": "rule:planner/pinned-block-moves-on-overlap",
+   "label": "Rule",
+   "name": "固定したタスクの枠も、始まる前に予定が重なったら動かす",
+   "description": "pinned の枠に予定が重なったら、予定を避けて置き直し、所要時間の合計は保つ。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 159,
+   "line_end": 168,
+   "confidence": "high",
+   "evidence": "moved が予定と重ならず合計120分"
+  },
+  {
+   "id": "rule:planner/min-task-block-30",
+   "label": "Rule",
+   "name": "タスクの枠は30分から（もともと30分以内のタスクはそのまま。長いタスクの短い残りは30分にし、分けたあとに30分未満を残さない）",
+   "description": "15分のタスクは15分、75分のタスクは各30分以上で合計75分、90分のタスクで残り15分なら30分の枠にする。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 172,
+   "line_end": 184,
+   "confidence": "high",
+   "evidence": "lens の期待値"
+  },
+  {
+   "id": "rule:planner/outing-evening-focus-in-morning",
+   "label": "Rule",
+   "name": "夕方に出かける日は、身支度を出発の直前に置き、午前中から集中の作業を置ける",
+   "description": "出発が遅い日は午前から集中のタスクを置け、身支度は出発の10分前に終える。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 191,
+   "line_end": 198,
+   "confidence": "high",
+   "evidence": "prep.end = 開始−10分、t[0] が13時前"
+  },
+  {
+   "id": "rule:planner/busy-day-no-evening-focus",
+   "label": "Rule",
+   "name": "予定の多い日は、体力を答えるまで、最後の予定のあとに集中の作業を置かない",
+   "description": "最後の予定が遅く終わる日は eveningFrom をその終わりとし、体力が未回答の間はそれ以降に集中のタスクを置かない。high と答えれば置ける。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 200,
+   "line_end": 211,
+   "confidence": "high",
+   "evidence": "eveningFrom=20:00、未回答で夜のタスクなし、high で置かれる"
+  },
+  {
+   "id": "rule:planner/avoid-near-energy-cap-days",
+   "label": "Rule",
+   "name": "行動ポイントが上限に近い日は避けて、軽い日へ回す",
+   "description": "重い予定（行動ポイント5）の日を避け、タスクを翌日以降に置く。",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 213,
+   "line_end": 218,
+   "confidence": "high",
+   "evidence": "t が 10/2 以降のみ"
+  },
+  {
+   "id": "rule:planner/first-flag-goes-first",
+   "label": "Rule",
+   "name": "「ほかを後に回す」を選んだタスクは、締切の早いタスクより先に置く",
+   "description": "first のタスクは締切が遅くても優先して置かれ、足りなくなるのは別のタスクになる。",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 10,
+   "line_end": 19,
+   "confidence": "high",
+   "evidence": "first の有無で shortfalls が b→a に変わる"
+  },
+  {
+   "id": "rule:planner/stretch-ignores-avoid-windows",
+   "label": "Rule",
+   "name": "「時間帯の外にも入れる」を選んだタスクは、「入れない」時間帯にも置く",
+   "description": "stretch のタスクは、必須の避ける時間帯にも置けるので、終日の避ける時間帯があっても不足にならない。",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 21,
+   "line_end": 26,
+   "confidence": "high",
+   "evidence": "通常は shortfall 1、stretch は 0"
+  },
+  {
+   "id": "rule:habits/avoid-rain-interval",
+   "label": "Rule",
+   "name": "雨を避ける間隔の習慣（洗濯）は、間隔の中に雨でない日があれば雨の日を避ける",
+   "description": "avoidRain の間隔習慣は、最短〜最長の間隔の中で雨の予報の日より雨でない日を選ぶ。",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 39,
+   "line_end": 48,
+   "confidence": "high",
+   "evidence": "雨の日にした日以外の日に変わる"
+  },
+  {
+   "id": "rule:planner/meal-at-home-delay",
+   "label": "Rule",
+   "name": "「家で食べる」にした食事は、予定で時間帯に入らなくても、遅らせて置く",
+   "description": "予定で時間帯が埋まった食事は通常置かれないが、家で食べる日は時間帯の外へ遅らせて置く（寝る準備の前まで）。",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 51,
+   "line_end": 60,
+   "confidence": "high",
+   "evidence": "通常は0件、家でなら1件で20時以降"
+  },
+  {
+   "id": "rule:planner/meal-delay-limit-2h",
+   "label": "Rule",
+   "name": "食事を遅らせるのは時間帯の終わりから2時間まで。昼食を夜に置くことはない",
+   "description": "家で食べるにしても、時間帯の終わりから2時間を超えて遅らせない。",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 62,
+   "line_end": 67,
+   "confidence": "high",
+   "evidence": "昼食は19時まで予定でも置かれない"
+  },
+  {
+   "id": "rule:planner/task-strategy-placement",
+   "label": "Rule",
+   "name": "タスクの置き方：前倒しは最初の日に詰め、分散は別々の日に散らす",
+   "description": "taskStrategy が early なら1日に、spread なら3日以上に分けて置く。",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 70,
+   "line_end": 80,
+   "confidence": "high",
+   "evidence": "early は日数1、spread は3以上"
+  },
+  {
+   "id": "setting:planner/task-strategy",
+   "label": "Setting",
+   "name": "タスクの置き方（ふつう・前倒し・分散）",
+   "description": "設定でタスクの置き方を選ぶ。",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 73,
+   "line_end": 76,
+   "confidence": "high",
+   "evidence": "settings.taskStrategy を standard / early / spread で切り替えるテスト"
+  }
+ ],
+ "edges": [
+  {
+   "type": "PART_OF",
+   "from": "feature:rhythm/wake-calc",
+   "to": "feature:rhythm",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 105,
+   "line_end": 182
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeDayPlans",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 109,
+   "line_end": 117
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 119,
+   "line_end": 182
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:rhythm/required-wake",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 40,
+   "line_end": 78
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#rawWakeOf",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 41,
+   "line_end": 78
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/scheduler/rhythm.ts#RawWake",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 17,
+   "line_end": 32
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:rhythm/latest-wake",
+   "to": "feature:rhythm",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 80,
+   "line_end": 85
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#latestWakeOfDay",
+   "to": "feature:rhythm/latest-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 81,
+   "line_end": 85
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:rhythm/waking-day",
+   "to": "feature:rhythm",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 8,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#wakingDayStart",
+   "to": "feature:rhythm/waking-day",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 13,
+   "line_end": 15
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/waking-day-boundary",
+   "to": "feature:rhythm/waking-day",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 13,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#wakingDayStart",
+   "to": "rule:rhythm/waking-day-boundary",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 13,
+   "line_end": 15
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/day-begins-at",
+   "to": "feature:rhythm",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 5,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/scheduler/rhythm.ts#DAY_BEGINS_AT_MINUTE",
+   "to": "setting:rhythm/day-begins-at",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/waking-day-boundary",
+   "to": "setting:rhythm/day-begins-at",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 14,
+   "line_end": 14
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/ignore-early-morning-events",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 34,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#eventsOf",
+   "to": "rule:rhythm/ignore-early-morning-events",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 34,
+   "line_end": 38
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/ignore-early-morning-events",
+   "to": "setting:rhythm/day-begins-at",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 35,
+   "line_end": 35
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/away-event-wake",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 61,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#rawWakeOf",
+   "to": "rule:rhythm/away-event-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 61,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "rule:rhythm/away-event-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 174,
+   "line_end": 174
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/home-event-wake",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 55,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#rawWakeOf",
+   "to": "rule:rhythm/home-event-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 55,
+   "line_end": 60
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/earliest-event-decides-wake",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 51,
+   "line_end": 70
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#rawWakeOf",
+   "to": "rule:rhythm/earliest-event-decides-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 67,
+   "line_end": 70
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/prep-once-before-earliest",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 71,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#rawWakeOf",
+   "to": "rule:rhythm/prep-once-before-earliest",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 71,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "rule:rhythm/prep-once-before-earliest",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 178,
+   "line_end": 179
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/wake-capped-by-default",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 129,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "rule:rhythm/wake-capped-by-default",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 129,
+   "line_end": 131
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/daily-shift-limit",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 87,
+   "line_end": 96
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#limitDailyShift",
+   "to": "rule:rhythm/daily-shift-limit",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 91,
+   "line_end": 96
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "rule:rhythm/daily-shift-limit",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 132,
+   "line_end": 133
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/ramp-outside-range",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 98,
+   "line_end": 117
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeDayPlans",
+   "to": "rule:rhythm/ramp-outside-range",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 109,
+   "line_end": 117
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/scheduler/rhythm.ts#RAMP_DAYS",
+   "to": "rule:rhythm/ramp-outside-range",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 103,
+   "line_end": 103
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/ramp-days",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 98,
+   "line_end": 103
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/scheduler/rhythm.ts#RAMP_DAYS",
+   "to": "setting:rhythm/ramp-days",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 103,
+   "line_end": 103
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/ramp-outside-range",
+   "to": "setting:rhythm/ramp-days",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 116,
+   "line_end": 116
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/fixed-wake-per-week",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 142,
+   "line_end": 159
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "rule:rhythm/fixed-wake-per-week",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 142,
+   "line_end": 159
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/bed-from-next-wake",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 169,
+   "line_end": 173
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "rule:rhythm/bed-from-next-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 169,
+   "line_end": 173
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/holiday-when-no-events",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 164,
+   "line_end": 168
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "rule:rhythm/holiday-when-no-events",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 164,
+   "line_end": 168
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/wake-source",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 135,
+   "line_end": 140
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#computeRange",
+   "to": "rule:rhythm/wake-source",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 135,
+   "line_end": 140
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:rhythm/latest-wake-for-fixed-events",
+   "to": "feature:rhythm/latest-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 80,
+   "line_end": 85
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/rhythm.ts#latestWakeOfDay",
+   "to": "rule:rhythm/latest-wake-for-fixed-events",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 81,
+   "line_end": 85
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/default-wake",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 129,
+   "line_end": 130
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/max-wake-shift",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 132,
+   "line_end": 133
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/fixed-wake-mode",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 142,
+   "line_end": 143
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/sleep-minutes",
+   "to": "feature:rhythm/wake-calc",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 173,
+   "line_end": 173
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/routine-minutes",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 64
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/prep-minutes",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 64
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rhythm/home-wake-lead",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 58
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/wake-capped-by-default",
+   "to": "setting:rhythm/default-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 130,
+   "line_end": 131
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/daily-shift-limit",
+   "to": "setting:rhythm/max-wake-shift",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 133,
+   "line_end": 133
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/fixed-wake-per-week",
+   "to": "setting:rhythm/fixed-wake-mode",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 142,
+   "line_end": 142
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/bed-from-next-wake",
+   "to": "setting:rhythm/sleep-minutes",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 173,
+   "line_end": 173
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/away-event-wake",
+   "to": "setting:rhythm/routine-minutes",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 64,
+   "line_end": 64
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/away-event-wake",
+   "to": "setting:rhythm/prep-minutes",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 64,
+   "line_end": 64
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/home-event-wake",
+   "to": "setting:rhythm/routine-minutes",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 58
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/home-event-wake",
+   "to": "setting:rhythm/prep-minutes",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 58
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:rhythm/home-event-wake",
+   "to": "setting:rhythm/home-wake-lead",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 58,
+   "line_end": 58
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:rhythm/wake-calc",
+   "to": "setting:rhythm/default-wake",
+   "file": "src/lib/scheduler/rhythm.ts",
+   "line_start": 130,
+   "line_end": 130
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:recovery/rhythm-reset",
+   "to": "feature:recovery",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 4,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/reset.ts#applyRhythmResets",
+   "to": "feature:recovery/rhythm-reset",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 5,
+   "line_end": 20
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:recovery/wake-follows-actual-reset",
+   "to": "feature:recovery/rhythm-reset",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 10,
+   "line_end": 11
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/reset.ts#applyRhythmResets",
+   "to": "rule:recovery/wake-follows-actual-reset",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 10,
+   "line_end": 11
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:recovery/next-day-wake-pushed",
+   "to": "feature:recovery/rhythm-reset",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/reset.ts#applyRhythmResets",
+   "to": "rule:recovery/next-day-wake-pushed",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:recovery/next-day-wake-pushed",
+   "to": "setting:rhythm/sleep-minutes",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:recovery/bed-after-wake-minimum",
+   "to": "feature:recovery/rhythm-reset",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 13,
+   "line_end": 17
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/reset.ts#applyRhythmResets",
+   "to": "rule:recovery/bed-after-wake-minimum",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 13,
+   "line_end": 17
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:recovery/bed-after-wake-minimum",
+   "to": "setting:rhythm/routine-minutes",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 16,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:recovery/wind-down-minutes",
+   "to": "feature:recovery/rhythm-reset",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 16,
+   "line_end": 16
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:recovery/bed-after-wake-minimum",
+   "to": "setting:recovery/wind-down-minutes",
+   "file": "src/lib/scheduler/reset.ts",
+   "line_start": 16,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:planner/outlook",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 22,
+   "line_end": 49
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#buildOutlook",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 23,
+   "line_end": 49
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/scheduler/outlook.ts#WeekOutlook",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 6,
+   "line_end": 17
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/scheduler/outlook.ts#OutlookStatus",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 4,
+   "line_end": 4
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#overlap",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 19,
+   "line_end": 20
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:outlook/weeks-from-monday",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 31,
+   "line_end": 35
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#buildOutlook",
+   "to": "rule:outlook/weeks-from-monday",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 31,
+   "line_end": 35
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:outlook/count-from-now",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 36,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#buildOutlook",
+   "to": "rule:outlook/count-from-now",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 36,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#overlap",
+   "to": "rule:outlook/count-from-now",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 19,
+   "line_end": 20
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:outlook/late-when-shortfall",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 42,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#buildOutlook",
+   "to": "rule:outlook/late-when-shortfall",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 42,
+   "line_end": 46
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:outlook/deadline-date-previous-week",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 43,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#buildOutlook",
+   "to": "rule:outlook/deadline-date-previous-week",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 43,
+   "line_end": 44
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:outlook/tight-when-free-below-slack",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 41,
+   "line_end": 46
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#buildOutlook",
+   "to": "rule:outlook/tight-when-free-below-slack",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 41,
+   "line_end": 46
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:planner/min-slack-minutes-per-day",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 46,
+   "line_end": 46
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:outlook/tight-when-free-below-slack",
+   "to": "setting:planner/min-slack-minutes-per-day",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 46,
+   "line_end": 46
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:planner/contact-prompt",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 51,
+   "line_end": 69
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#contactDays",
+   "to": "feature:planner/contact-prompt",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 55,
+   "line_end": 69
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:planner/contact-prompt",
+   "to": "feature:planner/outlook",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 62,
+   "line_end": 63
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:outlook/contact-only-ok-weeks",
+   "to": "feature:planner/contact-prompt",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 62,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#contactDays",
+   "to": "rule:outlook/contact-only-ok-weeks",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 62,
+   "line_end": 63
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:outlook/contact-first-holiday",
+   "to": "feature:planner/contact-prompt",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 64,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/outlook.ts#contactDays",
+   "to": "rule:outlook/contact-first-holiday",
+   "file": "src/lib/scheduler/outlook.ts",
+   "line_start": 64,
+   "line_end": 67
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/duration",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 31,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#parseQuickAdd",
+   "to": "rule:quick-add/duration",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 31,
+   "line_end": 36
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/date-deadline",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 39,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#parseQuickAdd",
+   "to": "rule:quick-add/date-deadline",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 39,
+   "line_end": 44
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/relative-day-deadline",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 45,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#parseQuickAdd",
+   "to": "rule:quick-add/relative-day-deadline",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 45,
+   "line_end": 47
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/weekday-deadline",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 48,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#parseQuickAdd",
+   "to": "rule:quick-add/weekday-deadline",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 48,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/scheduler/parse.ts#WEEKDAYS",
+   "to": "rule:quick-add/weekday-deadline",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 11,
+   "line_end": 11
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/week-deadline",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 55,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#parseQuickAdd",
+   "to": "rule:quick-add/week-deadline",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 55,
+   "line_end": 56
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/until-suffix",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/lib/scheduler/parse.ts#UNTIL",
+   "to": "rule:quick-add/until-suffix",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/priority-words",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 58,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#parseQuickAdd",
+   "to": "rule:quick-add/priority-words",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 58,
+   "line_end": 60
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/fullwidth-digits",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 14,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#toHalfWidthDigits",
+   "to": "rule:quick-add/fullwidth-digits",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 14,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:quick-add/title-remainder",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 62,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#parseQuickAdd",
+   "to": "rule:quick-add/title-remainder",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 62,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/parse.ts#parseQuickAdd",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 19,
+   "line_end": 70
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/lib/scheduler/parse.ts#ParsedTask",
+   "to": "feature:quick-add",
+   "file": "src/lib/scheduler/parse.ts",
+   "line_start": 3,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:planner/test-fixtures",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/test-helpers.ts",
+   "line_start": 3,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/test-helpers.ts#jst",
+   "to": "feature:planner/test-fixtures",
+   "file": "src/lib/scheduler/test-helpers.ts",
+   "line_start": 4,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/lib/scheduler/test-helpers.ts#baseInput",
+   "to": "feature:planner/test-fixtures",
+   "file": "src/lib/scheduler/test-helpers.ts",
+   "line_start": 8,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/away-event-wake",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 15,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/daily-shift-limit",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 22,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/wake-capped-by-default",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 44,
+   "line_end": 77
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/bed-from-next-wake",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 68,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/ramp-outside-range",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 95,
+   "line_end": 106
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/fixed-wake-per-week",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 108,
+   "line_end": 114
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/prep-once-before-earliest",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 121,
+   "line_end": 141
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/waking-day-boundary",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 147,
+   "line_end": 157
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:rhythm/holiday-when-no-events",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 161,
+   "line_end": 168
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:travel/memo-travel-minutes",
+   "to": "feature:rhythm/required-wake",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 79,
+   "line_end": 83
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:travel/memo-travel-minutes",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 79,
+   "line_end": 83
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:travel/unknown-place-question",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 85,
+   "line_end": 89
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/rhythm.test.ts",
+   "to": "rule:travel/unknown-place-question",
+   "file": "src/lib/scheduler/rhythm.test.ts",
+   "line_start": 85,
+   "line_end": 89
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/outlook.test.ts",
+   "to": "rule:outlook/count-from-now",
+   "file": "src/lib/scheduler/outlook.test.ts",
+   "line_start": 13,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/outlook.test.ts",
+   "to": "rule:outlook/tight-when-free-below-slack",
+   "file": "src/lib/scheduler/outlook.test.ts",
+   "line_start": 13,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/outlook.test.ts",
+   "to": "rule:outlook/late-when-shortfall",
+   "file": "src/lib/scheduler/outlook.test.ts",
+   "line_start": 36,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/outlook.test.ts",
+   "to": "rule:outlook/contact-first-holiday",
+   "file": "src/lib/scheduler/outlook.test.ts",
+   "line_start": 57,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/outlook.test.ts",
+   "to": "rule:outlook/contact-only-ok-weeks",
+   "file": "src/lib/scheduler/outlook.test.ts",
+   "line_start": 65,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/parse.test.ts",
+   "to": "rule:quick-add/weekday-deadline",
+   "file": "src/lib/scheduler/parse.test.ts",
+   "line_start": 10,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/parse.test.ts",
+   "to": "rule:quick-add/duration",
+   "file": "src/lib/scheduler/parse.test.ts",
+   "line_start": 10,
+   "line_end": 24
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/parse.test.ts",
+   "to": "rule:quick-add/relative-day-deadline",
+   "file": "src/lib/scheduler/parse.test.ts",
+   "line_start": 19,
+   "line_end": 24
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/parse.test.ts",
+   "to": "rule:quick-add/date-deadline",
+   "file": "src/lib/scheduler/parse.test.ts",
+   "line_start": 26,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/parse.test.ts",
+   "to": "rule:quick-add/priority-words",
+   "file": "src/lib/scheduler/parse.test.ts",
+   "line_start": 26,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/parse.test.ts",
+   "to": "rule:quick-add/fullwidth-digits",
+   "file": "src/lib/scheduler/parse.test.ts",
+   "line_start": 41,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/parse.test.ts",
+   "to": "rule:quick-add/title-remainder",
+   "file": "src/lib/scheduler/parse.test.ts",
+   "line_start": 45,
+   "line_end": 47
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/cue-after-meal",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 32,
+   "line_end": 37
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/cue-after-meal",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 32,
+   "line_end": 37
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/cue-after-routine",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 39,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/cue-after-routine",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 39,
+   "line_end": 43
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/cue-home-only-outing-days",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 45,
+   "line_end": 53
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/cue-home-only-outing-days",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 45,
+   "line_end": 53
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/cue-skip-when-busy",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 55,
+   "line_end": 61
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/cue-skip-when-busy",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 55,
+   "line_end": 61
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/exercise-before-bath",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 79,
+   "line_end": 87
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/exercise-before-bath",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 79,
+   "line_end": 87
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/exercise-before-bath-fallback",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 89,
+   "line_end": 99
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/exercise-before-bath-fallback",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 89,
+   "line_end": 99
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/morning-order",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 118,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/morning-order",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 118,
+   "line_end": 131
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/meal-gap-3h",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 133,
+   "line_end": 138
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/meal-gap-3h",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 133,
+   "line_end": 138
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/cook-before-meal",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 140,
+   "line_end": 145
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/cue.test.ts",
+   "to": "rule:habits/cook-before-meal",
+   "file": "src/lib/scheduler/cue.test.ts",
+   "line_start": 140,
+   "line_end": 145
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/home-time-of-last-outing",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 22,
+   "line_end": 25
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:planner/home-time-of-last-outing",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 22,
+   "line_end": 25
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/low-energy-evening-no-tasks",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 27,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:planner/low-energy-evening-no-tasks",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 27,
+   "line_end": 33
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/normal-energy-evening-admin-limit",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 35,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:planner/normal-energy-evening-admin-limit",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 35,
+   "line_end": 41
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/recovery-suggestion-no-late-nap",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 43,
+   "line_end": 50
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:planner/recovery-suggestion-no-late-nap",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 43,
+   "line_end": 50
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/anchor-wake-bed-windows",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 60,
+   "line_end": 69
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:habits/anchor-wake-bed-windows",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 60,
+   "line_end": 69
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/rain-alternative",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 71,
+   "line_end": 77
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:habits/rain-alternative",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 71,
+   "line_end": 77
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/prep-only-for-meeting-or-outing",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 81,
+   "line_end": 94
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:planner/prep-only-for-meeting-or-outing",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 81,
+   "line_end": 94
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/keep-last-when-dropping",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 96,
+   "line_end": 109
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:habits/keep-last-when-dropping",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 96,
+   "line_end": 109
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/on-track-holiday-only",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 111,
+   "line_end": 119
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:habits/on-track-holiday-only",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 111,
+   "line_end": 119
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/prep-before-evening-outing",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 123,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:planner/prep-before-evening-outing",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 123,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/evening.test.ts",
+   "to": "rule:rhythm/prep-once-before-earliest",
+   "file": "src/lib/scheduler/evening.test.ts",
+   "line_start": 123,
+   "line_end": 131
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/meal-windows-after-late-wake",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 14,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:habits/meal-windows-after-late-wake",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 14,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:habits/meal-gap-3h",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 23,
+   "line_end": 28
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/no-lunch-after-window",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 29,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:habits/no-lunch-after-window",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 29,
+   "line_end": 31
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:recovery/tired-mode-drops-optional",
+   "to": "feature:recovery",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 32,
+   "line_end": 37
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:recovery/tired-mode-drops-optional",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 32,
+   "line_end": 37
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/prep-right-before-afternoon-outing-after-late-wake",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 38,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:planner/prep-right-before-afternoon-outing-after-late-wake",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 38,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:rhythm/prep-once-before-earliest",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 38,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:recovery/next-day-wake-pushed",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 43,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:rhythm/latest-wake-for-fixed-events",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 43,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/reset-meals.test.ts",
+   "to": "rule:recovery/wake-follows-actual-reset",
+   "file": "src/lib/scheduler/reset-meals.test.ts",
+   "line_start": 14,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/weekly-count-monday-week",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 17,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:habits/weekly-count-monday-week",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 17,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/waiting-follow-up-kept",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 44,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:habits/waiting-follow-up-kept",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 44,
+   "line_end": 56
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/skip-today",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 58,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:habits/skip-today",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 58,
+   "line_end": 63
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/shortfall.test.ts",
+   "to": "rule:habits/skip-today",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 29,
+   "line_end": 37
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:habits/morning-order",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 67,
+   "line_end": 77
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/started-block-counts-as-done",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 81,
+   "line_end": 90
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:habits/started-block-counts-as-done",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 81,
+   "line_end": 90
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/tracked-count-by-log",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 92,
+   "line_end": 99
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:habits/tracked-count-by-log",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 92,
+   "line_end": 99
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/plan-until-bed-after-midnight",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 103,
+   "line_end": 111
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:planner/plan-until-bed-after-midnight",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 103,
+   "line_end": 111
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/after-midnight-bath-is-last-night",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 113,
+   "line_end": 121
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:habits/after-midnight-bath-is-last-night",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 113,
+   "line_end": 121
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/after-midnight-return-belongs-to-previous-day",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 123,
+   "line_end": 130
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:planner/after-midnight-return-belongs-to-previous-day",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 123,
+   "line_end": 130
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/deleted-task-clears-notices",
+   "to": "feature:notifications",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 134,
+   "line_end": 144
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:notifications/deleted-task-clears-notices",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 134,
+   "line_end": 144
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/task-lead-two-weeks",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 150,
+   "line_end": 157
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:planner/task-lead-two-weeks",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 150,
+   "line_end": 157
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/pinned-block-moves-on-overlap",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 159,
+   "line_end": 168
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:planner/pinned-block-moves-on-overlap",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 159,
+   "line_end": 168
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/min-task-block-30",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 172,
+   "line_end": 184
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:planner/min-task-block-30",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 172,
+   "line_end": 184
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/outing-evening-focus-in-morning",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 191,
+   "line_end": 198
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:planner/outing-evening-focus-in-morning",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 191,
+   "line_end": 198
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:rhythm/prep-once-before-earliest",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 191,
+   "line_end": 198
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/busy-day-no-evening-focus",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 200,
+   "line_end": 211
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:planner/busy-day-no-evening-focus",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 200,
+   "line_end": 211
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/avoid-near-energy-cap-days",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 213,
+   "line_end": 218
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/review2.test.ts",
+   "to": "rule:planner/avoid-near-energy-cap-days",
+   "file": "src/lib/scheduler/review2.test.ts",
+   "line_start": 213,
+   "line_end": 218
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/first-flag-goes-first",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 10,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/shortfall.test.ts",
+   "to": "rule:planner/first-flag-goes-first",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 10,
+   "line_end": 19
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/stretch-ignores-avoid-windows",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 21,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/shortfall.test.ts",
+   "to": "rule:planner/stretch-ignores-avoid-windows",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 21,
+   "line_end": 26
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/avoid-rain-interval",
+   "to": "feature:habits",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 39,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/shortfall.test.ts",
+   "to": "rule:habits/avoid-rain-interval",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 39,
+   "line_end": 48
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/meal-at-home-delay",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 51,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/shortfall.test.ts",
+   "to": "rule:planner/meal-at-home-delay",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 51,
+   "line_end": 60
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/meal-delay-limit-2h",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 62,
+   "line_end": 67
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/shortfall.test.ts",
+   "to": "rule:planner/meal-delay-limit-2h",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 62,
+   "line_end": 67
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:planner/task-strategy-placement",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 70,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/shortfall.test.ts",
+   "to": "rule:planner/task-strategy-placement",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 70,
+   "line_end": 80
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:planner/task-strategy",
+   "to": "feature:planner",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 73,
+   "line_end": 76
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/lib/scheduler/shortfall.test.ts",
+   "to": "setting:planner/task-strategy",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 73,
+   "line_end": 76
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:planner/task-strategy-placement",
+   "to": "setting:planner/task-strategy",
+   "file": "src/lib/scheduler/shortfall.test.ts",
+   "line_start": 73,
+   "line_end": 76
+  }
+ ]
+}

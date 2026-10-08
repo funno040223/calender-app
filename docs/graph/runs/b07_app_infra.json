@@ -1,0 +1,4165 @@
+{
+ "batch": "b07_app_infra",
+ "nodes": [
+  {
+   "id": "integration:supabase-auth",
+   "label": "Integration",
+   "name": "Supabase Auth（ログイン）",
+   "description": "メールとパスワードでのログインと、サーバー側でのログイン中ユーザーの確認に使う外部サービス。",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 21,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "ログイン画面が Supabase のパスワード認証を呼び、API ルートがサーバー用クライアントでユーザーを確かめている"
+  },
+  {
+   "id": "integration:supabase-db",
+   "label": "Integration",
+   "name": "Supabase Postgres（データベース）",
+   "description": "アプリのデータ・取り込み元・通知・睡眠などを保存する Postgres。行レベルセキュリティで本人だけが読み書きできる。",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 4,
+   "line_end": 27,
+   "confidence": "high",
+   "evidence": "SQL の表と RLS ポリシー、各 API が表を読み書きしている"
+  },
+  {
+   "id": "integration:supabase-pg-cron",
+   "label": "Integration",
+   "name": "Supabase pg_cron（定期実行）",
+   "description": "1分ごと・毎時に API を呼ぶ定期実行。CRON_SECRET を合言葉にして通知の送信と組み直しを動かす。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 8,
+   "line_end": 13,
+   "confidence": "high",
+   "evidence": "ルートのコメントが pg_cron から呼ばれると書いている"
+  },
+  {
+   "id": "integration:web-push",
+   "label": "Integration",
+   "name": "Web Push（通知の配信）",
+   "description": "端末の購読情報へ通知を送る仕組み。VAPID の鍵を環境変数で持つ。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 1,
+   "line_end": 47,
+   "confidence": "high",
+   "evidence": "通知の送信処理と VAPID 鍵の環境変数"
+  },
+  {
+   "id": "integration:ical-import",
+   "label": "Integration",
+   "name": "iCal の取り込み（Google・iCloud）",
+   "description": "登録した iCal の URL から予定を読み取る外部連携。",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 1,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "iCal の本文を取得して予定に変換している"
+  },
+  {
+   "id": "integration:ical-export-feed",
+   "label": "Integration",
+   "name": "iCal の配信",
+   "description": "アプリが組んだ予定を、カレンダーアプリが読みに来る iCal として返す仕組み。",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 10,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "text/calendar を返す GET ルート"
+  },
+  {
+   "id": "integration:notion-api",
+   "label": "Integration",
+   "name": "Notion API",
+   "description": "Notion の表の列と行を読む外部サービス。",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 1,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "Notion の表の行を読むルート"
+  },
+  {
+   "id": "integration:apple-shortcuts-health",
+   "label": "Integration",
+   "name": "iPhone ショートカット（ヘルスケアの睡眠）",
+   "description": "iPhone のショートカットがヘルスケアの睡眠分析を HTTP で送ってくる連携。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 12,
+   "line_end": 17,
+   "confidence": "high",
+   "evidence": "ルートのコメントがショートカットから受け取ると書いている"
+  },
+  {
+   "id": "integration:service-worker",
+   "label": "Integration",
+   "name": "Service Worker（ブラウザの仕組み）",
+   "description": "画面の部品の控えと通知の表示を担うブラウザの仕組み。",
+   "file": "public/sw.js",
+   "line_start": 1,
+   "line_end": 131,
+   "confidence": "high",
+   "evidence": "sw.js が install・fetch・push を扱う"
+  },
+  {
+   "id": "integration:fullcalendar",
+   "label": "Integration",
+   "name": "FullCalendar",
+   "description": "カレンダー表示の部品。スタイルはこの部品のクラス名に合わせて上書きしている。",
+   "file": "src/app/globals.css",
+   "line_start": 180,
+   "line_end": 190,
+   "confidence": "high",
+   "evidence": "CSS が .fc 以下を広く上書きし、package.json が依存に持つ"
+  },
+  {
+   "id": "feature:pwa/offline-cache",
+   "label": "Feature",
+   "name": "電波がなくても画面を開ける",
+   "description": "開いたときに主な画面とその部品をまとめて控え、電波がないときは控えから画面を出す。",
+   "file": "public/sw.js",
+   "line_start": 22,
+   "line_end": 94,
+   "confidence": "high",
+   "evidence": "warm で画面と部品を控え、fetch で networkFirst・cacheFirst を使い分けている"
+  },
+  {
+   "id": "feature:pwa/push-display",
+   "label": "Feature",
+   "name": "通知の表示と、押したときの動き",
+   "description": "サーバーから届いた通知を表示し、押すと開いているアプリに切り替える（なければ開く）。",
+   "file": "public/sw.js",
+   "line_start": 96,
+   "line_end": 131,
+   "confidence": "high",
+   "evidence": "push と notificationclick のハンドラ"
+  },
+  {
+   "id": "feature:pwa/install-to-home",
+   "label": "Feature",
+   "name": "ホーム画面に追加して単独のアプリとして開く",
+   "description": "名前・アイコン・開き方（standalone）を定め、iPhone でも枠なしで開けるようにする。",
+   "file": "src/app/manifest.ts",
+   "line_start": 3,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "manifest と appleWebApp の設定"
+  },
+  {
+   "id": "feature:pwa/app-icons",
+   "label": "Feature",
+   "name": "アプリのアイコンの生成",
+   "description": "墨色の地に朝ルーティン・タスク・習慣の予定が並び赤い「いま」の線が横切る絵から、各サイズの PNG を作る。",
+   "file": "scripts/make-icons.mjs",
+   "line_start": 1,
+   "line_end": 25,
+   "confidence": "high",
+   "evidence": "SVG から 192・512・180・64 の PNG を書き出している"
+  },
+  {
+   "id": "feature:pwa/ui-foundation",
+   "label": "Feature",
+   "name": "全体の見た目の土台（色・ダークモード・iOS 風の部品）",
+   "description": "iOS のカレンダーに近い配色の変数、端末の設定に合わせたダークモード、スイッチ・押した沈み・カードの影などの共通部品。",
+   "file": "src/app/globals.css",
+   "line_start": 1,
+   "line_end": 178,
+   "confidence": "medium",
+   "evidence": "全体の CSS 変数と共通クラス。どの領域にも属さないため基盤の機能の下に置く"
+  },
+  {
+   "id": "feature:infra/dev-tooling",
+   "label": "Feature",
+   "name": "開発の仕組み（ビルド・lint・型・テスト）",
+   "description": "Next.js のビルドと開発サーバー、ESLint、TypeScript、Vitest、Tailwind（PostCSS）の設定。",
+   "file": "package.json",
+   "line_start": 5,
+   "line_end": 11,
+   "confidence": "high",
+   "evidence": "scripts と各設定ファイル。基盤の領域がないため feature:pwa の下に仮置き"
+  },
+  {
+   "id": "feature:app/shell-layout",
+   "label": "Feature",
+   "name": "全画面共通の枠（読み込み・保存データの用意）",
+   "description": "(app) 配下の全画面を AppShell で包む。保存データ（localStorage）と画面幅を使うのでブラウザだけで描画する。",
+   "file": "src/app/(app)/layout.tsx",
+   "line_start": 3,
+   "line_end": 5,
+   "confidence": "medium",
+   "evidence": "レイアウトが AppShellLoader で子を包んでいる。AppShell の中身は担当外"
+  },
+  {
+   "id": "feature:settings/section-pages",
+   "label": "Feature",
+   "name": "設定の各項目の画面（16項目）",
+   "description": "設定を基本・習慣・場所・通知・Notion・天気・ヘルスケアなど16の項目ごとの画面に分け、それぞれ SettingsSection に項目名を渡して出す。",
+   "file": "src/app/(app)/settings/page.tsx",
+   "line_start": 3,
+   "line_end": 5,
+   "confidence": "high",
+   "evidence": "16個の page.tsx が section を渡して同じ部品を呼ぶ"
+  },
+  {
+   "id": "rule:pwa/cache-versioned",
+   "label": "Rule",
+   "name": "控えの名前に版を入れ、古い版の控えは消す",
+   "description": "控えは「版」入りの名前で作り、新しい版が動き出したとき（activate）に今の版以外の控えをすべて消す。版は中身を変えるたびに上げる。",
+   "file": "public/sw.js",
+   "line_start": 1,
+   "line_end": 20,
+   "confidence": "high",
+   "evidence": "VERSION を名前に使い、activate で他のキーを削除している"
+  },
+  {
+   "id": "rule:pwa/skip-api-and-other-origins",
+   "label": "Rule",
+   "name": "API とほかのサイトへの通信は控えに触れない",
+   "description": "GET 以外、別のオリジン、/api/ で始まる通信は Service Worker が扱わない。",
+   "file": "public/sw.js",
+   "line_start": 56,
+   "line_end": 59,
+   "confidence": "high",
+   "evidence": "fetch ハンドラの冒頭で早期に戻る条件"
+  },
+  {
+   "id": "rule:pwa/static-parts-cache-first",
+   "label": "Rule",
+   "name": "版つきの部品（/_next/static、/icons）は控えを先に使う",
+   "description": "名前に版が入っていて変わらない部品は、控えにあればそれを返し、なければ取りに行って控える。",
+   "file": "public/sw.js",
+   "line_start": 61,
+   "line_end": 75,
+   "confidence": "high",
+   "evidence": "cacheFirst の分岐と実装"
+  },
+  {
+   "id": "rule:pwa/pages-network-first",
+   "label": "Rule",
+   "name": "画面は通信を先にし、取れなければ控え、それもなければオフライン表示（503）",
+   "description": "画面の移動は通信を試し、失敗したら控えた画面を返す。控えもないときは「電波がありません」の簡単なページを503で返す。",
+   "file": "public/sw.js",
+   "line_start": 66,
+   "line_end": 94,
+   "confidence": "high",
+   "evidence": "networkFirst の catch 側の分岐"
+  },
+  {
+   "id": "rule:pwa/skip-redirected-login",
+   "label": "Rule",
+   "name": "ログイン画面へ回された応答は画面の控えにしない",
+   "description": "控え直しでも通常の通信でも、リダイレクトされた応答（ログインが切れている）や失敗は控えない。",
+   "file": "public/sw.js",
+   "line_start": 38,
+   "line_end": 38,
+   "confidence": "high",
+   "evidence": "res.ok かつ redirected でないときだけ控える条件が2か所ある"
+  },
+  {
+   "id": "rule:pwa/warm-throttle",
+   "label": "Rule",
+   "name": "控え直しは10分に1回まで・同時に1つだけ",
+   "description": "画面から「warm」を受けたとき、前回うまくいってから10分以内なら何もしない。実行中は同じ処理を共有する。電波がないと途中でやめる。",
+   "file": "public/sw.js",
+   "line_start": 22,
+   "line_end": 52,
+   "confidence": "high",
+   "evidence": "warmedAt と warming の管理、catch で return"
+  },
+  {
+   "id": "rule:pwa/notification-url-same-app-only",
+   "label": "Rule",
+   "name": "通知を押して開く場所は、同じアプリの中だけ",
+   "description": "通知に入れた URL は「/」で始まる同一アプリ内の場所だけ受け付け、それ以外は「/」にする。",
+   "file": "public/sw.js",
+   "line_start": 110,
+   "line_end": 111,
+   "confidence": "high",
+   "evidence": "正規表現で外部 URL を弾き、既定を / にしている"
+  },
+  {
+   "id": "rule:pwa/notification-click-focus-existing",
+   "label": "Rule",
+   "name": "通知を押したら、開いているアプリに切り替える",
+   "description": "同じオリジンのウィンドウがあればそれを前に出して通知の URL へ移し、なければ新しく開く。",
+   "file": "public/sw.js",
+   "line_start": 117,
+   "line_end": 130,
+   "confidence": "high",
+   "evidence": "notificationclick で matchAll し focus か openWindow"
+  },
+  {
+   "id": "rule:pwa/sw-no-store-header",
+   "label": "Rule",
+   "name": "sw.js はいつも最新を読ませる",
+   "description": "/sw.js の応答は一切キャッシュさせず、読み込み元を自分のオリジンだけに制限するヘッダを付ける。",
+   "file": "next.config.ts",
+   "line_start": 6,
+   "line_end": 17,
+   "confidence": "high",
+   "evidence": "headers で Cache-Control と CSP を指定している"
+  },
+  {
+   "id": "setting:pwa/sw-version",
+   "label": "Setting",
+   "name": "Service Worker の版（VERSION）",
+   "description": "控えの名前に入る版。中身を変えたら上げて、古い控えを消させる。",
+   "file": "public/sw.js",
+   "line_start": 3,
+   "line_end": 3,
+   "confidence": "high",
+   "evidence": "定数 VERSION とコメント",
+   "const_ref": "const:public/sw.js#VERSION",
+   "value": "v16"
+  },
+  {
+   "id": "setting:pwa/shell-pages",
+   "label": "Setting",
+   "name": "開いたときにまとめて控える画面の一覧（SHELL）",
+   "description": "今日・カレンダー・タスク・記録と設定の全項目など、電波がなくても移れるように控える画面のパス。画面を増やしたら足す。",
+   "file": "public/sw.js",
+   "line_start": 4,
+   "line_end": 5,
+   "confidence": "high",
+   "evidence": "SHELL の配列。値が配列のため value は省略",
+   "const_ref": "const:public/sw.js#SHELL",
+   "value": "21画面（/ /calendar /tasks /stats /settings と設定の16項目）"
+  },
+  {
+   "id": "setting:pwa/warm-interval-minutes",
+   "label": "Setting",
+   "name": "控え直しの最短間隔（10分）",
+   "description": "うまくいった控え直しのあと、次に頼まれても何もしない時間。",
+   "file": "public/sw.js",
+   "line_start": 24,
+   "line_end": 27,
+   "confidence": "high",
+   "evidence": "10 * 60 * 1000 を比べている",
+   "value": 600000
+  },
+  {
+   "id": "rule:app/viewport-safe-area-and-theme-color",
+   "label": "Rule",
+   "name": "画面は端末の幅いっぱい・切り欠きまで使い、バーの色はライト／ダークに合わせる",
+   "description": "viewportFit を cover にして拡大の初期値を1にし、テーマカラーは端末のライトなら白、ダークなら黒にする。",
+   "file": "src/app/layout.tsx",
+   "line_start": 12,
+   "line_end": 20,
+   "confidence": "high",
+   "evidence": "viewport の設定"
+  },
+  {
+   "id": "rule:pwa/sw-register-in-root-layout",
+   "label": "Rule",
+   "name": "ルートの画面でログイン前も含め Service Worker の部品を差し込む",
+   "description": "ルートレイアウトに ServiceWorker を置くので、ログイン画面を含むすべての画面で登録・控えの依頼が動く。",
+   "file": "src/app/layout.tsx",
+   "line_start": 22,
+   "line_end": 31,
+   "confidence": "medium",
+   "evidence": "RootLayout の子に ServiceWorker を置いている。登録の条件は担当外のファイル"
+  },
+  {
+   "id": "rule:app/language-ja",
+   "label": "Rule",
+   "name": "画面の言語は日本語",
+   "description": "html の lang を ja にする。",
+   "file": "src/app/layout.tsx",
+   "line_start": 24,
+   "line_end": 24,
+   "confidence": "high",
+   "evidence": "lang=ja"
+  },
+  {
+   "id": "rule:pwa/standalone-display",
+   "label": "Rule",
+   "name": "ホーム画面からは単独のアプリ画面（standalone）で開く",
+   "description": "start_url は「/」、scope も「/」、display は standalone。",
+   "file": "src/app/manifest.ts",
+   "line_start": 10,
+   "line_end": 13,
+   "confidence": "high",
+   "evidence": "manifest の値"
+  },
+  {
+   "id": "rule:pwa/maskable-icon",
+   "label": "Rule",
+   "name": "アイコンは192・512の通常と、512の maskable を用意",
+   "description": "maskable 用に同じ512の画像を目的を変えて登録する。",
+   "file": "src/app/manifest.ts",
+   "line_start": 15,
+   "line_end": 19,
+   "confidence": "high",
+   "evidence": "icons の3件"
+  },
+  {
+   "id": "feature:auth/login-form",
+   "label": "Feature",
+   "name": "ログイン画面",
+   "description": "メールアドレスとパスワードだけのログイン。ログイン後は元の画面（?next=）へ戻る。アカウントはここでは作れない。",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 8,
+   "line_end": 71,
+   "confidence": "high",
+   "evidence": "signInWithPassword だけを呼ぶフォーム"
+  },
+  {
+   "id": "rule:auth/no-signup-in-app",
+   "label": "Rule",
+   "name": "アプリからは新規登録できない",
+   "description": "画面にあるのはログインだけで、アカウントは Supabase のダッシュボードで作る前提。",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 8,
+   "line_end": 8,
+   "confidence": "medium",
+   "evidence": "フォームがログインの呼び出ししか持たない。新規登録を禁止する設定自体は Supabase 側で担当外"
+  },
+  {
+   "id": "rule:auth/login-redirect-same-app-only",
+   "label": "Rule",
+   "name": "ログイン後に戻す先は同じアプリの中だけ",
+   "description": "next の値は appPath で確かめ、外部サイトへは戻さない。",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 27,
+   "line_end": 28,
+   "confidence": "high",
+   "evidence": "appPath を通して router.replace している"
+  },
+  {
+   "id": "rule:auth/login-error-messages",
+   "label": "Rule",
+   "name": "ログイン失敗の理由を言い分ける",
+   "description": "誤り・短時間に何度も試した（429）・通信できない・その他の4つに分けて文言を出す。",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 73,
+   "line_end": 85,
+   "confidence": "high",
+   "evidence": "loginErrorMessage の分岐"
+  },
+  {
+   "id": "feature:auth/login-page",
+   "label": "Feature",
+   "name": "ログインページ（/login）",
+   "description": "ログインフォームだけを中央に置いたページ。戻り先の読み取りのため Suspense で包む。",
+   "file": "src/app/login/page.tsx",
+   "line_start": 5,
+   "line_end": 16,
+   "confidence": "high",
+   "evidence": "ページがフォームを Suspense で包んでいる"
+  },
+  {
+   "id": "rule:auth/cron-secret-required",
+   "label": "Rule",
+   "name": "通知の送信・組み直しは CRON_SECRET が合うときだけ受ける",
+   "description": "合言葉が合わない・未設定のときは DB に触れる前に401を返す。ログインの代わりの確かめ方。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 8,
+   "line_end": 14,
+   "confidence": "high",
+   "evidence": "authorized を最初に呼び 401。テストでも DB を触らないことを確かめている"
+  },
+  {
+   "id": "rule:auth/health-token-checked-before-db",
+   "label": "Rule",
+   "name": "ヘルスケアの受け口は、形の合わない合言葉を DB に触れる前に401",
+   "description": "Authorization の Bearer から合言葉を取り出し、形（43文字）が合わなければ401。形が合っても DB に SHA-256 が無ければ401。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 18,
+   "line_end": 26,
+   "confidence": "high",
+   "evidence": "HEALTH_TOKEN で形を確かめてから表を引く"
+  },
+  {
+   "id": "rule:auth/feed-token-hashed-lookup",
+   "label": "Rule",
+   "name": "iCal 配信は、アドレスの合言葉の SHA-256 で本人を見分け、合わなければ404",
+   "description": "末尾の .ics を取り、形を確かめ、SHA-256 を ical_feeds と照らす。見つからなければ404で理由を伏せる。",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 16,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "token を形検査→ハッシュ→表の照合"
+  },
+  {
+   "id": "rule:auth/ical-sync-requires-login",
+   "label": "Rule",
+   "name": "iCal の取り込みはログイン中の本人だけ（未ログインは401）",
+   "description": "ログインしていない（ユーザーが取れない）ときは、取り込みは401を返す。",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 20,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "getUser の結果がなければ 401"
+  },
+  {
+   "id": "rule:auth/rls-owner-only",
+   "label": "Rule",
+   "name": "どの表も、本人の行しか読み書きできない",
+   "description": "行レベルセキュリティを有効にし、auth.uid() が user_id と同じ行だけを読める・作れる・更新できる（消せるかは表ごと）。",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 11,
+   "line_end": 27,
+   "confidence": "high",
+   "evidence": "全マイグレーションで RLS とポリシーを作っている"
+  },
+  {
+   "id": "rule:auth/server-only-table-push-sent",
+   "label": "Rule",
+   "name": "送った通知の記録は、画面（本人）からは読めず書けない",
+   "description": "push_sent は RLS を有効にするがポリシーを作らないので、secret key を持つサーバーだけが使える。",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 64,
+   "line_end": 72,
+   "confidence": "high",
+   "evidence": "コメントとポリシーなしの RLS"
+  },
+  {
+   "id": "rule:auth/health-sleep-read-only-for-user",
+   "label": "Rule",
+   "name": "睡眠のまとめは本人は読むだけ、書くのはサーバー",
+   "description": "health_sleep には select のポリシーしかなく、書き込みは secret key のサーバーだけ。",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 1,
+   "line_end": 3,
+   "confidence": "high",
+   "evidence": "コメントと select だけのポリシー（47〜52行）"
+  },
+  {
+   "id": "rule:auth/no-delete-app-state",
+   "label": "Rule",
+   "name": "app_state はアプリから削除できない",
+   "description": "削除のポリシーを作らない。",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 29,
+   "line_end": 29,
+   "confidence": "high",
+   "evidence": "コメントで削除を作らないと明記"
+  },
+  {
+   "id": "feature:sync/app-state-store",
+   "label": "Feature",
+   "name": "アプリのデータをユーザーごとに1行（JSON）で持つ",
+   "description": "user_id を主キーに、データ全体を jsonb で1行に保存する表と、その版・更新時刻。",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 1,
+   "line_end": 9,
+   "confidence": "high",
+   "evidence": "app_state 表の定義"
+  },
+  {
+   "id": "rule:sync/server-clock-updated-at",
+   "label": "Rule",
+   "name": "app_state の保存時刻は端末ではなくサーバーの時計",
+   "description": "挿入・更新のたびにトリガで updated_at をサーバーの now() にし、2台の端末の保存の前後を正しく比べる。",
+   "file": "supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "line_start": 9,
+   "line_end": 24,
+   "confidence": "high",
+   "evidence": "トリガ関数とコメント（V8）"
+  },
+  {
+   "id": "rule:ical/url-hidden-from-browser",
+   "label": "Rule",
+   "name": "iCal の非公開 URL は画面（ブラウザ）から読めない",
+   "description": "ical_sources の select 権限を外し、url 以外の列だけ読めるようにする。取り込みはサーバーが secret key で行う。",
+   "file": "supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "line_start": 1,
+   "line_end": 7,
+   "confidence": "high",
+   "evidence": "revoke と列ごとの grant"
+  },
+  {
+   "id": "rule:ical/url-allowlist",
+   "label": "Rule",
+   "name": "取り込める iCal の URL は Google カレンダーと iCloud の https だけ",
+   "description": "DB の制約で calendar.google.com と icloud.com の https 以外を拒否する（アプリ側でも同じ確認）。名前は1〜60文字。",
+   "file": "supabase/migrations/0002_ical_sources.sql",
+   "line_start": 8,
+   "line_end": 10,
+   "confidence": "high",
+   "evidence": "check 制約の正規表現"
+  },
+  {
+   "id": "rule:ical/last-events-fallback",
+   "label": "Rule",
+   "name": "取り込みに失敗した元は、前回の結果で補って組み直す",
+   "description": "ical_sources に直近の取り込み結果を持ち、画面からは読めない。失敗した回は前回の予定で補い、通知の組み直しを止めない。",
+   "file": "supabase/migrations/0008_ical_last_events.sql",
+   "line_start": 1,
+   "line_end": 4,
+   "confidence": "high",
+   "evidence": "列の追加とコメント"
+  },
+  {
+   "id": "rule:ical/feed-hash-only-one-per-user",
+   "label": "Rule",
+   "name": "配信の合言葉は SHA-256 だけを保存し、1人1つ",
+   "description": "ical_feeds は user_id が主キーで token_hash は64桁の16進・一意。合言葉そのものは保存しない。",
+   "file": "supabase/migrations/0004_ical_feeds.sql",
+   "line_start": 1,
+   "line_end": 9,
+   "confidence": "high",
+   "evidence": "表の制約とコメント"
+  },
+  {
+   "id": "rule:health-sleep/token-hash-only",
+   "label": "Rule",
+   "name": "ヘルスケアの合言葉は SHA-256 だけを保存し、1人1つ",
+   "description": "health_tokens は user_id が主キーで token_hash は64桁の16進・一意。",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 5,
+   "line_end": 9,
+   "confidence": "high",
+   "evidence": "表の制約とコメント"
+  },
+  {
+   "id": "rule:health-sleep/night-row-constraints",
+   "label": "Rule",
+   "name": "睡眠のまとめは起きた日ごとに1行・時刻と分の範囲を制約",
+   "description": "主キーは (user_id, night)。起きた時刻は寝ついた時刻より後、眠った分は0〜1440。",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 34,
+   "line_end": 45,
+   "confidence": "high",
+   "evidence": "表の制約"
+  },
+  {
+   "id": "rule:notion/token-hidden-from-browser",
+   "label": "Rule",
+   "name": "Notion の合言葉は画面から読めない（登録・作り直し・削除はできる）",
+   "description": "notion_sources の select 権限を外し、合言葉以外の列だけ読めるようにする。",
+   "file": "supabase/migrations/0005_notion_sources.sql",
+   "line_start": 38,
+   "line_end": 41,
+   "confidence": "high",
+   "evidence": "revoke と列ごとの grant"
+  },
+  {
+   "id": "rule:notion/source-constraints",
+   "label": "Rule",
+   "name": "Notion の連携は1人1つで、合言葉は20〜200文字・表の ID は32桁の16進",
+   "description": "user_id が主キー。形の合わないものは保存できない。",
+   "file": "supabase/migrations/0005_notion_sources.sql",
+   "line_start": 5,
+   "line_end": 13,
+   "confidence": "high",
+   "evidence": "表の check 制約"
+  },
+  {
+   "id": "rule:notifications/subscription-constraints",
+   "label": "Rule",
+   "name": "通知を受け取る端末は https の宛先だけ・同じ端末は1回だけ",
+   "description": "endpoint は https で始まり1000文字以内、p256dh・auth・端末名にも長さの上限、(user_id, endpoint) は一意。",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 6,
+   "line_end": 15,
+   "confidence": "high",
+   "evidence": "表の check と unique"
+  },
+  {
+   "id": "rule:notifications/schedule-size-limit",
+   "label": "Rule",
+   "name": "通知の一覧は配列で、200000バイトまで",
+   "description": "push_schedule の items は配列の jsonb で、列の大きさに上限がある。ユーザーごとに1行。",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 40,
+   "line_end": 44,
+   "confidence": "high",
+   "evidence": "check 制約"
+  },
+  {
+   "id": "rule:sync/cascade-on-user-delete",
+   "label": "Rule",
+   "name": "ユーザーを消すと、その人の行はすべて消える",
+   "description": "各表の user_id は auth.users を参照し on delete cascade。",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 4,
+   "line_end": 9,
+   "confidence": "medium",
+   "evidence": "外部キーの指定。全表で同じ形"
+  },
+  {
+   "id": "feature:notifications/dispatch",
+   "label": "Feature",
+   "name": "時刻が来た通知を送る（1分ごと）",
+   "description": "pg_cron から1分ごとに呼ばれ、push_schedule の中で時刻が来たものを、その人の端末すべてへ送る。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 8,
+   "line_end": 47,
+   "confidence": "high",
+   "evidence": "POST が一覧を読み、due を送って記録している"
+  },
+  {
+   "id": "feature:notifications/hourly-replan",
+   "label": "Feature",
+   "name": "通知の一覧の組み直し（毎時）",
+   "description": "アプリを開いていなくても、app_state と取り込み元の iCal から通知の一覧を組み直し、push_schedule だけを書き換える。",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 5,
+   "line_end": 30,
+   "confidence": "high",
+   "evidence": "全ユーザーの app_state を読み replanPush する"
+  },
+  {
+   "id": "feature:notifications/test-send",
+   "label": "Feature",
+   "name": "テスト通知を送る",
+   "description": "設定画面の「テスト通知を送る」から、ログイン中の本人の端末にだけ通知を送る。",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 4,
+   "line_end": 18,
+   "confidence": "high",
+   "evidence": "本人のセッションで端末を読み、sendPush する"
+  },
+  {
+   "id": "rule:notifications/send-only-due",
+   "label": "Rule",
+   "name": "時刻が来た通知だけを、購読端末があるユーザーにだけ送る",
+   "description": "一覧から isDue のものだけを選び、端末がなければ何もしない。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 22,
+   "line_end": 28,
+   "confidence": "high",
+   "evidence": "filter(isDue) と購読の有無の判定"
+  },
+  {
+   "id": "rule:notifications/no-double-send",
+   "label": "Rule",
+   "name": "同じ通知を同じ端末に2回送らない",
+   "description": "送った記録（台帳）を通して送り、記録のある通知は送り直さない。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 29,
+   "line_end": 34,
+   "confidence": "medium",
+   "evidence": "deliverNotice に台帳を渡している。重複排除の中身は担当外のファイル"
+  },
+  {
+   "id": "rule:notifications/remove-gone-subscription",
+   "label": "Rule",
+   "name": "宛先がなくなった端末の登録は消す",
+   "description": "送信結果が gone なら、その端末の購読を削除する（テスト送信でも同じ）。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 36,
+   "line_end": 36,
+   "confidence": "high",
+   "evidence": "gone の分岐で delete"
+  },
+  {
+   "id": "rule:notifications/retry-on-failure",
+   "label": "Rule",
+   "name": "送信や記録に失敗しても止めず、次の回に再試行する",
+   "description": "失敗は数えて警告を出し、残りを続ける。時刻が過ぎても再試行できる。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 37,
+   "line_end": 40,
+   "confidence": "high",
+   "evidence": "catch で failed++ して続行"
+  },
+  {
+   "id": "rule:notifications/prune-sent-log",
+   "label": "Rule",
+   "name": "送った記録は3日たったら消す",
+   "description": "1回ごとの実行の最後に、3日より古い push_sent の行を削除する。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 45,
+   "line_end": 45,
+   "confidence": "high",
+   "evidence": "lt(sent_at) で削除"
+  },
+  {
+   "id": "setting:notifications/keep-sent-days",
+   "label": "Setting",
+   "name": "送った記録を残す期間（3日）",
+   "description": "push_sent を消すまでの時間。",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 6,
+   "line_end": 6,
+   "confidence": "high",
+   "evidence": "KEEP_SENT_MS",
+   "const_ref": "const:src/app/api/push/dispatch/route.ts#KEEP_SENT_MS",
+   "value": 259200000
+  },
+  {
+   "id": "rule:notifications/replan-isolated-per-user",
+   "label": "Rule",
+   "name": "1人のデータが壊れていても、ほかの人の組み直しは続ける",
+   "description": "ユーザーごとに try/catch し、失敗は planned=false・理由 error として結果に残す。",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 20,
+   "line_end": 28,
+   "confidence": "high",
+   "evidence": "ループ内の try/catch"
+  },
+  {
+   "id": "rule:notifications/replan-writes-schedule-only",
+   "label": "Rule",
+   "name": "組み直しで書くのは push_schedule だけ、app_state は書かない",
+   "description": "画面で編集した内容を上書きしないため。取り込めない予定があるときはアプリが作った一覧を残す。",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 5,
+   "line_end": 10,
+   "confidence": "high",
+   "evidence": "コメントで明示（書き込みの実体は replanPush で担当外）"
+  },
+  {
+   "id": "rule:notifications/test-own-devices-only",
+   "label": "Rule",
+   "name": "テスト通知はログイン中の本人の端末だけ。端末がなければエラー",
+   "description": "本人のセッションの権限で端末を読む。端末が0件なら400。宛先がなくなった端末は消す。",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 4,
+   "line_end": 16,
+   "confidence": "high",
+   "evidence": "RLS 付きのクライアントで読み、0件なら400"
+  },
+  {
+   "id": "feature:ical/sync-endpoint",
+   "label": "Feature",
+   "name": "登録した iCal をすべて取り込む（API）",
+   "description": "本人を確かめたあと、サーバーが DB から URL を読み、すべての iCal を読み取って予定の一覧と結果（件数・エラー）を返す。",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 9,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "POST が全ソースを parseIcs している"
+  },
+  {
+   "id": "feature:ical/feed-endpoint",
+   "label": "Feature",
+   "name": "アプリが組んだ予定を iCal として配信する（API）",
+   "description": "合言葉入りのアドレスを読みに来たら、その場で組み直して、枠・自分の予定・授業を iCal で返す。",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 10,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "GET が planOnServer して buildIcs している"
+  },
+  {
+   "id": "rule:ical/sync-default-window",
+   "label": "Rule",
+   "name": "取り込む期間の既定は、今から8日前〜16日先",
+   "description": "本文で from・to（ミリ秒）が数値で渡されればそれを使う。",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 13,
+   "line_end": 18,
+   "confidence": "high",
+   "evidence": "既定値の計算"
+  },
+  {
+   "id": "rule:ical/sync-continue-on-failure",
+   "label": "Rule",
+   "name": "1つの取り込みに失敗しても、ほかは続ける",
+   "description": "失敗した元は last_error にメッセージを残し、成功した元は取得時刻を更新して last_error を消す。",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 27,
+   "line_end": 40,
+   "confidence": "high",
+   "evidence": "try/catch で結果を分けて保存"
+  },
+  {
+   "id": "rule:ical/feed-rebuild-on-read",
+   "label": "Rule",
+   "name": "配信は読まれるたびに組み直し、取れなければ最後の保存を使う",
+   "description": "その場で planOnServer を呼び、うまくいかないときはアプリが最後に保存した配置・授業から作る。保存もなければ404。",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 24,
+   "line_end": 33,
+   "confidence": "high",
+   "evidence": "p.ok の分岐"
+  },
+  {
+   "id": "rule:ical/feed-private-and-noindex",
+   "label": "Rule",
+   "name": "配信は本人用なので、保存させず検索にも載せない",
+   "description": "Cache-Control は private, no-store、X-Robots-Tag は noindex、種類は text/calendar。",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 35,
+   "line_end": 41,
+   "confidence": "high",
+   "evidence": "応答ヘッダ"
+  },
+  {
+   "id": "rule:ical/feed-contents",
+   "label": "Rule",
+   "name": "配信に入るのは、枠・自分の予定・授業（Google の予定は入れない）",
+   "description": "buildIcs に blocks・events・classEvents を渡し、カレンダー名は「リズム カレンダー」。",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 27,
+   "line_end": 34,
+   "confidence": "high",
+   "evidence": "feedEvents への入力"
+  },
+  {
+   "id": "feature:notion/schema-endpoint",
+   "label": "Feature",
+   "name": "Notion の表の列を読む（API）",
+   "description": "登録した表のタイトル・日付・段階の列とその選択肢を返す。合言葉は返さない。",
+   "file": "src/app/api/notion/schema/route.ts",
+   "line_start": 4,
+   "line_end": 15,
+   "confidence": "high",
+   "evidence": "readSchema の結果をそのまま返す"
+  },
+  {
+   "id": "feature:notion/rows-endpoint",
+   "label": "Feature",
+   "name": "Notion の表の行を読む（API）",
+   "description": "選んだ締切の列（と段階の列）に従って、行の ID・タイトル・締切・段階を返す。",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 4,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "readRows を呼んで rows を返す"
+  },
+  {
+   "id": "rule:notion/never-return-token",
+   "label": "Rule",
+   "name": "Notion の合言葉は画面に返さない",
+   "description": "合言葉と表 ID はサーバーだけが読み、応答には含めない。",
+   "file": "src/app/api/notion/schema/route.ts",
+   "line_start": 4,
+   "line_end": 9,
+   "confidence": "high",
+   "evidence": "コメントと応答の中身"
+  },
+  {
+   "id": "rule:notion/date-column-required",
+   "label": "Rule",
+   "name": "締切の列が選ばれていなければ400",
+   "description": "dateProp が空・文字列でないときは取り込まない。段階の列は任意。",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 9,
+   "line_end": 10,
+   "confidence": "high",
+   "evidence": "検証と400"
+  },
+  {
+   "id": "rule:notion/error-recorded-and-502",
+   "label": "Rule",
+   "name": "Notion から読めなかったら、理由を記録して502を返す",
+   "description": "失敗のメッセージを last_error に残し、画面にも返す。成功時は取得時刻を更新する。",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 13,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "markNotionFetched に messages を渡している"
+  },
+  {
+   "id": "rule:notion/source-required",
+   "label": "Rule",
+   "name": "連携が登録されていなければ、本人の確認結果のエラーをそのまま返す",
+   "description": "ownNotionSource がエラーを返したら、その内容とステータスで終える。",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 11,
+   "line_end": 12,
+   "confidence": "medium",
+   "evidence": "分岐のみ。ステータスの中身は担当外のファイル"
+  },
+  {
+   "id": "feature:health-sleep/receive-endpoint",
+   "label": "Feature",
+   "name": "ヘルスケアの睡眠を受け取り、夜ごとに保存する（API）",
+   "description": "ショートカットが送った睡眠の行を読み、夜ごとのまとめにして health_sleep へ保存し、通知の一覧も組み直す。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 12,
+   "line_end": 66,
+   "confidence": "high",
+   "evidence": "POST が inspectSleepBody→summarizeSleep→upsert する"
+  },
+  {
+   "id": "rule:health-sleep/body-size-limit",
+   "label": "Rule",
+   "name": "本文は300000文字まで。超えたら413",
+   "description": "2日ぶんの睡眠なら十分な大きさに上限を設ける。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 6,
+   "line_end": 21,
+   "confidence": "high",
+   "evidence": "MAX_BODY との比較"
+  },
+  {
+   "id": "setting:health-sleep/max-body",
+   "label": "Setting",
+   "name": "受け取る本文の上限（300000）",
+   "description": "睡眠の送信の本文の大きさの上限。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 7,
+   "line_end": 7,
+   "confidence": "high",
+   "evidence": "MAX_BODY",
+   "const_ref": "const:src/app/api/health/sleep/route.ts#MAX_BODY",
+   "value": 300000
+  },
+  {
+   "id": "rule:health-sleep/write-scope",
+   "label": "Rule",
+   "name": "書くのは health_sleep と通知の一覧だけ。app_state は書かない",
+   "description": "開いているアプリの保存とぶつからないように。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 12,
+   "line_end": 16,
+   "confidence": "high",
+   "evidence": "コメントと upsert の対象"
+  },
+  {
+   "id": "rule:health-sleep/replan-after-receipt",
+   "label": "Rule",
+   "name": "睡眠が届いたら通知の一覧をすぐ組み直す。失敗しても受け取りは成功",
+   "description": "寝坊した朝もアプリを開く前から通知が合うように。app_state が無ければ組み直さない。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 44,
+   "line_end": 53,
+   "confidence": "high",
+   "evidence": "try/catch と replanned フラグ"
+  },
+  {
+   "id": "rule:health-sleep/save-error-500",
+   "label": "Rule",
+   "name": "保存に失敗したら500",
+   "description": "upsert のエラーのときだけ「保存できませんでした」を返す。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 42,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "error の分岐"
+  },
+  {
+   "id": "rule:health-sleep/response-diagnostics",
+   "label": "Rule",
+   "name": "応答に、受け取った夜・読めた数・読めなかった最初の行を載せる",
+   "description": "ショートカットの画面でも原因が分かるように、本文が空か項目名がちがうかを見分ける情報を返す。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 54,
+   "line_end": 65,
+   "confidence": "high",
+   "evidence": "応答の中身"
+  },
+  {
+   "id": "setting:health-sleep/token-setup",
+   "label": "Setting",
+   "name": "ヘルスケアの合言葉（43文字）",
+   "description": "ショートカットが Authorization に付ける合言葉。形は HEALTH_TOKEN の正規表現（英数字・_・-で43文字）。",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 18,
+   "line_end": 19,
+   "confidence": "medium",
+   "evidence": "形検査の条件。値そのものは DB にハッシュで持つ"
+  },
+  {
+   "id": "feature:calendar/event-colors",
+   "label": "Feature",
+   "name": "予定の種類ごとの色",
+   "description": "自分・楽しみ・授業・タスク・習慣・朝ルーティン・Google・移動の色を変数で持ち、予定のチップはその色を薄く混ぜて出す。ダークモードでは別の色。",
+   "file": "src/app/globals.css",
+   "line_start": 27,
+   "line_end": 36,
+   "confidence": "high",
+   "evidence": "--cal-* 変数と .ev の色の割り当て"
+  },
+  {
+   "id": "setting:calendar/color-defaults",
+   "label": "Setting",
+   "name": "カレンダーの色の初期値",
+   "description": "--cal-* の既定の色。設定の「カレンダーの色」で上書きされる。",
+   "file": "src/app/globals.css",
+   "line_start": 27,
+   "line_end": 34,
+   "confidence": "medium",
+   "evidence": "CSS に既定値がある。上書きの仕組みは担当外"
+  },
+  {
+   "id": "setting:calendar/chip-tint-percent",
+   "label": "Setting",
+   "name": "予定のチップの濃さ（通常17%・アプリが置いた枠11%・固定した枠22%）",
+   "description": "色を地に混ぜる割合。",
+   "file": "src/app/globals.css",
+   "line_start": 20,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "--ev-mix 系の3つの変数",
+   "value": "17% / 11% / 22%"
+  },
+  {
+   "id": "feature:calendar/swipe-strip",
+   "label": "Feature",
+   "name": "3日・週表示：横に日をめくり、縦に時間を動かす",
+   "description": "横の枠の中に縦の枠を入れ、指の向きで片方だけが動く。横は1日ずつぴったり止まる。",
+   "file": "src/app/globals.css",
+   "line_start": 537,
+   "line_end": 577,
+   "confidence": "high",
+   "evidence": "scroll-snap と overflow の構造"
+  },
+  {
+   "id": "feature:calendar/time-axis",
+   "label": "Feature",
+   "name": "外に出した時刻の目盛り",
+   "description": "時刻の目盛りが横に流れないよう外に置き、縦の枠に合わせて動かす。",
+   "file": "src/app/globals.css",
+   "line_start": 578,
+   "line_end": 625,
+   "confidence": "high",
+   "evidence": "cal-axis 系のクラス"
+  },
+  {
+   "id": "feature:calendar/month-overview",
+   "label": "Feature",
+   "name": "月表示：見渡すための画面",
+   "description": "日付の下に時刻の予定の件数を点で、締切は〆で出す。週を縦に途切れずに並べ、1週ずつ止まる。",
+   "file": "src/app/globals.css",
+   "line_start": 626,
+   "line_end": 680,
+   "confidence": "high",
+   "evidence": "mc-* と cal-month のクラス"
+  },
+  {
+   "id": "feature:calendar/travel-bands",
+   "label": "Feature",
+   "name": "移動を斜めの縞で見せる",
+   "description": "外出の前後の移動を、予定や枠と見分けられる斜めの縞にする。",
+   "file": "src/app/globals.css",
+   "line_start": 379,
+   "line_end": 387,
+   "confidence": "high",
+   "evidence": "is-travel のスタイル"
+  },
+  {
+   "id": "feature:calendar/sleep-bands",
+   "label": "Feature",
+   "name": "睡眠と、就寝3時間前からのタバコを控える時間の帯",
+   "description": "睡眠は淡い紫の帯、タバコを控える時間はそれより薄い帯で背景に出す。",
+   "file": "src/app/globals.css",
+   "line_start": 517,
+   "line_end": 535,
+   "confidence": "high",
+   "evidence": "sleep-band・nosmoke-band のスタイルとコメント"
+  },
+  {
+   "id": "rule:calendar/strip-snaps-per-day",
+   "label": "Rule",
+   "name": "3日・週は1日ずつ止まる",
+   "description": "止まる位置は日の列の先頭に付ける（固定表示の見出しに付けると iPhone では途中で止まるため）。",
+   "file": "src/app/globals.css",
+   "line_start": 537,
+   "line_end": 566,
+   "confidence": "high",
+   "evidence": "scroll-snap-type と snap-align の指定"
+  },
+  {
+   "id": "rule:calendar/month-snaps-per-week",
+   "label": "Rule",
+   "name": "月表示は1週ずつ止まり、曜日の見出しは固定",
+   "description": "週の行の高さを変数にして y 方向にスナップする。",
+   "file": "src/app/globals.css",
+   "line_start": 647,
+   "line_end": 672,
+   "confidence": "high",
+   "evidence": "cal-month のスナップ指定"
+  },
+  {
+   "id": "rule:calendar/pinch-locks-scroll",
+   "label": "Rule",
+   "name": "ピンチの間は縦も横も動かさない",
+   "description": "ピンチ中は overflow を hidden にして、2本指の操作をアプリが受け取る。",
+   "file": "src/app/globals.css",
+   "line_start": 573,
+   "line_end": 576,
+   "confidence": "high",
+   "evidence": "is-pinching の指定とコメント"
+  },
+  {
+   "id": "rule:calendar/selected-event-ring",
+   "label": "Rule",
+   "name": "選んだ予定・枠は赤い輪郭で示す（1回押して選び、もう1回で開く）",
+   "description": "選択中の予定に赤い枠を付け、前面に出す。",
+   "file": "src/app/globals.css",
+   "line_start": 388,
+   "line_end": 391,
+   "confidence": "medium",
+   "evidence": "is-selected のスタイル。2回押しの動きはコメントのみ"
+  },
+  {
+   "id": "rule:calendar/optional-class-dashed",
+   "label": "Rule",
+   "name": "任意参加で参加しない授業の回は、薄く点線で出す",
+   "description": "空き時間として扱うので目立たせない。",
+   "file": "src/app/globals.css",
+   "line_start": 400,
+   "line_end": 408,
+   "confidence": "high",
+   "evidence": "is-optional のスタイルとコメント"
+  },
+  {
+   "id": "rule:calendar/deadline-late-red",
+   "label": "Rule",
+   "name": "締切は タスクの色、遅れたものは赤の太字",
+   "description": "締切のチップは --cal-task、is-late のときは --accent と太字。",
+   "file": "src/app/globals.css",
+   "line_start": 636,
+   "line_end": 645,
+   "confidence": "high",
+   "evidence": "is-deadline と is-late のスタイル"
+  },
+  {
+   "id": "rule:calendar/slot-height-pinch",
+   "label": "Rule",
+   "name": "30分の高さはピンチで変える（既定2.6em）",
+   "description": "変数 --slot-h で高さを決める。",
+   "file": "src/app/globals.css",
+   "line_start": 677,
+   "line_end": 680,
+   "confidence": "high",
+   "evidence": "slot の height に変数"
+  },
+  {
+   "id": "setting:calendar/slot-height",
+   "label": "Setting",
+   "name": "30分の枠の高さ（既定 2.6em）",
+   "description": "3日・週表示の30分の高さ。ピンチで変える。",
+   "file": "src/app/globals.css",
+   "line_start": 677,
+   "line_end": 680,
+   "confidence": "high",
+   "evidence": "--slot-h の既定値",
+   "value": "2.6em"
+  },
+  {
+   "id": "rule:app/accent-red-sparingly",
+   "label": "Rule",
+   "name": "赤は「いま」と、足りない・間に合わないなどの知らせだけに使う",
+   "description": "色の方針。ボタンなどは墨色（--tint）で表す。",
+   "file": "src/app/globals.css",
+   "line_start": 8,
+   "line_end": 13,
+   "confidence": "medium",
+   "evidence": "コメントのみ。守られているかは各所の使い方に依存"
+  },
+  {
+   "id": "rule:app/dark-mode-follows-device",
+   "label": "Rule",
+   "name": "ダークモードは端末の設定に合わせる",
+   "description": "prefers-color-scheme: dark で色の変数を入れ替える。",
+   "file": "src/app/globals.css",
+   "line_start": 3,
+   "line_end": 70,
+   "confidence": "high",
+   "evidence": "メディアクエリ"
+  },
+  {
+   "id": "rule:app/hide-card-shadow-in-dark",
+   "label": "Rule",
+   "name": "ダークモードではカードの影を出さない",
+   "description": "card-shadow を dark では none にする。",
+   "file": "src/app/globals.css",
+   "line_start": 110,
+   "line_end": 118,
+   "confidence": "high",
+   "evidence": "メディアクエリ内の指定"
+  },
+  {
+   "id": "rule:app/respect-reduced-motion",
+   "label": "Rule",
+   "name": "動きを減らす設定のときは、今日の楽しみが開くアニメをしない",
+   "description": "prefers-reduced-motion: reduce で reveal を無効化。",
+   "file": "src/app/globals.css",
+   "line_start": 120,
+   "line_end": 138,
+   "confidence": "high",
+   "evidence": "メディアクエリ内の指定"
+  },
+  {
+   "id": "rule:app/ios-date-inputs-no-own-width",
+   "label": "Rule",
+   "name": "iPhone の日付・時刻の欄は自分の幅を持たず、枠からはみ出させない",
+   "description": "appearance を外し min-width を0にする。",
+   "file": "src/app/globals.css",
+   "line_start": 98,
+   "line_end": 108,
+   "confidence": "high",
+   "evidence": "指定とコメント"
+  },
+  {
+   "id": "feature:today/treat-reveal-animation",
+   "label": "Feature",
+   "name": "今日の楽しみが開くときのアニメーション",
+   "description": "少し下から浮かんで現れる。",
+   "file": "src/app/globals.css",
+   "line_start": 120,
+   "line_end": 133,
+   "confidence": "high",
+   "evidence": "reveal のキーフレーム"
+  },
+  {
+   "id": "setting:infra/env-supabase-url",
+   "label": "Setting",
+   "name": "NEXT_PUBLIC_SUPABASE_URL（Supabase の接続先）",
+   "description": "Supabase プロジェクトの URL。ダッシュボードからコピーして .env.local に書く。",
+   "file": ".env.example",
+   "line_start": 4,
+   "line_end": 5,
+   "confidence": "high",
+   "evidence": "変数名とコメント"
+  },
+  {
+   "id": "setting:infra/env-supabase-publishable-key",
+   "label": "Setting",
+   "name": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY（公開してよい鍵）",
+   "description": "画面側の Supabase クライアントが使う鍵（sb_publishable_ で始まる）。",
+   "file": ".env.example",
+   "line_start": 7,
+   "line_end": 8,
+   "confidence": "high",
+   "evidence": "変数名とコメント"
+  },
+  {
+   "id": "setting:infra/env-vapid-public-key",
+   "label": "Setting",
+   "name": "NEXT_PUBLIC_VAPID_PUBLIC_KEY（通知の公開鍵）",
+   "description": "通知（Web Push）の購読に使う公開鍵。web-push で作る。",
+   "file": ".env.example",
+   "line_start": 10,
+   "line_end": 11,
+   "confidence": "high",
+   "evidence": "変数名とコメント"
+  },
+  {
+   "id": "setting:infra/env-vapid-private-key",
+   "label": "Setting",
+   "name": "VAPID_PRIVATE_KEY（通知の秘密鍵）",
+   "description": "通知の送信に使う秘密鍵。サーバーだけで使う。",
+   "file": ".env.example",
+   "line_start": 10,
+   "line_end": 12,
+   "confidence": "high",
+   "evidence": "変数名とコメント"
+  },
+  {
+   "id": "setting:infra/env-cron-secret",
+   "label": "Setting",
+   "name": "CRON_SECRET（定期実行の合言葉）",
+   "description": "pg_cron が /api/push/dispatch などを呼ぶときの合言葉。長いランダムな文字列。",
+   "file": ".env.example",
+   "line_start": 14,
+   "line_end": 15,
+   "confidence": "high",
+   "evidence": "変数名とコメント"
+  },
+  {
+   "id": "setting:infra/env-supabase-secret-key",
+   "label": "Setting",
+   "name": "SUPABASE_SECRET_KEY（サーバー専用の鍵）",
+   "description": "サーバーだけで使い、画面には出さない（sb_secret_ で始まる）。",
+   "file": ".env.example",
+   "line_start": 17,
+   "line_end": 18,
+   "confidence": "high",
+   "evidence": "変数名とコメント"
+  },
+  {
+   "id": "setting:infra/dev-indicator-off",
+   "label": "Setting",
+   "name": "開発中の印（左下の N）を出さない",
+   "description": "iPhone の画面の見た目の確認のじゃまになるため出さない。",
+   "file": "next.config.ts",
+   "line_start": 4,
+   "line_end": 5,
+   "confidence": "high",
+   "evidence": "devIndicators: false",
+   "value": false
+  },
+  {
+   "id": "rule:infra/path-alias-at",
+   "label": "Rule",
+   "name": "「@/」は src/ を指す",
+   "description": "コードの import と、テストの実行の両方で同じ別名を使う。",
+   "file": "tsconfig.json",
+   "line_start": 21,
+   "line_end": 23,
+   "confidence": "high",
+   "evidence": "tsconfig の paths と vitest の alias"
+  },
+  {
+   "id": "rule:infra/typescript-strict",
+   "label": "Rule",
+   "name": "TypeScript は strict で、出力はしない（型の検査だけ）",
+   "description": "strict を有効にし、noEmit で型検査専用にする。",
+   "file": "tsconfig.json",
+   "line_start": 7,
+   "line_end": 8,
+   "confidence": "high",
+   "evidence": "compilerOptions"
+  },
+  {
+   "id": "rule:infra/eslint-next-config",
+   "label": "Rule",
+   "name": "lint は Next.js の core-web-vitals と typescript の設定に従い、.next などは対象外",
+   "description": "ビルド出力や next-env.d.ts は検査しない。",
+   "file": "eslint.config.mjs",
+   "line_start": 5,
+   "line_end": 16,
+   "confidence": "high",
+   "evidence": "設定の配列と globalIgnores"
+  }
+ ],
+ "edges": [
+  {
+   "type": "PART_OF",
+   "from": "feature:pwa/offline-cache",
+   "to": "feature:pwa",
+   "file": "public/sw.js",
+   "line_start": 22,
+   "line_end": 94
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:pwa/push-display",
+   "to": "feature:notifications",
+   "file": "public/sw.js",
+   "line_start": 96,
+   "line_end": 131
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:pwa/install-to-home",
+   "to": "feature:pwa",
+   "file": "src/app/manifest.ts",
+   "line_start": 3,
+   "line_end": 21
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:pwa/app-icons",
+   "to": "feature:pwa",
+   "file": "scripts/make-icons.mjs",
+   "line_start": 1,
+   "line_end": 25
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:pwa/ui-foundation",
+   "to": "feature:pwa",
+   "file": "src/app/globals.css",
+   "line_start": 1,
+   "line_end": 178
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:infra/dev-tooling",
+   "to": "feature:pwa",
+   "file": "package.json",
+   "line_start": 5,
+   "line_end": 11
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:app/shell-layout",
+   "to": "feature:sync",
+   "file": "src/app/(app)/layout.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/section-pages",
+   "to": "feature:settings",
+   "file": "src/app/(app)/settings/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:auth/login-form",
+   "to": "feature:auth",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 8,
+   "line_end": 71
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:auth/login-page",
+   "to": "feature:auth",
+   "file": "src/app/login/page.tsx",
+   "line_start": 5,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:sync/app-state-store",
+   "to": "feature:sync",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 1,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/dispatch",
+   "to": "feature:notifications",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 8,
+   "line_end": 47
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/hourly-replan",
+   "to": "feature:notifications",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 5,
+   "line_end": 30
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/test-send",
+   "to": "feature:notifications",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 4,
+   "line_end": 18
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/sync-endpoint",
+   "to": "feature:ical",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 9,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/feed-endpoint",
+   "to": "feature:ical",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 10,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notion/schema-endpoint",
+   "to": "feature:notion",
+   "file": "src/app/api/notion/schema/route.ts",
+   "line_start": 4,
+   "line_end": 15
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notion/rows-endpoint",
+   "to": "feature:notion",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 4,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/receive-endpoint",
+   "to": "feature:health-sleep",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 12,
+   "line_end": 66
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/event-colors",
+   "to": "feature:calendar",
+   "file": "src/app/globals.css",
+   "line_start": 27,
+   "line_end": 36
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/swipe-strip",
+   "to": "feature:calendar",
+   "file": "src/app/globals.css",
+   "line_start": 537,
+   "line_end": 577
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/time-axis",
+   "to": "feature:calendar",
+   "file": "src/app/globals.css",
+   "line_start": 578,
+   "line_end": 625
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/month-overview",
+   "to": "feature:calendar",
+   "file": "src/app/globals.css",
+   "line_start": 626,
+   "line_end": 680
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/travel-bands",
+   "to": "feature:calendar",
+   "file": "src/app/globals.css",
+   "line_start": 379,
+   "line_end": 387
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:calendar/sleep-bands",
+   "to": "feature:calendar",
+   "file": "src/app/globals.css",
+   "line_start": 517,
+   "line_end": 535
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:today/treat-reveal-animation",
+   "to": "feature:today",
+   "file": "src/app/globals.css",
+   "line_start": 120,
+   "line_end": 133
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/cache-versioned",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 1,
+   "line_end": 20
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/skip-api-and-other-origins",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 56,
+   "line_end": 59
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/static-parts-cache-first",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 61,
+   "line_end": 75
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/pages-network-first",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 66,
+   "line_end": 94
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/skip-redirected-login",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 38,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/warm-throttle",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 22,
+   "line_end": 52
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/notification-url-same-app-only",
+   "to": "feature:pwa/push-display",
+   "file": "public/sw.js",
+   "line_start": 110,
+   "line_end": 111
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/notification-click-focus-existing",
+   "to": "feature:pwa/push-display",
+   "file": "public/sw.js",
+   "line_start": 117,
+   "line_end": 130
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/sw-no-store-header",
+   "to": "feature:pwa/offline-cache",
+   "file": "next.config.ts",
+   "line_start": 6,
+   "line_end": 17
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:pwa/sw-version",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 3,
+   "line_end": 3
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:pwa/shell-pages",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 4,
+   "line_end": 5
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:pwa/warm-interval-minutes",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 24,
+   "line_end": 27
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/viewport-safe-area-and-theme-color",
+   "to": "feature:pwa/install-to-home",
+   "file": "src/app/layout.tsx",
+   "line_start": 12,
+   "line_end": 20
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/sw-register-in-root-layout",
+   "to": "feature:pwa",
+   "file": "src/app/layout.tsx",
+   "line_start": 22,
+   "line_end": 31
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/language-ja",
+   "to": "feature:pwa/install-to-home",
+   "file": "src/app/layout.tsx",
+   "line_start": 24,
+   "line_end": 24
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/standalone-display",
+   "to": "feature:pwa/install-to-home",
+   "file": "src/app/manifest.ts",
+   "line_start": 10,
+   "line_end": 13
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:pwa/maskable-icon",
+   "to": "feature:pwa/install-to-home",
+   "file": "src/app/manifest.ts",
+   "line_start": 15,
+   "line_end": 19
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/no-signup-in-app",
+   "to": "feature:auth/login-form",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 8,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/login-redirect-same-app-only",
+   "to": "feature:auth/login-form",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 27,
+   "line_end": 28
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/login-error-messages",
+   "to": "feature:auth/login-form",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 73,
+   "line_end": 85
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/cron-secret-required",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 8,
+   "line_end": 14
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/health-token-checked-before-db",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 18,
+   "line_end": 26
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/feed-token-hashed-lookup",
+   "to": "feature:ical/feed-endpoint",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 16,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/ical-sync-requires-login",
+   "to": "feature:ical/sync-endpoint",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 20,
+   "line_end": 21
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/rls-owner-only",
+   "to": "feature:sync/app-state-store",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 11,
+   "line_end": 27
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/server-only-table-push-sent",
+   "to": "feature:notifications/dispatch",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 64,
+   "line_end": 72
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/health-sleep-read-only-for-user",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 1,
+   "line_end": 3
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:auth/no-delete-app-state",
+   "to": "feature:sync/app-state-store",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 29,
+   "line_end": 29
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/server-clock-updated-at",
+   "to": "feature:sync/app-state-store",
+   "file": "supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "line_start": 9,
+   "line_end": 24
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:sync/cascade-on-user-delete",
+   "to": "feature:sync/app-state-store",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 4,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/url-hidden-from-browser",
+   "to": "feature:ical/sync-endpoint",
+   "file": "supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "line_start": 1,
+   "line_end": 7
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/url-allowlist",
+   "to": "feature:ical/sync-endpoint",
+   "file": "supabase/migrations/0002_ical_sources.sql",
+   "line_start": 8,
+   "line_end": 10
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/last-events-fallback",
+   "to": "feature:ical/sync-endpoint",
+   "file": "supabase/migrations/0008_ical_last_events.sql",
+   "line_start": 1,
+   "line_end": 4
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-hash-only-one-per-user",
+   "to": "feature:ical/feed-endpoint",
+   "file": "supabase/migrations/0004_ical_feeds.sql",
+   "line_start": 1,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/token-hash-only",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 5,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/night-row-constraints",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 34,
+   "line_end": 45
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/token-hidden-from-browser",
+   "to": "feature:notion/schema-endpoint",
+   "file": "supabase/migrations/0005_notion_sources.sql",
+   "line_start": 38,
+   "line_end": 41
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/source-constraints",
+   "to": "feature:notion/schema-endpoint",
+   "file": "supabase/migrations/0005_notion_sources.sql",
+   "line_start": 5,
+   "line_end": 13
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/subscription-constraints",
+   "to": "feature:notifications/dispatch",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 6,
+   "line_end": 15
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/schedule-size-limit",
+   "to": "feature:notifications/hourly-replan",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 40,
+   "line_end": 44
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/send-only-due",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 22,
+   "line_end": 28
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/no-double-send",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 29,
+   "line_end": 34
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/remove-gone-subscription",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/retry-on-failure",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 37,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/prune-sent-log",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 45,
+   "line_end": 45
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/keep-sent-days",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/replan-isolated-per-user",
+   "to": "feature:notifications/hourly-replan",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 20,
+   "line_end": 28
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/replan-writes-schedule-only",
+   "to": "feature:notifications/hourly-replan",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 5,
+   "line_end": 10
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/test-own-devices-only",
+   "to": "feature:notifications/test-send",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 4,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/sync-default-window",
+   "to": "feature:ical/sync-endpoint",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 13,
+   "line_end": 18
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/sync-continue-on-failure",
+   "to": "feature:ical/sync-endpoint",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 27,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-rebuild-on-read",
+   "to": "feature:ical/feed-endpoint",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 24,
+   "line_end": 33
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-private-and-noindex",
+   "to": "feature:ical/feed-endpoint",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 35,
+   "line_end": 41
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-contents",
+   "to": "feature:ical/feed-endpoint",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 27,
+   "line_end": 34
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/never-return-token",
+   "to": "feature:notion/schema-endpoint",
+   "file": "src/app/api/notion/schema/route.ts",
+   "line_start": 4,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/date-column-required",
+   "to": "feature:notion/rows-endpoint",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 9,
+   "line_end": 10
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/error-recorded-and-502",
+   "to": "feature:notion/rows-endpoint",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 13,
+   "line_end": 21
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/source-required",
+   "to": "feature:notion/rows-endpoint",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 11,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/body-size-limit",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 6,
+   "line_end": 21
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:health-sleep/max-body",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/write-scope",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 12,
+   "line_end": 16
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/replan-after-receipt",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 44,
+   "line_end": 53
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/save-error-500",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 42,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/response-diagnostics",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 54,
+   "line_end": 65
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:health-sleep/token-setup",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 18,
+   "line_end": 19
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/color-defaults",
+   "to": "feature:calendar/event-colors",
+   "file": "src/app/globals.css",
+   "line_start": 27,
+   "line_end": 34
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/chip-tint-percent",
+   "to": "feature:calendar/event-colors",
+   "file": "src/app/globals.css",
+   "line_start": 20,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:calendar/slot-height",
+   "to": "feature:calendar/swipe-strip",
+   "file": "src/app/globals.css",
+   "line_start": 677,
+   "line_end": 680
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/strip-snaps-per-day",
+   "to": "feature:calendar/swipe-strip",
+   "file": "src/app/globals.css",
+   "line_start": 537,
+   "line_end": 566
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/month-snaps-per-week",
+   "to": "feature:calendar/month-overview",
+   "file": "src/app/globals.css",
+   "line_start": 647,
+   "line_end": 672
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/pinch-locks-scroll",
+   "to": "feature:calendar/swipe-strip",
+   "file": "src/app/globals.css",
+   "line_start": 573,
+   "line_end": 576
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/selected-event-ring",
+   "to": "feature:calendar",
+   "file": "src/app/globals.css",
+   "line_start": 388,
+   "line_end": 391
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/optional-class-dashed",
+   "to": "feature:calendar",
+   "file": "src/app/globals.css",
+   "line_start": 400,
+   "line_end": 408
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/deadline-late-red",
+   "to": "feature:calendar/month-overview",
+   "file": "src/app/globals.css",
+   "line_start": 636,
+   "line_end": 645
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:calendar/slot-height-pinch",
+   "to": "feature:calendar/swipe-strip",
+   "file": "src/app/globals.css",
+   "line_start": 677,
+   "line_end": 680
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/accent-red-sparingly",
+   "to": "feature:pwa/ui-foundation",
+   "file": "src/app/globals.css",
+   "line_start": 8,
+   "line_end": 13
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/dark-mode-follows-device",
+   "to": "feature:pwa/ui-foundation",
+   "file": "src/app/globals.css",
+   "line_start": 3,
+   "line_end": 70
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/hide-card-shadow-in-dark",
+   "to": "feature:pwa/ui-foundation",
+   "file": "src/app/globals.css",
+   "line_start": 110,
+   "line_end": 118
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/respect-reduced-motion",
+   "to": "feature:today/treat-reveal-animation",
+   "file": "src/app/globals.css",
+   "line_start": 120,
+   "line_end": 138
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:app/ios-date-inputs-no-own-width",
+   "to": "feature:pwa/ui-foundation",
+   "file": "src/app/globals.css",
+   "line_start": 98,
+   "line_end": 108
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:infra/env-supabase-url",
+   "to": "feature:sync",
+   "file": ".env.example",
+   "line_start": 4,
+   "line_end": 5
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:infra/env-supabase-publishable-key",
+   "to": "feature:auth",
+   "file": ".env.example",
+   "line_start": 7,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:infra/env-vapid-public-key",
+   "to": "feature:notifications",
+   "file": ".env.example",
+   "line_start": 10,
+   "line_end": 11
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:infra/env-vapid-private-key",
+   "to": "feature:notifications",
+   "file": ".env.example",
+   "line_start": 10,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:infra/env-cron-secret",
+   "to": "feature:notifications",
+   "file": ".env.example",
+   "line_start": 14,
+   "line_end": 15
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:infra/env-supabase-secret-key",
+   "to": "feature:sync",
+   "file": ".env.example",
+   "line_start": 17,
+   "line_end": 18
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:infra/dev-indicator-off",
+   "to": "feature:infra/dev-tooling",
+   "file": "next.config.ts",
+   "line_start": 4,
+   "line_end": 5
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:infra/path-alias-at",
+   "to": "feature:infra/dev-tooling",
+   "file": "tsconfig.json",
+   "line_start": 21,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:infra/typescript-strict",
+   "to": "feature:infra/dev-tooling",
+   "file": "tsconfig.json",
+   "line_start": 7,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:infra/eslint-next-config",
+   "to": "feature:infra/dev-tooling",
+   "file": "eslint.config.mjs",
+   "line_start": 5,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:public/sw.js#warm",
+   "to": "feature:pwa/offline-cache",
+   "file": "public/sw.js",
+   "line_start": 32,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:public/sw.js#cacheFirst",
+   "to": "rule:pwa/static-parts-cache-first",
+   "file": "public/sw.js",
+   "line_start": 69,
+   "line_end": 75
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:public/sw.js#networkFirst",
+   "to": "rule:pwa/pages-network-first",
+   "file": "public/sw.js",
+   "line_start": 77,
+   "line_end": 94
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:public/sw.js#networkFirst",
+   "to": "rule:pwa/skip-redirected-login",
+   "file": "public/sw.js",
+   "line_start": 82,
+   "line_end": 83
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:public/sw.js#warm",
+   "to": "rule:pwa/skip-redirected-login",
+   "file": "public/sw.js",
+   "line_start": 38,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:public/sw.js#warm",
+   "to": "rule:pwa/warm-throttle",
+   "file": "public/sw.js",
+   "line_start": 32,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:public/sw.js",
+   "to": "rule:pwa/warm-throttle",
+   "file": "public/sw.js",
+   "line_start": 24,
+   "line_end": 30
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:public/sw.js",
+   "to": "rule:pwa/cache-versioned",
+   "file": "public/sw.js",
+   "line_start": 11,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:public/sw.js",
+   "to": "rule:pwa/skip-api-and-other-origins",
+   "file": "public/sw.js",
+   "line_start": 54,
+   "line_end": 59
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:public/sw.js",
+   "to": "feature:pwa/push-display",
+   "file": "public/sw.js",
+   "line_start": 96,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:public/sw.js",
+   "to": "rule:pwa/notification-url-same-app-only",
+   "file": "public/sw.js",
+   "line_start": 110,
+   "line_end": 111
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:public/sw.js",
+   "to": "rule:pwa/notification-click-focus-existing",
+   "file": "public/sw.js",
+   "line_start": 116,
+   "line_end": 131
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:public/sw.js#VERSION",
+   "to": "setting:pwa/sw-version",
+   "file": "public/sw.js",
+   "line_start": 3,
+   "line_end": 3
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:public/sw.js#SHELL",
+   "to": "setting:pwa/shell-pages",
+   "file": "public/sw.js",
+   "line_start": 5,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:public/sw.js#PAGES",
+   "to": "rule:pwa/cache-versioned",
+   "file": "public/sw.js",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:public/sw.js#ASSETS",
+   "to": "rule:pwa/cache-versioned",
+   "file": "public/sw.js",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:public/sw.js",
+   "to": "setting:pwa/warm-interval-minutes",
+   "file": "public/sw.js",
+   "line_start": 24,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:next.config.ts",
+   "to": "rule:pwa/sw-no-store-header",
+   "file": "next.config.ts",
+   "line_start": 6,
+   "line_end": 17
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:next.config.ts",
+   "to": "setting:infra/dev-indicator-off",
+   "file": "next.config.ts",
+   "line_start": 4,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:next.config.ts",
+   "to": "feature:infra/dev-tooling",
+   "file": "next.config.ts",
+   "line_start": 3,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/app/layout.tsx#metadata",
+   "to": "feature:pwa/install-to-home",
+   "file": "src/app/layout.tsx",
+   "line_start": 5,
+   "line_end": 10
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/app/layout.tsx#viewport",
+   "to": "rule:app/viewport-safe-area-and-theme-color",
+   "file": "src/app/layout.tsx",
+   "line_start": 12,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/layout.tsx#RootLayout",
+   "to": "rule:pwa/sw-register-in-root-layout",
+   "file": "src/app/layout.tsx",
+   "line_start": 22,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/layout.tsx#RootLayout",
+   "to": "rule:app/language-ja",
+   "file": "src/app/layout.tsx",
+   "line_start": 22,
+   "line_end": 31
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/layout.tsx",
+   "to": "feature:pwa/ui-foundation",
+   "file": "src/app/layout.tsx",
+   "line_start": 2,
+   "line_end": 2
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/manifest.ts#manifest",
+   "to": "feature:pwa/install-to-home",
+   "file": "src/app/manifest.ts",
+   "line_start": 4,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/manifest.ts#manifest",
+   "to": "rule:pwa/standalone-display",
+   "file": "src/app/manifest.ts",
+   "line_start": 4,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/manifest.ts#manifest",
+   "to": "rule:pwa/maskable-icon",
+   "file": "src/app/manifest.ts",
+   "line_start": 4,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:scripts/make-icons.mjs",
+   "to": "feature:pwa/app-icons",
+   "file": "scripts/make-icons.mjs",
+   "line_start": 1,
+   "line_end": 25
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/login/LoginForm.tsx#LoginForm",
+   "to": "feature:auth/login-form",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 9,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/login/LoginForm.tsx#LoginForm",
+   "to": "rule:auth/login-redirect-same-app-only",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 27,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/login/LoginForm.tsx#LoginForm",
+   "to": "rule:auth/no-signup-in-app",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 9,
+   "line_end": 71
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/login/LoginForm.tsx#loginErrorMessage",
+   "to": "rule:auth/login-error-messages",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 74,
+   "line_end": 85
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/login",
+   "to": "feature:auth/login-page",
+   "file": "src/app/login/page.tsx",
+   "line_start": 1,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/login/page.tsx#LoginPage",
+   "to": "feature:auth/login-page",
+   "file": "src/app/login/page.tsx",
+   "line_start": 7,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/layout.tsx#AppLayout",
+   "to": "feature:app/shell-layout",
+   "file": "src/app/(app)/layout.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/",
+   "to": "feature:today",
+   "file": "src/app/(app)/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/calendar",
+   "to": "feature:calendar",
+   "file": "src/app/(app)/calendar/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/tasks",
+   "to": "feature:tasks",
+   "file": "src/app/(app)/tasks/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/stats",
+   "to": "feature:stats",
+   "file": "src/app/(app)/stats/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings",
+   "to": "feature:settings",
+   "file": "src/app/(app)/settings/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/avoid",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/avoid/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/basic",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/basic/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/calendars",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/calendars/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/colors",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/colors/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/feed",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/feed/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/habits",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/habits/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/health",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/health/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/notifications",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/notifications/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/notion",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/notion/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/places",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/places/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/rewards",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/rewards/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/routine",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/routine/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/tags",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/tags/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/timetable",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/timetable/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/treats",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/treats/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "route:page:/settings/weather",
+   "to": "feature:settings/section-pages",
+   "file": "src/app/(app)/settings/weather/page.tsx",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/calendars/page.tsx#Page",
+   "to": "feature:ical",
+   "file": "src/app/(app)/settings/calendars/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/feed/page.tsx#Page",
+   "to": "feature:ical/feed-endpoint",
+   "file": "src/app/(app)/settings/feed/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/notifications/page.tsx#Page",
+   "to": "feature:notifications",
+   "file": "src/app/(app)/settings/notifications/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/notion/page.tsx#Page",
+   "to": "feature:notion",
+   "file": "src/app/(app)/settings/notion/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/health/page.tsx#Page",
+   "to": "feature:health-sleep",
+   "file": "src/app/(app)/settings/health/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/weather/page.tsx#Page",
+   "to": "feature:weather",
+   "file": "src/app/(app)/settings/weather/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/habits/page.tsx#Page",
+   "to": "feature:habits",
+   "file": "src/app/(app)/settings/habits/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/rewards/page.tsx#Page",
+   "to": "feature:rewards",
+   "file": "src/app/(app)/settings/rewards/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/timetable/page.tsx#Page",
+   "to": "feature:timetable",
+   "file": "src/app/(app)/settings/timetable/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/(app)/settings/colors/page.tsx#Page",
+   "to": "feature:calendar/event-colors",
+   "file": "src/app/(app)/settings/colors/page.tsx",
+   "line_start": 3,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/dispatch/route.ts#POST",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 12,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/dispatch/route.ts#POST",
+   "to": "rule:auth/cron-secret-required",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 13,
+   "line_end": 13
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/dispatch/route.ts#POST",
+   "to": "rule:notifications/send-only-due",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 22,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/dispatch/route.ts#POST",
+   "to": "rule:notifications/no-double-send",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 29,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/dispatch/route.ts#POST",
+   "to": "rule:notifications/remove-gone-subscription",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/dispatch/route.ts#POST",
+   "to": "rule:notifications/retry-on-failure",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 37,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/dispatch/route.ts#POST",
+   "to": "rule:notifications/prune-sent-log",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 45,
+   "line_end": 45
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/app/api/push/dispatch/route.ts#KEEP_SENT_MS",
+   "to": "setting:notifications/keep-sent-days",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/replan/route.ts#POST",
+   "to": "feature:notifications/hourly-replan",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 11,
+   "line_end": 30
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/replan/route.ts#POST",
+   "to": "rule:auth/cron-secret-required",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/replan/route.ts#POST",
+   "to": "rule:notifications/replan-isolated-per-user",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 20,
+   "line_end": 28
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/replan/route.ts#POST",
+   "to": "rule:notifications/replan-writes-schedule-only",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 11,
+   "line_end": 30
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/test/route.ts#POST",
+   "to": "feature:notifications/test-send",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 5,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/test/route.ts#POST",
+   "to": "rule:notifications/test-own-devices-only",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 5,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/push/test/route.ts#POST",
+   "to": "rule:notifications/remove-gone-subscription",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 15,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/sync/route.ts#POST",
+   "to": "feature:ical/sync-endpoint",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 14,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/sync/route.ts#POST",
+   "to": "rule:ical/sync-default-window",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 15,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/app/api/ical/sync/route.ts#DAY_MS",
+   "to": "rule:ical/sync-default-window",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/sync/route.ts#POST",
+   "to": "rule:auth/ical-sync-requires-login",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 20,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/sync/route.ts#POST",
+   "to": "rule:ical/sync-continue-on-failure",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 27,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/feed/[token]/route.ts#GET",
+   "to": "feature:ical/feed-endpoint",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 15,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/feed/[token]/route.ts#GET",
+   "to": "rule:auth/feed-token-hashed-lookup",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 16,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/feed/[token]/route.ts#GET",
+   "to": "rule:ical/feed-rebuild-on-read",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 24,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/feed/[token]/route.ts#GET",
+   "to": "rule:ical/feed-private-and-noindex",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 35,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/ical/feed/[token]/route.ts#GET",
+   "to": "rule:ical/feed-contents",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 27,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/notion/schema/route.ts#POST",
+   "to": "feature:notion/schema-endpoint",
+   "file": "src/app/api/notion/schema/route.ts",
+   "line_start": 5,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/notion/schema/route.ts#POST",
+   "to": "rule:notion/never-return-token",
+   "file": "src/app/api/notion/schema/route.ts",
+   "line_start": 5,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/notion/schema/route.ts#POST",
+   "to": "rule:notion/error-recorded-and-502",
+   "file": "src/app/api/notion/schema/route.ts",
+   "line_start": 8,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/notion/sync/route.ts#POST",
+   "to": "feature:notion/rows-endpoint",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 8,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/notion/sync/route.ts#POST",
+   "to": "rule:notion/date-column-required",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 9,
+   "line_end": 10
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/notion/sync/route.ts#POST",
+   "to": "rule:notion/source-required",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 11,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/notion/sync/route.ts#POST",
+   "to": "rule:notion/error-recorded-and-502",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 13,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/health/sleep/route.ts#POST",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 17,
+   "line_end": 66
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/health/sleep/route.ts#POST",
+   "to": "rule:auth/health-token-checked-before-db",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 18,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/health/sleep/route.ts#POST",
+   "to": "rule:health-sleep/body-size-limit",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 20,
+   "line_end": 21
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/app/api/health/sleep/route.ts#MAX_BODY",
+   "to": "setting:health-sleep/max-body",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/health/sleep/route.ts#POST",
+   "to": "setting:health-sleep/token-setup",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 18,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/health/sleep/route.ts#POST",
+   "to": "rule:health-sleep/write-scope",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 28,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/health/sleep/route.ts#POST",
+   "to": "rule:health-sleep/replan-after-receipt",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 44,
+   "line_end": 53
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/health/sleep/route.ts#POST",
+   "to": "rule:health-sleep/save-error-500",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 42,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/health/sleep/route.ts#POST",
+   "to": "rule:health-sleep/response-diagnostics",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 54,
+   "line_end": 65
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/api/api-auth.test.ts",
+   "to": "rule:auth/cron-secret-required",
+   "file": "src/app/api/api-auth.test.ts",
+   "line_start": 1,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/api/api-auth.test.ts",
+   "to": "rule:auth/health-token-checked-before-db",
+   "file": "src/app/api/api-auth.test.ts",
+   "line_start": 1,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/api/api-auth.test.ts",
+   "to": "feature:notifications/dispatch",
+   "file": "src/app/api/api-auth.test.ts",
+   "line_start": 1,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/api/api-auth.test.ts",
+   "to": "feature:notifications/hourly-replan",
+   "file": "src/app/api/api-auth.test.ts",
+   "line_start": 1,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/api/api-auth.test.ts",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "src/app/api/api-auth.test.ts",
+   "line_start": 1,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/app/api/api-auth.test.ts#req",
+   "to": "rule:auth/cron-secret-required",
+   "file": "src/app/api/api-auth.test.ts",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:app_state",
+   "to": "feature:sync/app-state-store",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 4,
+   "line_end": 9
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0001_app_state.sql",
+   "to": "rule:auth/rls-owner-only",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 11,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0001_app_state.sql",
+   "to": "rule:auth/no-delete-app-state",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 29,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0001_app_state.sql",
+   "to": "rule:sync/cascade-on-user-delete",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 4,
+   "line_end": 9
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/setup.sql",
+   "to": "feature:sync/app-state-store",
+   "file": "supabase/setup.sql",
+   "line_start": 1,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/setup.sql",
+   "to": "rule:auth/rls-owner-only",
+   "file": "supabase/setup.sql",
+   "line_start": 11,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/setup.sql",
+   "to": "rule:ical/url-allowlist",
+   "file": "supabase/setup.sql",
+   "line_start": 34,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:ical_sources",
+   "to": "rule:ical/url-allowlist",
+   "file": "supabase/migrations/0002_ical_sources.sql",
+   "line_start": 5,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0002_ical_sources.sql",
+   "to": "rule:auth/rls-owner-only",
+   "file": "supabase/migrations/0002_ical_sources.sql",
+   "line_start": 18,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0002_ical_sources.sql",
+   "to": "feature:ical/sync-endpoint",
+   "file": "supabase/migrations/0002_ical_sources.sql",
+   "line_start": 1,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:push_subscriptions",
+   "to": "rule:notifications/subscription-constraints",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 6,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:push_schedule",
+   "to": "rule:notifications/schedule-size-limit",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 40,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:push_sent",
+   "to": "rule:auth/server-only-table-push-sent",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 65,
+   "line_end": 70
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0003_push.sql",
+   "to": "rule:auth/rls-owner-only",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 17,
+   "line_end": 62
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0003_push.sql",
+   "to": "feature:notifications/dispatch",
+   "file": "supabase/migrations/0003_push.sql",
+   "line_start": 1,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:ical_feeds",
+   "to": "rule:ical/feed-hash-only-one-per-user",
+   "file": "supabase/migrations/0004_ical_feeds.sql",
+   "line_start": 5,
+   "line_end": 9
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0004_ical_feeds.sql",
+   "to": "rule:auth/rls-owner-only",
+   "file": "supabase/migrations/0004_ical_feeds.sql",
+   "line_start": 11,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0004_ical_feeds.sql",
+   "to": "feature:ical/feed-endpoint",
+   "file": "supabase/migrations/0004_ical_feeds.sql",
+   "line_start": 1,
+   "line_end": 3
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:notion_sources",
+   "to": "rule:notion/source-constraints",
+   "file": "supabase/migrations/0005_notion_sources.sql",
+   "line_start": 5,
+   "line_end": 13
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0005_notion_sources.sql",
+   "to": "rule:notion/token-hidden-from-browser",
+   "file": "supabase/migrations/0005_notion_sources.sql",
+   "line_start": 38,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0005_notion_sources.sql",
+   "to": "rule:auth/rls-owner-only",
+   "file": "supabase/migrations/0005_notion_sources.sql",
+   "line_start": 15,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0005_notion_sources.sql",
+   "to": "feature:notion/schema-endpoint",
+   "file": "supabase/migrations/0005_notion_sources.sql",
+   "line_start": 1,
+   "line_end": 3
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:supabase/migrations/0006_private_ical_url_and_server_time.sql#app_state_set_updated_at",
+   "to": "rule:sync/server-clock-updated-at",
+   "file": "supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "line_start": 10,
+   "line_end": 19
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "to": "rule:sync/server-clock-updated-at",
+   "file": "supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "line_start": 9,
+   "line_end": 24
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "to": "rule:ical/url-hidden-from-browser",
+   "file": "supabase/migrations/0006_private_ical_url_and_server_time.sql",
+   "line_start": 1,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:health_tokens",
+   "to": "rule:health-sleep/token-hash-only",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 5,
+   "line_end": 9
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "table:health_sleep",
+   "to": "rule:health-sleep/night-row-constraints",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 34,
+   "line_end": 45
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0007_health_sleep.sql",
+   "to": "rule:auth/health-sleep-read-only-for-user",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 47,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0007_health_sleep.sql",
+   "to": "rule:auth/rls-owner-only",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 11,
+   "line_end": 52
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0007_health_sleep.sql",
+   "to": "feature:health-sleep/receive-endpoint",
+   "file": "supabase/migrations/0007_health_sleep.sql",
+   "line_start": 1,
+   "line_end": 3
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:supabase/migrations/0008_ical_last_events.sql",
+   "to": "rule:ical/last-events-fallback",
+   "file": "supabase/migrations/0008_ical_last_events.sql",
+   "line_start": 1,
+   "line_end": 4
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "feature:pwa/ui-foundation",
+   "file": "src/app/globals.css",
+   "line_start": 1,
+   "line_end": 178
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:app/dark-mode-follows-device",
+   "file": "src/app/globals.css",
+   "line_start": 39,
+   "line_end": 70
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:app/accent-red-sparingly",
+   "file": "src/app/globals.css",
+   "line_start": 8,
+   "line_end": 13
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:app/ios-date-inputs-no-own-width",
+   "file": "src/app/globals.css",
+   "line_start": 98,
+   "line_end": 108
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:app/hide-card-shadow-in-dark",
+   "file": "src/app/globals.css",
+   "line_start": 110,
+   "line_end": 118
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:app/respect-reduced-motion",
+   "file": "src/app/globals.css",
+   "line_start": 134,
+   "line_end": 138
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "feature:today/treat-reveal-animation",
+   "file": "src/app/globals.css",
+   "line_start": 120,
+   "line_end": 133
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "feature:calendar/event-colors",
+   "file": "src/app/globals.css",
+   "line_start": 27,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "setting:calendar/color-defaults",
+   "file": "src/app/globals.css",
+   "line_start": 27,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "setting:calendar/chip-tint-percent",
+   "file": "src/app/globals.css",
+   "line_start": 20,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "feature:calendar/travel-bands",
+   "file": "src/app/globals.css",
+   "line_start": 379,
+   "line_end": 387
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:calendar/selected-event-ring",
+   "file": "src/app/globals.css",
+   "line_start": 388,
+   "line_end": 391
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:calendar/optional-class-dashed",
+   "file": "src/app/globals.css",
+   "line_start": 400,
+   "line_end": 408
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "feature:calendar/sleep-bands",
+   "file": "src/app/globals.css",
+   "line_start": 517,
+   "line_end": 535
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "feature:calendar/swipe-strip",
+   "file": "src/app/globals.css",
+   "line_start": 537,
+   "line_end": 577
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:calendar/strip-snaps-per-day",
+   "file": "src/app/globals.css",
+   "line_start": 537,
+   "line_end": 566
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:calendar/pinch-locks-scroll",
+   "file": "src/app/globals.css",
+   "line_start": 573,
+   "line_end": 576
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "feature:calendar/time-axis",
+   "file": "src/app/globals.css",
+   "line_start": 578,
+   "line_end": 625
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "feature:calendar/month-overview",
+   "file": "src/app/globals.css",
+   "line_start": 626,
+   "line_end": 680
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:calendar/deadline-late-red",
+   "file": "src/app/globals.css",
+   "line_start": 636,
+   "line_end": 645
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:calendar/month-snaps-per-week",
+   "file": "src/app/globals.css",
+   "line_start": 647,
+   "line_end": 672
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "rule:calendar/slot-height-pinch",
+   "file": "src/app/globals.css",
+   "line_start": 677,
+   "line_end": 680
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/app/globals.css",
+   "to": "setting:calendar/slot-height",
+   "file": "src/app/globals.css",
+   "line_start": 677,
+   "line_end": 680
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:.env.example",
+   "to": "setting:infra/env-supabase-url",
+   "file": ".env.example",
+   "line_start": 4,
+   "line_end": 5
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:.env.example",
+   "to": "setting:infra/env-supabase-publishable-key",
+   "file": ".env.example",
+   "line_start": 7,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:.env.example",
+   "to": "setting:infra/env-vapid-public-key",
+   "file": ".env.example",
+   "line_start": 10,
+   "line_end": 11
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:.env.example",
+   "to": "setting:infra/env-vapid-private-key",
+   "file": ".env.example",
+   "line_start": 10,
+   "line_end": 12
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:.env.example",
+   "to": "setting:infra/env-cron-secret",
+   "file": ".env.example",
+   "line_start": 14,
+   "line_end": 15
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:.env.example",
+   "to": "setting:infra/env-supabase-secret-key",
+   "file": ".env.example",
+   "line_start": 17,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:eslint.config.mjs",
+   "to": "rule:infra/eslint-next-config",
+   "file": "eslint.config.mjs",
+   "line_start": 5,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:eslint.config.mjs",
+   "to": "feature:infra/dev-tooling",
+   "file": "eslint.config.mjs",
+   "line_start": 5,
+   "line_end": 16
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:postcss.config.mjs",
+   "to": "feature:infra/dev-tooling",
+   "file": "postcss.config.mjs",
+   "line_start": 1,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:package.json",
+   "to": "feature:infra/dev-tooling",
+   "file": "package.json",
+   "line_start": 5,
+   "line_end": 11
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:tsconfig.json",
+   "to": "rule:infra/typescript-strict",
+   "file": "tsconfig.json",
+   "line_start": 7,
+   "line_end": 8
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:tsconfig.json",
+   "to": "rule:infra/path-alias-at",
+   "file": "tsconfig.json",
+   "line_start": 21,
+   "line_end": 23
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:tsconfig.json",
+   "to": "feature:infra/dev-tooling",
+   "file": "tsconfig.json",
+   "line_start": 1,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:vitest.config.mts",
+   "to": "rule:infra/path-alias-at",
+   "file": "vitest.config.mts",
+   "line_start": 5,
+   "line_end": 7
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:vitest.config.mts",
+   "to": "feature:infra/dev-tooling",
+   "file": "vitest.config.mts",
+   "line_start": 4,
+   "line_end": 8
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:pwa/offline-cache",
+   "to": "setting:pwa/sw-version",
+   "file": "public/sw.js",
+   "line_start": 3,
+   "line_end": 3
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:pwa/offline-cache",
+   "to": "setting:pwa/shell-pages",
+   "file": "public/sw.js",
+   "line_start": 4,
+   "line_end": 5
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:pwa/warm-throttle",
+   "to": "setting:pwa/warm-interval-minutes",
+   "file": "public/sw.js",
+   "line_start": 24,
+   "line_end": 27
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:notifications/prune-sent-log",
+   "to": "setting:notifications/keep-sent-days",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:health-sleep/body-size-limit",
+   "to": "setting:health-sleep/max-body",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:health-sleep/receive-endpoint",
+   "to": "setting:health-sleep/token-setup",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 18,
+   "line_end": 19
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:calendar/event-colors",
+   "to": "setting:calendar/color-defaults",
+   "file": "src/app/globals.css",
+   "line_start": 27,
+   "line_end": 34
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:calendar/event-colors",
+   "to": "setting:calendar/chip-tint-percent",
+   "file": "src/app/globals.css",
+   "line_start": 20,
+   "line_end": 22
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:calendar/swipe-strip",
+   "to": "setting:calendar/slot-height",
+   "file": "src/app/globals.css",
+   "line_start": 677,
+   "line_end": 680
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/dispatch",
+   "to": "setting:infra/env-cron-secret",
+   "file": ".env.example",
+   "line_start": 14,
+   "line_end": 15
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/hourly-replan",
+   "to": "setting:infra/env-cron-secret",
+   "file": ".env.example",
+   "line_start": 14,
+   "line_end": 15
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/dispatch",
+   "to": "setting:infra/env-vapid-private-key",
+   "file": ".env.example",
+   "line_start": 10,
+   "line_end": 12
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/test-send",
+   "to": "setting:infra/env-vapid-private-key",
+   "file": ".env.example",
+   "line_start": 10,
+   "line_end": 12
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:ical/sync-endpoint",
+   "to": "setting:infra/env-supabase-secret-key",
+   "file": ".env.example",
+   "line_start": 17,
+   "line_end": 18
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:ical/feed-endpoint",
+   "to": "setting:infra/env-supabase-secret-key",
+   "file": ".env.example",
+   "line_start": 17,
+   "line_end": 18
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:health-sleep/receive-endpoint",
+   "to": "setting:infra/env-supabase-secret-key",
+   "file": ".env.example",
+   "line_start": 17,
+   "line_end": 18
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/dispatch",
+   "to": "setting:infra/env-supabase-secret-key",
+   "file": ".env.example",
+   "line_start": 17,
+   "line_end": 18
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:auth/login-form",
+   "to": "setting:infra/env-supabase-url",
+   "file": ".env.example",
+   "line_start": 4,
+   "line_end": 5
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:auth/login-form",
+   "to": "setting:infra/env-supabase-publishable-key",
+   "file": ".env.example",
+   "line_start": 7,
+   "line_end": 8
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:infra/dev-tooling",
+   "to": "setting:infra/dev-indicator-off",
+   "file": "next.config.ts",
+   "line_start": 4,
+   "line_end": 5
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:auth/login-form",
+   "to": "integration:supabase-auth",
+   "file": "src/app/login/LoginForm.tsx",
+   "line_start": 21,
+   "line_end": 21
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/sync-endpoint",
+   "to": "integration:supabase-auth",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 20,
+   "line_end": 20
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/sync-endpoint",
+   "to": "integration:supabase-db",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 24,
+   "line_end": 24
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/sync-endpoint",
+   "to": "integration:ical-import",
+   "file": "src/app/api/ical/sync/route.ts",
+   "line_start": 31,
+   "line_end": 31
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/feed-endpoint",
+   "to": "integration:ical-export-feed",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 10,
+   "line_end": 42
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/feed-endpoint",
+   "to": "integration:supabase-db",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 21,
+   "line_end": 25
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/schema-endpoint",
+   "to": "integration:notion-api",
+   "file": "src/app/api/notion/schema/route.ts",
+   "line_start": 9,
+   "line_end": 9
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/rows-endpoint",
+   "to": "integration:notion-api",
+   "file": "src/app/api/notion/sync/route.ts",
+   "line_start": 14,
+   "line_end": 14
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/receive-endpoint",
+   "to": "integration:apple-shortcuts-health",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 12,
+   "line_end": 17
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/receive-endpoint",
+   "to": "integration:supabase-db",
+   "file": "src/app/api/health/sleep/route.ts",
+   "line_start": 23,
+   "line_end": 41
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/dispatch",
+   "to": "integration:supabase-pg-cron",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 8,
+   "line_end": 11
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/dispatch",
+   "to": "integration:web-push",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 33,
+   "line_end": 33
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/dispatch",
+   "to": "integration:supabase-db",
+   "file": "src/app/api/push/dispatch/route.ts",
+   "line_start": 17,
+   "line_end": 17
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/hourly-replan",
+   "to": "integration:supabase-pg-cron",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 5,
+   "line_end": 9
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/hourly-replan",
+   "to": "feature:ical",
+   "file": "src/app/api/push/replan/route.ts",
+   "line_start": 7,
+   "line_end": 9
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/test-send",
+   "to": "integration:web-push",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 13,
+   "line_end": 13
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/test-send",
+   "to": "integration:supabase-db",
+   "file": "src/app/api/push/test/route.ts",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:pwa/offline-cache",
+   "to": "integration:service-worker",
+   "file": "public/sw.js",
+   "line_start": 54,
+   "line_end": 94
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:pwa/push-display",
+   "to": "integration:service-worker",
+   "file": "public/sw.js",
+   "line_start": 96,
+   "line_end": 131
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:pwa/push-display",
+   "to": "integration:web-push",
+   "file": "public/sw.js",
+   "line_start": 96,
+   "line_end": 98
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:calendar/swipe-strip",
+   "to": "integration:fullcalendar",
+   "file": "src/app/globals.css",
+   "line_start": 537,
+   "line_end": 577
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:calendar/month-overview",
+   "to": "integration:fullcalendar",
+   "file": "src/app/globals.css",
+   "line_start": 626,
+   "line_end": 680
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:calendar/event-colors",
+   "to": "integration:fullcalendar",
+   "file": "src/app/globals.css",
+   "line_start": 333,
+   "line_end": 360
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:calendar/sleep-bands",
+   "to": "feature:rhythm",
+   "file": "src/app/globals.css",
+   "line_start": 517,
+   "line_end": 535
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:sync/app-state-store",
+   "to": "integration:supabase-db",
+   "file": "supabase/migrations/0001_app_state.sql",
+   "line_start": 4,
+   "line_end": 9
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/feed-endpoint",
+   "to": "feature:planner",
+   "file": "src/app/api/ical/feed/[token]/route.ts",
+   "line_start": 28,
+   "line_end": 30
+  }
+ ]
+}

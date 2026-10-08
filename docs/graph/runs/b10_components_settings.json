@@ -1,0 +1,3402 @@
+{
+ "batch": "b10_components_settings",
+ "nodes": [
+  {
+   "id": "feature:settings/home-list",
+   "label": "Feature",
+   "name": "設定の一覧",
+   "description": "設定を「予定」「生活のリズム」「朝」「記録」「通知」の5つのグループに分け、各項目に件数や現在の値を添えて並べ、押すと各設定ページへ移る。",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 25,
+   "line_end": 61,
+   "confidence": "high",
+   "evidence": "グループごとのIDの並びと、項目ごとの件数・要約の表を作って一覧にしている"
+  },
+  {
+   "id": "feature:settings/account-and-data",
+   "label": "Feature",
+   "name": "ログアウトとサンプルに戻す",
+   "description": "設定の下部で、同期の状態を表示し、ログアウトとデータをサンプルの状態に戻す操作を提供する。どちらも確認の文言を挟む。",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 63,
+   "line_end": 86,
+   "confidence": "high",
+   "evidence": "アカウント・データのグループにログアウトとリセットのボタンがある"
+  },
+  {
+   "id": "rule:settings/sync-status-label",
+   "label": "Rule",
+   "name": "同期の状態を4通りで表示する",
+   "description": "同期の状態は「読み込み中」「保存済み」「保存中」「接続できない（この端末には保存）」の4つの文言で設定画面に示す。",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 13,
+   "line_end": 18,
+   "confidence": "high",
+   "evidence": "状態ごとの文言の表と、同期の行での表示"
+  },
+  {
+   "id": "rule:settings/logout-clears-device",
+   "label": "Rule",
+   "name": "ログアウトでは通知の登録解除と端末の控えの削除を行う",
+   "description": "ログアウトすると、先にこの端末への通知を止め、サインアウトし、端末に残したデータの控えも消してログイン画面へ移る。",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 65,
+   "line_end": 74,
+   "confidence": "high",
+   "evidence": "確認後に通知解除→サインアウト→控え削除→/login へ移動の順に処理"
+  },
+  {
+   "id": "rule:settings/reset-to-sample",
+   "label": "Rule",
+   "name": "「サンプルに戻す」は予定・タスク・設定をすべて消す",
+   "description": "確認のうえ、自分で入れた予定やタスク、設定も含めてすべてのデータをサンプルの状態に戻す。",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 80,
+   "line_end": 85,
+   "confidence": "high",
+   "evidence": "確認文言に全データがサンプルに戻ると書かれ、reset を呼ぶ"
+  },
+  {
+   "id": "feature:settings/section-page",
+   "label": "Feature",
+   "name": "設定の各ページの枠",
+   "description": "どの設定ページも、戻るボタンつきの見出しと、項目ごとの本体部品を同じ枠で表示する。項目ごとの部品は一覧表で選ぶ。",
+   "file": "src/components/settings/SettingsSection.tsx",
+   "line_start": 22,
+   "line_end": 60,
+   "confidence": "high",
+   "evidence": "項目IDから本体部品を引く表と、共通の見出し・戻る導線"
+  },
+  {
+   "id": "feature:settings/section-catalog",
+   "label": "Feature",
+   "name": "設定項目の一覧（16項目）",
+   "description": "設定項目は、カレンダー・時間割・場所・習慣・避けたい時間帯・基本・朝ルーティン・楽しみ・配信・作業の種類・Notion・天気・色・通知・ご褒美・ヘルスケアの16項目で、それぞれ題名と短い説明を持つ。",
+   "file": "src/components/settings/sections.ts",
+   "line_start": 1,
+   "line_end": 20,
+   "confidence": "high",
+   "evidence": "項目IDの型と、題名・説明の表"
+  },
+  {
+   "id": "feature:settings/edit-sheet",
+   "label": "Feature",
+   "name": "設定項目の編集シート",
+   "description": "設定の1項目を開いて編集するシート。保存を押すまで元のデータは変えず、既存の項目にだけ削除ボタン（確認つき）を出す。入力欄は見出しつきの共通部品を使う。",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 7,
+   "line_end": 56,
+   "confidence": "high",
+   "evidence": "保存で onSave、削除は新規でないときだけ表示という構造"
+  },
+  {
+   "id": "rule:settings/edit-sheet-delete-existing-only",
+   "label": "Rule",
+   "name": "削除ボタンは既存の項目にだけ出す",
+   "description": "編集シートの削除ボタンは、新規追加ではなく、削除処理が渡されているときだけ表示される。",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 36,
+   "line_end": 41,
+   "confidence": "high",
+   "evidence": "isNew でなく onDelete があるときだけ削除ボタンを描画"
+  },
+  {
+   "id": "rule:settings/upsert-by-id",
+   "label": "Rule",
+   "name": "同じIDの項目は置き換え、なければ末尾に足す",
+   "description": "設定の項目を保存するときは、同じ ID のものがあれば置き換え、なければ配列の末尾に追加する。",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 59,
+   "line_end": 61,
+   "confidence": "high",
+   "evidence": "id が一致する要素を差し替える処理"
+  },
+  {
+   "id": "feature:settings/basic",
+   "label": "Feature",
+   "name": "基本の設定",
+   "description": "起床・タスクの置き方・行動ポイント・睡眠と朝・1日の量・休憩の数値を1ページで変える。変えるとすぐにカレンダーと「今日」の計画を組み直す。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 56,
+   "line_end": 109,
+   "confidence": "high",
+   "evidence": "各数値の入力欄がまとまり、画面下に組み直しの注記がある"
+  },
+  {
+   "id": "setting:settings/default-wake",
+   "label": "Setting",
+   "name": "いつもの起床時刻",
+   "description": "ふだんの起床時刻（defaultWakeMinuteOfDay）を時刻で設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 71,
+   "line_end": 73,
+   "confidence": "high",
+   "evidence": "時刻入力が defaultWakeMinuteOfDay を更新"
+  },
+  {
+   "id": "setting:settings/fixed-wake-mode",
+   "label": "Setting",
+   "name": "1週間の起床をそろえる",
+   "description": "オンにすると1週間の起床時刻をそろえる（fixedWakeMode）。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 74,
+   "line_end": 76,
+   "confidence": "high",
+   "evidence": "スイッチが fixedWakeMode を更新"
+  },
+  {
+   "id": "setting:settings/task-strategy",
+   "label": "Setting",
+   "name": "タスクの置き方",
+   "description": "タスクの置き方を「ふつう」「前倒し」「分散」から選ぶ。未設定なら「ふつう」として扱う。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 78,
+   "line_end": 92,
+   "confidence": "high",
+   "evidence": "三択のセグメントが taskStrategy を更新し、未設定は standard",
+   "value": "standard"
+  },
+  {
+   "id": "setting:settings/daily-energy-budget",
+   "label": "Setting",
+   "name": "行動ポイントの1日の上限",
+   "description": "1日に使える行動ポイントの上限を 1〜30（0.5刻み）で設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 22,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "上限 1〜30 step 0.5 の項目定義"
+  },
+  {
+   "id": "setting:settings/event-energy",
+   "label": "Setting",
+   "name": "予定ごとの行動ポイント",
+   "description": "外出1回、外出1時間あたり、在宅の予定1時間あたりの行動ポイントを設定する（外出1回は最大10、時間あたりは最大5、0.5刻み）。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 23,
+   "line_end": 25,
+   "confidence": "high",
+   "evidence": "3つの項目定義と範囲"
+  },
+  {
+   "id": "setting:settings/sleep-minutes",
+   "label": "Setting",
+   "name": "寝床の時間",
+   "description": "寝床にいる時間（sleepMinutes）を240〜720分、15分刻みで設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 32,
+   "line_end": 32,
+   "confidence": "high",
+   "evidence": "min 240 max 720 step 15"
+  },
+  {
+   "id": "setting:settings/routine-minutes",
+   "label": "Setting",
+   "name": "朝ルーティンの長さ",
+   "description": "朝ルーティンにかかる分数（routineMinutes）を最大180分で設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 33,
+   "line_end": 33,
+   "confidence": "high",
+   "evidence": "max 180"
+  },
+  {
+   "id": "setting:settings/prep-minutes",
+   "label": "Setting",
+   "name": "身支度（人に会う日）の長さ",
+   "description": "人に会う日の身支度にかかる分数（prepMinutes）を最大180分で設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 34,
+   "line_end": 34,
+   "confidence": "high",
+   "evidence": "max 180"
+  },
+  {
+   "id": "setting:settings/home-wake-lead",
+   "label": "Setting",
+   "name": "在宅の予定の前の余裕",
+   "description": "在宅の予定の前に取る余裕の分数（homeWakeLeadMinutes）を最大240分で設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 35,
+   "line_end": 35,
+   "confidence": "high",
+   "evidence": "max 240"
+  },
+  {
+   "id": "setting:settings/max-wake-shift",
+   "label": "Setting",
+   "name": "起床時刻のずれの上限",
+   "description": "隣の日との起床時刻の差の上限（maxWakeShiftMinutesPerDay）を最大240分、15分刻みで設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 36,
+   "line_end": 36,
+   "confidence": "high",
+   "evidence": "max 240 step 15"
+  },
+  {
+   "id": "setting:settings/daily-task-cap",
+   "label": "Setting",
+   "name": "タスクの量の目安",
+   "description": "1日に入れるタスクの量の目安（dailyTaskCapMinutes）を30〜960分、30分刻みで設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 42,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "min 30 max 960 step 30"
+  },
+  {
+   "id": "setting:settings/outing-day-away-minutes",
+   "label": "Setting",
+   "name": "外出の日とみなす長さ",
+   "description": "家にいない時間がこの分数以上の日を外出の日とみなす基準（outingDayAwayMinutes）。60〜960分、30分刻み。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 43,
+   "line_end": 43,
+   "confidence": "high",
+   "evidence": "min 60 max 960 step 30"
+  },
+  {
+   "id": "setting:settings/min-slack",
+   "label": "Setting",
+   "name": "残しておく余白",
+   "description": "1日に空けておく余白の分数（minSlackMinutesPerDay）を最大600分、15分刻みで設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 44,
+   "line_end": 44,
+   "confidence": "high",
+   "evidence": "max 600 step 15"
+  },
+  {
+   "id": "setting:settings/break-minutes",
+   "label": "Setting",
+   "name": "タスクのあとの休憩",
+   "description": "タスクのあとに入れる休憩の分数（breakMinutes）を最大120分で設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 50,
+   "line_end": 50,
+   "confidence": "high",
+   "evidence": "max 120"
+  },
+  {
+   "id": "setting:settings/rest-after-away",
+   "label": "Setting",
+   "name": "外出から帰ったあとの休憩",
+   "description": "外出から帰ったあとに取る休憩の分数（restAfterAwayEventMinutes）を最大180分で設定する。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 51,
+   "line_end": 51,
+   "confidence": "high",
+   "evidence": "max 180"
+  },
+  {
+   "id": "rule:settings/basic-change-replans",
+   "label": "Rule",
+   "name": "基本の設定を変えると計画をすぐ組み直す",
+   "description": "基本の設定の値を変えると、その場でカレンダーと「今日」の計画が組み直される（画面に注記がある）。",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 59,
+   "line_end": 106,
+   "confidence": "high",
+   "evidence": "set が設定を更新し、注記に即時の組み直しが書かれている"
+  },
+  {
+   "id": "feature:settings/avoid-windows",
+   "label": "Feature",
+   "name": "避けたい時間帯の設定",
+   "description": "タスクを入れたくない時間帯を、名前・時間・曜日・対象の日・対象のタスク・強さで登録・編集・削除する。",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 19,
+   "line_end": 134,
+   "confidence": "high",
+   "evidence": "一覧と編集フォームで AvoidWindow を保存する"
+  },
+  {
+   "id": "rule:settings/avoid-strength",
+   "label": "Rule",
+   "name": "避けたい時間帯の強さは「なるべく避ける」か「入れない」",
+   "description": "強さは soft（なるべく避ける）と hard（入れない）の二択で、既定は「なるべく避ける」。",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 96,
+   "line_end": 107,
+   "confidence": "high",
+   "evidence": "hard フラグの二択セグメントで、初期値は false"
+  },
+  {
+   "id": "rule:settings/avoid-all-weekdays-means-everyday",
+   "label": "Rule",
+   "name": "曜日が未選択または7曜日すべてなら曜日の限定をしない",
+   "description": "曜日を1つも選ばない、または7日すべて選んだ場合は weekdays を保存せず、毎日として扱う。",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 44,
+   "line_end": 44,
+   "confidence": "high",
+   "evidence": "weekdays が 0 件か 7 件のときは項目を付けない"
+  },
+  {
+   "id": "rule:settings/avoid-day-type",
+   "label": "Rule",
+   "name": "対象の日は毎日・休日だけ・オンの日だけから選ぶ",
+   "description": "避ける対象の日を「毎日」「休日だけ」「オンの日だけ」から選べる。毎日のときは保存しない（既定）。",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 12,
+   "line_end": 17,
+   "confidence": "high",
+   "evidence": "DayType の3値と、all 以外のときだけ保存"
+  },
+  {
+   "id": "rule:settings/avoid-defaults",
+   "label": "Rule",
+   "name": "避けたい時間帯の既定は22:00〜24:00、名前は空なら「避けたい時間」",
+   "description": "新規の時間帯は22:00〜24:00が初期値で、名前が空なら「避けたい時間」にする。時刻が入っていなければ保存できない。",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 24,
+   "line_end": 40,
+   "confidence": "high",
+   "evidence": "初期値と空名のフォールバック、時刻未入力のエラー"
+  },
+  {
+   "id": "feature:settings/calendar-colors",
+   "label": "Feature",
+   "name": "カレンダーの色の設定",
+   "description": "カレンダーの種類ごとに、11色のパレットから色を選ぶ。選ばなければ初期の色（ダークモードでは少し明るい色）のままで、「初期の色」で戻せる。",
+   "file": "src/components/settings/CalendarColors.tsx",
+   "line_start": 10,
+   "line_end": 54,
+   "confidence": "high",
+   "evidence": "カレンダーごとの色ボタンと、初期の色に戻すボタン"
+  },
+  {
+   "id": "setting:settings/calendar-palette",
+   "label": "Setting",
+   "name": "選べるカレンダーの色（11色）",
+   "description": "カレンダーの色として選べる iPhone 標準の11色。",
+   "file": "src/components/settings/CalendarColors.tsx",
+   "line_start": 7,
+   "line_end": 8,
+   "confidence": "high",
+   "evidence": "パレットの定数と、その説明コメント",
+   "const_ref": "const:src/components/settings/CalendarColors.tsx#CALENDAR_PALETTE",
+   "value": [
+    "#007aff",
+    "#5856d6",
+    "#af52de",
+    "#ff2d55",
+    "#ff3b30",
+    "#ff9500",
+    "#ffcc00",
+    "#34c759",
+    "#30b0c7",
+    "#a2845e",
+    "#8e8e93"
+   ]
+  },
+  {
+   "id": "feature:ical/source-list",
+   "label": "Feature",
+   "name": "iCal の取り込み元の登録と管理",
+   "description": "iCal の非公開アドレスを名前つきで登録し、一覧で取り込みの結果（取り込み時刻と件数、または失敗の理由）を確かめ、削除や「今すぐ取り込む」ができる。",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 54,
+   "line_end": 122,
+   "confidence": "high",
+   "evidence": "取り込み元の一覧・追加・削除・再取り込みの画面"
+  },
+  {
+   "id": "rule:ical/source-remove-deletes-events",
+   "label": "Rule",
+   "name": "取り込み元を削除すると取り込んだ予定もカレンダーから消える",
+   "description": "取り込み元の削除は確認のうえ行い、その元から取り込んだ予定もカレンダーから消える。削除後は一覧と取り込み結果を読み直す。",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 100,
+   "line_end": 108,
+   "confidence": "high",
+   "evidence": "確認文言に予定も消えると書かれ、削除後に再読み込み"
+  },
+  {
+   "id": "rule:ical/source-status-display",
+   "label": "Rule",
+   "name": "取り込み元の状態は失敗理由・最終取り込み時刻と件数・未取り込みで示す",
+   "description": "エラーがあれば「取り込めません：理由」、取り込み済みなら時刻と件数、まだなら「まだ取り込んでいません」と表示する。",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 88,
+   "line_end": 93,
+   "confidence": "high",
+   "evidence": "状態文言を三段階の条件で決めている"
+  },
+  {
+   "id": "rule:ical/source-url-plain-input",
+   "label": "Rule",
+   "name": "非公開アドレスはパスワード管理に保存されない普通の欄で受け取る",
+   "description": "iCal の非公開アドレスは、パスワード管理アプリに保存されないよう、パスワード欄ではなくURL向けのテキスト欄で受け取り、自動入力も切る。名前は最大60字で既定は「Google カレンダー」。",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 38,
+   "line_end": 48,
+   "confidence": "high",
+   "evidence": "コメントに保存回避の意図があり、autoComplete off 等を指定"
+  },
+  {
+   "id": "rule:ical/import-now-visible-when-sources",
+   "label": "Rule",
+   "name": "「今すぐ取り込む」は取り込み元があるときだけ出し、取り込み中は押せない",
+   "description": "取り込み元が1件以上あるときだけ「今すぐ取り込む」を表示し、取り込み中は無効にして「取り込み中…」と出す。",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 114,
+   "line_end": 118,
+   "confidence": "high",
+   "evidence": "sources の件数と imports.state で表示と無効化を決める"
+  },
+  {
+   "id": "feature:ical/feed-settings",
+   "label": "Feature",
+   "name": "カレンダーへの配信（iCal フィード）の設定",
+   "description": "アプリが組んだ枠・自分の予定・出る授業を、iPhone や Google のカレンダーに購読させるためのアドレスを作る・作り直す・やめる。アドレスは作った直後の画面に1度だけ表示する。",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 8,
+   "line_end": 109,
+   "confidence": "high",
+   "evidence": "配信アドレスの作成・再作成・停止と案内"
+  },
+  {
+   "id": "rule:ical/feed-url-shown-once",
+   "label": "Rule",
+   "name": "配信アドレスは作った直後にだけ表示する",
+   "description": "配信アドレスは作成した直後の画面にだけ表示され、画面を閉じると再表示されない。他人に教えないよう注意を出し、コピーと iPhone への webcal 登録リンクを用意する。",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 62,
+   "line_end": 74,
+   "confidence": "high",
+   "evidence": "作成直後の url があるときだけ表示し、閉じると見えなくなる旨の注記"
+  },
+  {
+   "id": "rule:ical/feed-regenerate-invalidates-old",
+   "label": "Rule",
+   "name": "アドレスを作り直すと古いアドレスは使えなくなる",
+   "description": "すでに配信中に作り直すときは確認を出し、今のアドレスが使えなくなるので登録したカレンダーアプリには新しいアドレスを入れ直すよう案内する。",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 27,
+   "line_end": 39,
+   "confidence": "high",
+   "evidence": "既存の feed があれば確認ダイアログを挟んでから新規作成"
+  },
+  {
+   "id": "rule:ical/feed-stop-keeps-app-events",
+   "label": "Rule",
+   "name": "配信をやめてもアプリの中の予定は消えない",
+   "description": "配信をやめるとアドレスが使えなくなり、登録先のカレンダーアプリに予定が届かなくなるが、アプリ内の予定は消えない。",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 84,
+   "line_end": 102,
+   "confidence": "high",
+   "evidence": "確認文言に配信停止の影響とアプリ内の予定が残ることが書かれている"
+  },
+  {
+   "id": "rule:ical/feed-content-scope",
+   "label": "Rule",
+   "name": "配信するのは枠・自分の予定・出る授業で、Google の予定は入れない",
+   "description": "配信の内容は、アプリが置いた枠（朝ルーティン・習慣・タスクなど）、自分で入れた予定、出る授業で、7日前〜14日先。取り込んだ Google の予定は含めない。",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 53,
+   "line_end": 56,
+   "confidence": "medium",
+   "evidence": "配信内容を説明する文言（実際の配信処理は担当外）"
+  },
+  {
+   "id": "feature:habits/habit-editor",
+   "label": "Feature",
+   "name": "習慣の追加・編集・削除フォーム",
+   "description": "習慣の名前・所要時間・時間帯の決め方（時刻／起床から／就寝まで／きっかけ）・頻度・締切が迫ったときの扱い・記録・食事・行動ポイント・休憩・待ち時間のあとの2つ目の作業・待ち時間に行う親の習慣を設定する。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 43,
+   "line_end": 386,
+   "confidence": "high",
+   "evidence": "HabitForm が Habit の全項目を編集して保存する"
+  },
+  {
+   "id": "feature:habits/habit-list",
+   "label": "Feature",
+   "name": "習慣の一覧",
+   "description": "習慣を、頻度・時間帯・所要時間・2つ目の作業・記録・飛ばし方をまとめた要約つきで並べる。「記録する」習慣には連続日数と2週間の回数を右に出す。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 388,
+   "line_end": 452,
+   "confidence": "high",
+   "evidence": "summary で要約を作り、一覧に表示"
+  },
+  {
+   "id": "rule:habits/form-name-duration-required",
+   "label": "Rule",
+   "name": "習慣は名前と1分以上の所要時間が必要",
+   "description": "名前が空、または所要時間が1分未満・数でないと保存できない。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 91,
+   "line_end": 94,
+   "confidence": "high",
+   "evidence": "保存時の検査でエラーを返す"
+  },
+  {
+   "id": "rule:habits/form-bed-anchor-negated",
+   "label": "Rule",
+   "name": "就寝までの時間帯は「何分前」で入力し、保存では負の値にする",
+   "description": "就寝基準の時間帯は「就寝の◯〜◯分前」で入力し、どちらの順に入れても、より前の分を始まりにして負の値で保存する。起床基準は「◯〜◯分後」で小さいほうを始まりにする。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 59,
+   "line_end": 106,
+   "confidence": "high",
+   "evidence": "入力と保存で符号を反転し、大小を並べ替えている"
+  },
+  {
+   "id": "rule:habits/form-window-fits-duration",
+   "label": "Rule",
+   "name": "時間帯は所要時間より短くできず、起床・就寝基準は24時間以内",
+   "description": "時間帯の幅が所要時間より短いとエラー。起床・就寝からの時間帯は24時間（1440分）以内でなければならない。待ち時間・きっかけ基準の習慣は対象外。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 107,
+   "line_end": 108,
+   "confidence": "high",
+   "evidence": "二つの検査でエラー文を返す"
+  },
+  {
+   "id": "rule:habits/form-weekly-times-range",
+   "label": "Rule",
+   "name": "週の回数は1〜7回",
+   "description": "頻度「週に何回か」の回数は1〜7の範囲でなければ保存できない。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 132,
+   "line_end": 136,
+   "confidence": "high",
+   "evidence": "回数の範囲検査"
+  },
+  {
+   "id": "rule:habits/form-interval-range",
+   "label": "Rule",
+   "name": "間隔の習慣は最短≦最長で1〜60日",
+   "description": "頻度「間隔」は、最短が最長以下で、どちらも1〜60日の範囲でなければ保存できない（初期値は4〜7日）。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 139,
+   "line_end": 144,
+   "confidence": "high",
+   "evidence": "範囲と大小の検査、初期値 4・7"
+  },
+  {
+   "id": "rule:habits/form-keep-mapping",
+   "label": "Rule",
+   "name": "締切が迫ったときの扱いは飛ばさない／なるべく残す／飛ばしてよい",
+   "description": "「飛ばさない」は skippable=false、「なるべく残す」は skippable かつ keepLast、「飛ばしてよい」は skippable のみ。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 68,
+   "line_end": 119,
+   "confidence": "high",
+   "evidence": "選択肢を skippable と keepLast に写している"
+  },
+  {
+   "id": "rule:habits/form-energy-range",
+   "label": "Rule",
+   "name": "習慣の行動ポイントは-10〜10",
+   "description": "習慣ごとの行動ポイントは任意で、-10〜10の範囲。0は保存せず、0.1単位に丸める。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 150,
+   "line_end": 154,
+   "confidence": "high",
+   "evidence": "範囲検査と丸め"
+  },
+  {
+   "id": "rule:habits/form-rest-after",
+   "label": "Rule",
+   "name": "このあとの休憩は0以上、0なら保存しない",
+   "description": "習慣のあとに集中を避ける休憩（avoidFocusAfterMinutes）は任意で0以上の分数。0なら設定なしとする。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 155,
+   "line_end": 159,
+   "confidence": "high",
+   "evidence": "0以上の検査と正のときだけ保存"
+  },
+  {
+   "id": "rule:habits/form-finish-after-duration",
+   "label": "Rule",
+   "name": "2つ目の作業は1つ目が終わってから始まる",
+   "description": "待ち時間のあとの2つ目の作業は、名前と所要時間・開始までの分数が必須で、始めてから何分後かは1つ目の所要時間以上でなければならない（初期は15分・60分後）。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 160,
+   "line_end": 166,
+   "confidence": "high",
+   "evidence": "検査で『1つ目が終わってから』を強制"
+  },
+  {
+   "id": "rule:habits/form-during-habit",
+   "label": "Rule",
+   "name": "ほかの習慣の待ち時間に行う習慣は時間帯・頻度を持たない",
+   "description": "待ち時間に行う習慣として親を選ぶと、時間帯・頻度の入力と食事の指定を出さず、時間帯は終日扱いにする。親になれるのは2つ目の作業を持つ自分以外の習慣。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 80,
+   "line_end": 100,
+   "confidence": "high",
+   "evidence": "during 判定で入力欄を隠し、時間帯を0〜24時間にする"
+  },
+  {
+   "id": "rule:habits/form-cue-choices",
+   "label": "Rule",
+   "name": "きっかけには朝ルーティン・食事のあと・帰宅後・入浴などの前を選べる",
+   "description": "時間帯の決め方「きっかけ」では、朝ルーティンのあと、食事のあと、帰宅後、就寝基準の習慣または食事（きっかけなし）の前から選ぶ。同じきっかけのままなら代わりの場面（orElse）を残す。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 45,
+   "line_end": 129,
+   "confidence": "high",
+   "evidence": "きっかけの選択肢と保存時の変換"
+  },
+  {
+   "id": "rule:habits/delete-detaches-dependents",
+   "label": "Rule",
+   "name": "習慣を消すと、待ち時間の子はふつうの習慣になり、きっかけは次の場面か朝ルーティンに替わる",
+   "description": "習慣を削除すると、その待ち時間に入れていた習慣は親から外れてふつうの習慣になり、その習慣をきっかけにしていた習慣は次の場面か朝ルーティンのあとに付け替える。たまったご褒美の記録値も残す。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 184,
+   "line_end": 196,
+   "confidence": "high",
+   "evidence": "削除処理で子ときっかけを付け替え、keepMarkValues を呼ぶ"
+  },
+  {
+   "id": "rule:habits/edit-preserves-hidden-options",
+   "label": "Rule",
+   "name": "この画面で変えない設定（雨の日の代わり・少しずつ増やす・雨を避ける）は編集後も残す",
+   "description": "雨の日の代わり、進め方（progression）、雨の日を避ける設定は、このフォームでは変更せず、編集しても元の値を引き継ぐ。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 130,
+   "line_end": 149,
+   "confidence": "high",
+   "evidence": "保存時に元の習慣から値をコピーしている"
+  },
+  {
+   "id": "rule:habits/form-stop-finish-clears-children",
+   "label": "Rule",
+   "name": "2つ目の作業をやめると、待ち時間に入れていた習慣は親から外れる",
+   "description": "習慣の2つ目の作業をなくして保存すると、その習慣を親にしていた習慣の親指定を解除する。",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 170,
+   "line_end": 180,
+   "confidence": "high",
+   "evidence": "保存時に duringHabitId を外している"
+  },
+  {
+   "id": "feature:health-sleep/token-settings",
+   "label": "Feature",
+   "name": "睡眠の取り込みの合言葉の管理",
+   "description": "iPhone のショートカットからヘルスケアの睡眠を送るための合言葉を作る・作り直す・やめる。送り先 URL と Authorization の値を一度だけ表示し、最後に届いた夜の時刻と睡眠時間を確かめられる。",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 10,
+   "line_end": 122,
+   "confidence": "high",
+   "evidence": "合言葉の作成・停止と、最後に届いた夜の表示"
+  },
+  {
+   "id": "rule:health-sleep/token-shown-once",
+   "label": "Rule",
+   "name": "合言葉は作った直後にだけ表示する",
+   "description": "合言葉（Bearer の値）と送り先 URL は作成直後にだけ表示し、画面を閉じると合言葉は二度と表示されない。他人に教えない注意とコピー導線を出す。",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 70,
+   "line_end": 92,
+   "confidence": "high",
+   "evidence": "作成直後の値だけ表示し、閉じると見えない旨の注記"
+  },
+  {
+   "id": "rule:health-sleep/token-regenerate-invalidates-old",
+   "label": "Rule",
+   "name": "合言葉を作り直すと今の合言葉は使えなくなる",
+   "description": "すでに合言葉があるときの作り直しは確認を出し、今の合言葉が無効になるのでショートカット側の合言葉も入れ直すよう案内する。",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 29,
+   "line_end": 41,
+   "confidence": "high",
+   "evidence": "既存トークンがあるときは確認ダイアログ"
+  },
+  {
+   "id": "rule:health-sleep/stop-import-rejects",
+   "label": "Rule",
+   "name": "取り込みをやめるとショートカットから送っても受け取らなくなる",
+   "description": "取り込みをやめると、ショートカットから睡眠を送っても受け付けなくなる（確認つき）。",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 101,
+   "line_end": 119,
+   "confidence": "high",
+   "evidence": "確認文言に受け取らなくなると書かれている"
+  },
+  {
+   "id": "rule:health-sleep/show-last-night",
+   "label": "Rule",
+   "name": "最後に届いた夜の寝ついた時刻・起きた時刻・睡眠時間を表示する",
+   "description": "取り込んだ睡眠の記録のうち日付が最後のものを選び、時刻の範囲・睡眠時間・起きた日を示す。",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 53,
+   "line_end": 69,
+   "confidence": "high",
+   "evidence": "healthSleep のキーを並べて最後を表示"
+  },
+  {
+   "id": "feature:notifications/settings",
+   "label": "Feature",
+   "name": "通知の設定",
+   "description": "知らせる内容（予定の前・習慣とタスクの枠の始まり・毎朝のまとめ）を示し、この端末の通知をオン・オフし、テスト通知を送れる。",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 8,
+   "line_end": 85,
+   "confidence": "high",
+   "evidence": "通知の購読・解除・テスト送信の画面"
+  },
+  {
+   "id": "rule:notifications/needs-home-screen",
+   "label": "Rule",
+   "name": "通知をオンにするにはホーム画面に追加したアプリから開く必要がある",
+   "description": "端末の対応状況が「ホーム画面に追加が必要」のときは案内だけを出し、非対応のブラウザには非対応と出す。オンにできるのは対応しているときだけ。",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 49,
+   "line_end": 62,
+   "confidence": "high",
+   "evidence": "support の値ごとに案内・ボタンを出し分けている"
+  },
+  {
+   "id": "rule:notifications/test-and-off-only-when-on",
+   "label": "Rule",
+   "name": "テスト通知とオフの操作は、通知がオンのときだけ出す",
+   "description": "通知が対応環境でオンのときにだけ「テスト通知を送る」と「この端末の通知をオフにする」を表示する。",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 64,
+   "line_end": 82,
+   "confidence": "high",
+   "evidence": "on が真のときだけ二つのボタンを描画"
+  },
+  {
+   "id": "setting:notifications/notice-lead-minutes",
+   "label": "Setting",
+   "name": "予定の前の通知は15分前",
+   "description": "予定の前の通知を何分前に送るか（NOTICE_LEAD_MINUTES）。設定画面には「予定の前：15分前」と表示される。画面から変える入力はなく、定数で決まる。",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 43,
+   "line_end": 43,
+   "confidence": "medium",
+   "evidence": "通知の build 側の定数を表示に使っている",
+   "const_ref": "const:src/lib/notify/build.ts#NOTICE_LEAD_MINUTES",
+   "value": 15
+  },
+  {
+   "id": "feature:notion/connection-settings",
+   "label": "Feature",
+   "name": "Notion の連携設定",
+   "description": "Notion の連携の合言葉と表のアドレスを登録し、締切の列・段階の列を選び、段階ごとにタスクとして取り込むか・目安の時間を決め、同期や登録の解除を行う。",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 28,
+   "line_end": 287,
+   "confidence": "high",
+   "evidence": "登録・列選択・段階ごとの設定・同期・解除を1画面で扱う"
+  },
+  {
+   "id": "rule:notion/token-input-masked",
+   "label": "Rule",
+   "name": "連携の合言葉は伏せ字で受け取り、登録したら欄を空にする",
+   "description": "合言葉は password 欄で受け取り、自動入力を切る。登録に成功したら合言葉と表のアドレスの入力欄を空にし、続けて列の一覧を読み込む。両方入力するまで登録できない。",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 63,
+   "line_end": 132,
+   "confidence": "high",
+   "evidence": "入力欄の種類、登録後のクリア、ボタンの無効条件"
+  },
+  {
+   "id": "rule:notion/sync-needs-date-column",
+   "label": "Rule",
+   "name": "同期は締切の列を選んでからでないとできない",
+   "description": "「同期する」ボタンは、登録済みで締切の列が選ばれているときだけ表示する。段階の列は任意（「なし」を選べる）。",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 165,
+   "line_end": 255,
+   "confidence": "high",
+   "evidence": "dateProp があるときだけ同期ボタンを描画"
+  },
+  {
+   "id": "rule:notion/ignore-stage",
+   "label": "Rule",
+   "name": "段階ごとに「タスク」か「入れない」を選べる",
+   "description": "段階の列を選ぶと各段階が並び、タスクとして取り込むか、取り込まない（無視する段階）かを切り替えられる。",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 186,
+   "line_end": 213,
+   "confidence": "high",
+   "evidence": "ignoreStages に段階名を足す・外す処理"
+  },
+  {
+   "id": "setting:notion/stage-minutes",
+   "label": "Setting",
+   "name": "段階ごとの目安の時間",
+   "description": "取り込むタスクの段階ごとに、所要時間の目安を5〜600分、15分刻みで設定する（空なら「なし」）。",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 214,
+   "line_end": 240,
+   "confidence": "high",
+   "evidence": "段階別の目安時間の入力（5〜600分、15分刻み）"
+  },
+  {
+   "id": "setting:notion/column-choice",
+   "label": "Setting",
+   "name": "締切の列と段階の列の選択",
+   "description": "Notion の表から、締切として読む日付の列と、段階を表す列を選ぶ設定（dateProp・stageProp）。",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 150,
+   "line_end": 181,
+   "confidence": "high",
+   "evidence": "二つのセレクトが cfg を更新"
+  },
+  {
+   "id": "rule:notion/remove-deletes-imported-tasks",
+   "label": "Rule",
+   "name": "Notion の登録をやめると取り込んだタスクも外す",
+   "description": "登録の解除は確認つきで、Notion 由来のタスク（ID が notion- で始まるもの）も一緒にタスク一覧から外す。",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 256,
+   "line_end": 284,
+   "confidence": "high",
+   "evidence": "確認文言とタスクの絞り込みで接頭辞を使っている"
+  },
+  {
+   "id": "rule:notion/manual-sync-applies-rows",
+   "label": "Rule",
+   "name": "「同期する」で読んだ行をタスクに反映し件数を表示する",
+   "description": "手動の同期は、締切の列・段階の列を使って Notion の行を読み、タスクに反映して「◯行を読みました」と表示する。",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 73,
+   "line_end": 80,
+   "confidence": "high",
+   "evidence": "fetchNotionRows の結果を applyNotionRows で反映"
+  },
+  {
+   "id": "feature:settings/places",
+   "label": "Feature",
+   "name": "場所の設定",
+   "description": "よく行く場所を、名前・キーワード・片道の移動時間で登録・編集・削除する。予定の場所の文字からキーワードで場所を見つけ、移動時間を決めるための設定。",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 16,
+   "line_end": 79,
+   "confidence": "high",
+   "evidence": "Place の一覧と編集フォーム"
+  },
+  {
+   "id": "rule:settings/place-travel-minutes-nonneg",
+   "label": "Rule",
+   "name": "場所の名前は必須で、片道の移動時間は0以上",
+   "description": "場所は名前が空だと保存できず、片道の移動時間は0以上の数でなければならない（既定は30分）。0は一覧で「移動なし」と表示する。",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 20,
+   "line_end": 27,
+   "confidence": "high",
+   "evidence": "検査と一覧の表示分岐"
+  },
+  {
+   "id": "rule:settings/place-keywords-split",
+   "label": "Rule",
+   "name": "場所のキーワードは読点・カンマ・空白で区切る",
+   "description": "キーワード欄は、半角・全角のカンマ、読点、空白で区切って複数のキーワードに分け、空のものは捨てる。",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 10,
+   "line_end": 14,
+   "confidence": "high",
+   "evidence": "正規表現で区切って空要素を除いている"
+  },
+  {
+   "id": "feature:rewards/rate-settings",
+   "label": "Feature",
+   "name": "ご褒美の金額の設定",
+   "description": "起床・朝ルーティン・習慣・タスク・就寝・記録の6種類について、1回あたりのご褒美の円を設定する。",
+   "file": "src/components/settings/Rewards.tsx",
+   "line_start": 17,
+   "line_end": 30,
+   "confidence": "high",
+   "evidence": "種類ごとの金額入力"
+  },
+  {
+   "id": "setting:rewards/rates",
+   "label": "Setting",
+   "name": "ご褒美の1回あたりの金額",
+   "description": "起床・朝ルーティン・習慣・タスク・就寝・記録それぞれの金額を、10円刻み・最大10000円で設定する。空にすると0円になる。",
+   "file": "src/components/settings/Rewards.tsx",
+   "line_start": 7,
+   "line_end": 28,
+   "confidence": "high",
+   "evidence": "ROWS の6種類と、step 10・max 10000・空は0"
+  },
+  {
+   "id": "feature:settings/routine-steps",
+   "label": "Feature",
+   "name": "朝ルーティンの手順の設定",
+   "description": "朝ルーティンの手順（「今日」のチェックリスト）を追加・名前変更・並べ替え・削除する。",
+   "file": "src/components/settings/RoutineSteps.tsx",
+   "line_start": 60,
+   "line_end": 90,
+   "confidence": "high",
+   "evidence": "手順の一覧と、追加・上下移動・削除"
+  },
+  {
+   "id": "rule:settings/routine-step-edit",
+   "label": "Rule",
+   "name": "手順の名前は空にできず、端の手順は動かせない",
+   "description": "手順の名前は入力を確定したときに更新し、空にすると元の名前に戻す。先頭は上へ、末尾は下へ動かせない。追加すると「新しい手順」という名前で末尾に入る。",
+   "file": "src/components/settings/RoutineSteps.tsx",
+   "line_start": 37,
+   "line_end": 87,
+   "confidence": "high",
+   "evidence": "blur で空なら元に戻す、端のボタンは無効、追加の既定名"
+  },
+  {
+   "id": "feature:settings/work-kinds",
+   "label": "Feature",
+   "name": "作業の種類ごとの設定",
+   "description": "作業の種類（集中・事務など）ごとに、所要時間の目安・1回の最短と最長・終わったあとの休憩を設定し、実績からの時間（件数）も確かめられる。",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 10,
+   "line_end": 42,
+   "confidence": "high",
+   "evidence": "種類ごとの4項目の入力と実績の表示"
+  },
+  {
+   "id": "setting:settings/tag-durations",
+   "label": "Setting",
+   "name": "作業の種類ごとの目安時間・1回の長さ・休憩",
+   "description": "作業の種類ごとに、所要時間の目安（最大600分）、1回の最短・最長（最大480分）、終わったあとの休憩（最大120分）を設定する。",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 18,
+   "line_end": 23,
+   "confidence": "high",
+   "evidence": "4項目の定義（上限）"
+  },
+  {
+   "id": "rule:settings/tag-chunk-min-max-consistent",
+   "label": "Rule",
+   "name": "1回の最短は最長を超えず、最長は最短を下回らない",
+   "description": "1回の最短を上げても最長を超えないよう、最長を下げても最短を下回らないよう、入力値を相手の値で抑える。最短・最長・所要時間は30分以上、休憩は0分以上。",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 20,
+   "line_end": 33,
+   "confidence": "high",
+   "evidence": "min/max を互いで clamp し、入力の下限を分岐"
+  },
+  {
+   "id": "rule:settings/tag-rest-defaults-to-break",
+   "label": "Rule",
+   "name": "種類ごとの休憩が未設定なら基本の休憩を使う",
+   "description": "作業の種類に休憩の設定がなければ、基本の設定の「タスクのあとの休憩」の値を表示・適用する。",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 22,
+   "line_end": 22,
+   "confidence": "high",
+   "evidence": "restAfterMinutes が無いと settings.breakMinutes を使う"
+  },
+  {
+   "id": "rule:settings/learned-minutes-used-when-enough-samples",
+   "label": "Rule",
+   "name": "実績が一定件数以上あれば、所要時間のないタスクに実績を使う",
+   "description": "種類ごとの実績（時間と件数）を表示し、件数が LEARN_MIN_SAMPLES 以上のときは、所要時間のないタスクにその実績を使うと案内する。",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 24,
+   "line_end": 29,
+   "confidence": "medium",
+   "evidence": "実績が閾値以上のときの注記"
+  },
+  {
+   "id": "setting:settings/learn-min-samples",
+   "label": "Setting",
+   "name": "実績を使い始める件数",
+   "description": "実績からの所要時間を採用する最小の件数（LEARN_MIN_SAMPLES、3件）。",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 29,
+   "line_end": 29,
+   "confidence": "medium",
+   "evidence": "実績の注記の判定に使われる定数",
+   "const_ref": "const:src/lib/mock/progress.ts#LEARN_MIN_SAMPLES",
+   "value": 3
+  },
+  {
+   "id": "feature:timetable/course-editor",
+   "label": "Feature",
+   "name": "授業・ゼミの追加・編集・削除",
+   "description": "授業を、科目名・曜日・時限か時刻の指定・学期（東大の S1・S2・A1・A2 などの期間）・場所・任意参加・休講日で登録し、曜日と開始時刻の順に一覧する。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 70,
+   "line_end": 255,
+   "confidence": "high",
+   "evidence": "CourseForm と Timetable の一覧"
+  },
+  {
+   "id": "feature:timetable/period-editor",
+   "label": "Feature",
+   "name": "時限の時刻の設定",
+   "description": "時限（1限・2限…）ごとに開始・終了時刻を変え、時限を追加・削除する。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 14,
+   "line_end": 54,
+   "confidence": "high",
+   "evidence": "時限の一覧と時刻入力、追加・削除"
+  },
+  {
+   "id": "rule:timetable/period-delete-warns-used",
+   "label": "Rule",
+   "name": "使っている時限を消すときは、授業が予定に出なくなると警告する",
+   "description": "削除する時限を使っている授業があると、件数を示して「その授業は予定に出なくなる」確認を出す。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 33,
+   "line_end": 38,
+   "confidence": "high",
+   "evidence": "使用件数が1以上のときの確認ダイアログ"
+  },
+  {
+   "id": "rule:timetable/period-add-default",
+   "label": "Rule",
+   "name": "時限を追加すると、最後の時限の終了の10分後から90分の枠になる",
+   "description": "追加した時限は、番号は最後の次、開始は最後の時限の終了10分後（最初なら9:00）、長さは90分を初期値とする。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 43,
+   "line_end": 51,
+   "confidence": "high",
+   "evidence": "追加処理の計算式"
+  },
+  {
+   "id": "rule:timetable/course-term-end-after-start",
+   "label": "Rule",
+   "name": "学期の終了日は開始日以降でなければならない",
+   "description": "授業の学期の終了日が開始日より前だと保存できない。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 94,
+   "line_end": 98,
+   "confidence": "high",
+   "evidence": "日付比較のエラー"
+  },
+  {
+   "id": "rule:timetable/course-time-end-after-start",
+   "label": "Rule",
+   "name": "時刻指定の授業は、終了が開始より後でなければならない",
+   "description": "時刻を指定する場合、終了が開始以前だと保存できない。時限で選ぶ場合は存在する時限でなければならない。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 110,
+   "line_end": 119,
+   "confidence": "high",
+   "evidence": "時刻の大小の検査と時限の存在確認"
+  },
+  {
+   "id": "rule:timetable/course-default-term",
+   "label": "Rule",
+   "name": "新しい授業の学期は今の学期（または次の学期）の期間を初期値にする",
+   "description": "新しい授業は、今日が属する東大の学期の開始日・終了日を初期値にし、該当なしなら今日から15週間にする。学期の押しボタンは終わっていない学期だけを出す（今の選択は残す）。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 74,
+   "line_end": 90,
+   "confidence": "medium",
+   "evidence": "currentSemester による初期値と、終了済みの学期の非表示"
+  },
+  {
+   "id": "rule:timetable/course-optional-attendance",
+   "label": "Rule",
+   "name": "任意参加の授業は参加する回だけを予定として扱う",
+   "description": "任意参加にすると、参加する回だけを予定として扱い、カレンダーの予定から回ごとに切り替える。任意参加でなければ参加した日の記録は空にする。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 105,
+   "line_end": 107,
+   "confidence": "high",
+   "evidence": "optional のとき attendedDates を引き継ぎ、そうでなければ空"
+  },
+  {
+   "id": "rule:timetable/course-cancelled-dates",
+   "label": "Rule",
+   "name": "休講にした日は一覧から取り消せる",
+   "description": "休講にした日があるときだけ一覧を出し、「休講を取り消す」で日ごとに休講を外せる。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 198,
+   "line_end": 211,
+   "confidence": "high",
+   "evidence": "cancelledDates の表示と削除"
+  },
+  {
+   "id": "rule:timetable/course-ended-label",
+   "label": "Rule",
+   "name": "学期が終わった授業には「学期終了」と出す",
+   "description": "授業の学期の終了日が今日より前なら、一覧の説明に「学期終了」を付ける。時刻が決められない授業は「時刻が未設定」と出す。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 232,
+   "line_end": 244,
+   "confidence": "high",
+   "evidence": "ended 判定と時刻未設定の文言"
+  },
+  {
+   "id": "setting:timetable/utokyo-terms",
+   "label": "Setting",
+   "name": "選べる東大の学期",
+   "description": "授業の学期として、東大（情報理工）のターム（S1・S2・S・A1・A2・A など）の授業期間を選べる。",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 170,
+   "line_end": 181,
+   "confidence": "medium",
+   "evidence": "UTOKYO_TERMS を押しボタンにして学期の期間を入れる",
+   "const_ref": "const:src/lib/mock/utokyo.ts#UTOKYO_TERMS",
+   "value": "2026年度の学期表（utokyo.ts）"
+  },
+  {
+   "id": "feature:settings/treats",
+   "label": "Feature",
+   "name": "楽しみのリストの設定",
+   "description": "「今日の楽しみ」の候補を、種類ごとに内容・条件・休日だけ・外で楽しむで登録・編集・削除する。毎日1つを選び、朝は「起きた」を押すと開く。",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 71,
+   "line_end": 99,
+   "confidence": "high",
+   "evidence": "種類ごとの一覧と追加・編集"
+  },
+  {
+   "id": "rule:settings/treat-flags",
+   "label": "Rule",
+   "name": "「休日だけ」は予定のない日に、「外で楽しむ」は雨でない日にだけ出す",
+   "description": "楽しみに「休日だけ」を付けると予定のない日に、「外で楽しむ」を付けると雨の日以外に出す。",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 57,
+   "line_end": 77,
+   "confidence": "high",
+   "evidence": "画面の注記とスイッチの文言"
+  },
+  {
+   "id": "rule:settings/treat-condition-reward-only",
+   "label": "Rule",
+   "name": "条件の欄は「ご褒美」の種類のときだけ使う",
+   "description": "楽しみの条件（例：朝ルーティンが終わったら）は、種類が「ご褒美」のときだけ入力・保存する。内容は必須。",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 19,
+   "line_end": 56,
+   "confidence": "high",
+   "evidence": "cat が reward のときだけ condition を保存・表示"
+  },
+  {
+   "id": "feature:weather/place-settings",
+   "label": "Feature",
+   "name": "天気の場所と雨の確率の確認",
+   "description": "天気予報の場所を市区町村名で検索して選び、今後7日間の雨の確率と「雨」の判定を確かめる。",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 11,
+   "line_end": 80,
+   "confidence": "high",
+   "evidence": "場所の検索・選択と7日分の雨の確率の表示"
+  },
+  {
+   "id": "rule:weather/place-change-resets-forecast",
+   "label": "Rule",
+   "name": "場所を変える・やめると予報を消して取り直す",
+   "description": "場所を選び直す、またはやめると、保存していた雨の予報を消して取り直す。",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 26,
+   "line_end": 40,
+   "confidence": "high",
+   "evidence": "choose と やめる で rainForecast を undefined にする"
+  },
+  {
+   "id": "rule:weather/rain-label-at-threshold",
+   "label": "Rule",
+   "name": "雨の確率が閾値以上の日には「雨」と表示する",
+   "description": "7日分の雨の確率のうち、雨の閾値（RAIN_THRESHOLD、60%）以上の日には「・雨」を付ける。予報がない日は「—」。",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 69,
+   "line_end": 74,
+   "confidence": "high",
+   "evidence": "p >= RAIN_THRESHOLD の分岐で雨を付ける"
+  },
+  {
+   "id": "setting:weather/rain-threshold",
+   "label": "Setting",
+   "name": "雨の日とみなす雨の確率",
+   "description": "雨の日とみなす雨の確率（RAIN_THRESHOLD）は60%。設定画面では、この値以上の日に「雨」と示す（画面からは変えられない）。",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 72,
+   "line_end": 72,
+   "confidence": "medium",
+   "evidence": "RAIN_THRESHOLD を表示の判定に使う",
+   "const_ref": "const:src/lib/mock/model.ts#RAIN_THRESHOLD",
+   "value": 60
+  }
+ ],
+ "edges": [
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/home-list",
+   "to": "feature:settings",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 44,
+   "line_end": 50
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/SettingsScreen.tsx#SettingsScreen",
+   "to": "feature:settings/home-list",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 25,
+   "line_end": 61
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/account-and-data",
+   "to": "feature:settings",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 63,
+   "line_end": 86
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/SettingsScreen.tsx#SettingsScreen",
+   "to": "feature:settings/account-and-data",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 63,
+   "line_end": 86
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/sync-status-label",
+   "to": "feature:settings/account-and-data",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 13,
+   "line_end": 18
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/SettingsScreen.tsx#SYNC_LABEL",
+   "to": "rule:settings/sync-status-label",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 13,
+   "line_end": 18
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/logout-clears-device",
+   "to": "feature:settings/account-and-data",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 65,
+   "line_end": 74
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/SettingsScreen.tsx#SettingsScreen",
+   "to": "rule:settings/logout-clears-device",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 65,
+   "line_end": 74
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/reset-to-sample",
+   "to": "feature:settings/account-and-data",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 80,
+   "line_end": 85
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/SettingsScreen.tsx#SettingsScreen",
+   "to": "rule:settings/reset-to-sample",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 80,
+   "line_end": 85
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:settings/account-and-data",
+   "to": "integration:supabase-auth",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 67,
+   "line_end": 73
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:settings/account-and-data",
+   "to": "integration:browser-storage",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 70,
+   "line_end": 71
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:settings/home-list",
+   "to": "integration:supabase-db",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 64,
+   "line_end": 64
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/settings/SettingsScreen.tsx",
+   "to": "feature:settings",
+   "file": "src/components/settings/SettingsScreen.tsx",
+   "line_start": 20,
+   "line_end": 90
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/section-page",
+   "to": "feature:settings",
+   "file": "src/components/settings/SettingsSection.tsx",
+   "line_start": 22,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/settings/SettingsSection.tsx",
+   "to": "feature:settings/section-page",
+   "file": "src/components/settings/SettingsSection.tsx",
+   "line_start": 41,
+   "line_end": 60
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/SettingsSection.tsx#BODY",
+   "to": "feature:settings/section-page",
+   "file": "src/components/settings/SettingsSection.tsx",
+   "line_start": 22,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/SettingsSection.tsx#SettingsSection",
+   "to": "feature:settings/section-page",
+   "file": "src/components/settings/SettingsSection.tsx",
+   "line_start": 41,
+   "line_end": 60
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/section-catalog",
+   "to": "feature:settings",
+   "file": "src/components/settings/sections.ts",
+   "line_start": 1,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/settings/sections.ts",
+   "to": "feature:settings/section-catalog",
+   "file": "src/components/settings/sections.ts",
+   "line_start": 1,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/sections.ts#SECTIONS",
+   "to": "feature:settings/section-catalog",
+   "file": "src/components/settings/sections.ts",
+   "line_start": 3,
+   "line_end": 20
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/components/settings/sections.ts#SectionId",
+   "to": "feature:settings/section-catalog",
+   "file": "src/components/settings/sections.ts",
+   "line_start": 1,
+   "line_end": 1
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/edit-sheet",
+   "to": "feature:settings",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 7,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/EditSheet.tsx#EditSheet",
+   "to": "feature:settings/edit-sheet",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 8,
+   "line_end": 45
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/EditSheet.tsx#Field",
+   "to": "feature:settings/edit-sheet",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 48,
+   "line_end": 56
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/edit-sheet-delete-existing-only",
+   "to": "feature:settings/edit-sheet",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 36,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/EditSheet.tsx#EditSheet",
+   "to": "rule:settings/edit-sheet-delete-existing-only",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 36,
+   "line_end": 41
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/upsert-by-id",
+   "to": "feature:settings/edit-sheet",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 59,
+   "line_end": 61
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/EditSheet.tsx#upsert",
+   "to": "rule:settings/upsert-by-id",
+   "file": "src/components/settings/EditSheet.tsx",
+   "line_start": 59,
+   "line_end": 61
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/basic",
+   "to": "feature:settings",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 56,
+   "line_end": 109
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/BasicSettings.tsx#BasicSettings",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 56,
+   "line_end": 109
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/settings/BasicSettings.tsx",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 56,
+   "line_end": 109
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/default-wake",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 71,
+   "line_end": 73
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/default-wake",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 71,
+   "line_end": 73
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/fixed-wake-mode",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 74,
+   "line_end": 76
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/fixed-wake-mode",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 74,
+   "line_end": 76
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/task-strategy",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 78,
+   "line_end": 92
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/task-strategy",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 78,
+   "line_end": 92
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/daily-energy-budget",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 22,
+   "line_end": 22
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/daily-energy-budget",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 22,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/event-energy",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 23,
+   "line_end": 25
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/event-energy",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 23,
+   "line_end": 25
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/sleep-minutes",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/sleep-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/routine-minutes",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 33,
+   "line_end": 33
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/routine-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 33,
+   "line_end": 33
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/prep-minutes",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 34,
+   "line_end": 34
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/prep-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 34,
+   "line_end": 34
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/home-wake-lead",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 35,
+   "line_end": 35
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/home-wake-lead",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 35,
+   "line_end": 35
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/max-wake-shift",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/max-wake-shift",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/daily-task-cap",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 42,
+   "line_end": 42
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/daily-task-cap",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 42,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/outing-day-away-minutes",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/outing-day-away-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/min-slack",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 44,
+   "line_end": 44
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/min-slack",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 44,
+   "line_end": 44
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/break-minutes",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 50,
+   "line_end": 50
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/break-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 50,
+   "line_end": 50
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/rest-after-away",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 51,
+   "line_end": 51
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/basic",
+   "to": "setting:settings/rest-after-away",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 51,
+   "line_end": 51
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#ENERGY_FIELDS",
+   "to": "setting:settings/daily-energy-budget",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 22,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#ENERGY_FIELDS",
+   "to": "setting:settings/event-energy",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 23,
+   "line_end": 25
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/sleep-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 32,
+   "line_end": 32
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/routine-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 33,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/prep-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 34,
+   "line_end": 34
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/home-wake-lead",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 35,
+   "line_end": 35
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/max-wake-shift",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 36,
+   "line_end": 36
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/daily-task-cap",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 42,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/outing-day-away-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/min-slack",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 44,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/break-minutes",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 50,
+   "line_end": 50
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/BasicSettings.tsx#GROUPS",
+   "to": "setting:settings/rest-after-away",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 51,
+   "line_end": 51
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/BasicSettings.tsx#BasicSettings",
+   "to": "setting:settings/default-wake",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 71,
+   "line_end": 73
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/BasicSettings.tsx#BasicSettings",
+   "to": "setting:settings/fixed-wake-mode",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 74,
+   "line_end": 76
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/BasicSettings.tsx#BasicSettings",
+   "to": "setting:settings/task-strategy",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 78,
+   "line_end": 92
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/basic-change-replans",
+   "to": "feature:settings/basic",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 106,
+   "line_end": 106
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/BasicSettings.tsx#BasicSettings",
+   "to": "rule:settings/basic-change-replans",
+   "file": "src/components/settings/BasicSettings.tsx",
+   "line_start": 59,
+   "line_end": 59
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/avoid-windows",
+   "to": "feature:settings",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 119,
+   "line_end": 134
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/AvoidWindows.tsx#AvoidForm",
+   "to": "feature:settings/avoid-windows",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 19,
+   "line_end": 110
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/AvoidWindows.tsx#AvoidWindows",
+   "to": "feature:settings/avoid-windows",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 119,
+   "line_end": 134
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/AvoidWindows.tsx#summary",
+   "to": "feature:settings/avoid-windows",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 112,
+   "line_end": 117
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/avoid-strength",
+   "to": "feature:settings/avoid-windows",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 96,
+   "line_end": 107
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/AvoidWindows.tsx#AvoidForm",
+   "to": "rule:settings/avoid-strength",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 96,
+   "line_end": 107
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/avoid-all-weekdays-means-everyday",
+   "to": "feature:settings/avoid-windows",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 44,
+   "line_end": 44
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/AvoidWindows.tsx#AvoidForm",
+   "to": "rule:settings/avoid-all-weekdays-means-everyday",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 44,
+   "line_end": 44
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/avoid-day-type",
+   "to": "feature:settings/avoid-windows",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 12,
+   "line_end": 17
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/AvoidWindows.tsx#DAY_TYPES",
+   "to": "rule:settings/avoid-day-type",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 13,
+   "line_end": 17
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/avoid-defaults",
+   "to": "feature:settings/avoid-windows",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 24,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/AvoidWindows.tsx#AvoidForm",
+   "to": "rule:settings/avoid-defaults",
+   "file": "src/components/settings/AvoidWindows.tsx",
+   "line_start": 24,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/calendar-colors",
+   "to": "feature:settings",
+   "file": "src/components/settings/CalendarColors.tsx",
+   "line_start": 10,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/CalendarColors.tsx#CalendarColors",
+   "to": "feature:settings/calendar-colors",
+   "file": "src/components/settings/CalendarColors.tsx",
+   "line_start": 11,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/settings/CalendarColors.tsx",
+   "to": "feature:settings/calendar-colors",
+   "file": "src/components/settings/CalendarColors.tsx",
+   "line_start": 11,
+   "line_end": 54
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/calendar-palette",
+   "to": "feature:settings/calendar-colors",
+   "file": "src/components/settings/CalendarColors.tsx",
+   "line_start": 8,
+   "line_end": 8
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/calendar-colors",
+   "to": "setting:settings/calendar-palette",
+   "file": "src/components/settings/CalendarColors.tsx",
+   "line_start": 36,
+   "line_end": 47
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/CalendarColors.tsx#CALENDAR_PALETTE",
+   "to": "setting:settings/calendar-palette",
+   "file": "src/components/settings/CalendarColors.tsx",
+   "line_start": 8,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/source-list",
+   "to": "feature:ical",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 54,
+   "line_end": 122
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/CalendarSources.tsx#CalendarSources",
+   "to": "feature:ical/source-list",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 54,
+   "line_end": 122
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/CalendarSources.tsx#AddForm",
+   "to": "feature:ical/source-list",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 10,
+   "line_end": 52
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/source-list",
+   "to": "integration:ical-import",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 7,
+   "line_end": 7
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/source-remove-deletes-events",
+   "to": "feature:ical/source-list",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 100,
+   "line_end": 108
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/CalendarSources.tsx#CalendarSources",
+   "to": "rule:ical/source-remove-deletes-events",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 100,
+   "line_end": 108
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/source-status-display",
+   "to": "feature:ical/source-list",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 88,
+   "line_end": 93
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/CalendarSources.tsx#CalendarSources",
+   "to": "rule:ical/source-status-display",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 88,
+   "line_end": 93
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/source-url-plain-input",
+   "to": "feature:ical/source-list",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 38,
+   "line_end": 48
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/CalendarSources.tsx#AddForm",
+   "to": "rule:ical/source-url-plain-input",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 11,
+   "line_end": 49
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/import-now-visible-when-sources",
+   "to": "feature:ical/source-list",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 114,
+   "line_end": 118
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/CalendarSources.tsx#CalendarSources",
+   "to": "rule:ical/import-now-visible-when-sources",
+   "file": "src/components/settings/CalendarSources.tsx",
+   "line_start": 114,
+   "line_end": 118
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:ical/feed-settings",
+   "to": "feature:ical",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 8,
+   "line_end": 109
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Feed.tsx#Feed",
+   "to": "feature:ical/feed-settings",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 8,
+   "line_end": 109
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:ical/feed-settings",
+   "to": "integration:ical-export-feed",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-url-shown-once",
+   "to": "feature:ical/feed-settings",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 62,
+   "line_end": 74
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Feed.tsx#Feed",
+   "to": "rule:ical/feed-url-shown-once",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 62,
+   "line_end": 74
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-regenerate-invalidates-old",
+   "to": "feature:ical/feed-settings",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 27,
+   "line_end": 39
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Feed.tsx#Feed",
+   "to": "rule:ical/feed-regenerate-invalidates-old",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 27,
+   "line_end": 39
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-stop-keeps-app-events",
+   "to": "feature:ical/feed-settings",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 84,
+   "line_end": 102
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Feed.tsx#Feed",
+   "to": "rule:ical/feed-stop-keeps-app-events",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 84,
+   "line_end": 102
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:ical/feed-content-scope",
+   "to": "feature:ical/feed-settings",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 53,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Feed.tsx#Feed",
+   "to": "rule:ical/feed-content-scope",
+   "file": "src/components/settings/Feed.tsx",
+   "line_start": 53,
+   "line_end": 56
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:habits/habit-editor",
+   "to": "feature:habits",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 43,
+   "line_end": 386
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 43,
+   "line_end": 386
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/components/settings/Habits.tsx#Draft",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 12,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:habits/habit-list",
+   "to": "feature:habits",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 388,
+   "line_end": 452
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#Habits",
+   "to": "feature:habits/habit-list",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 430,
+   "line_end": 452
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#summary",
+   "to": "feature:habits/habit-list",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 388,
+   "line_end": 422
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#progressLabel",
+   "to": "feature:habits/habit-list",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 425,
+   "line_end": 428
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/settings/Habits.tsx",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 43,
+   "line_end": 386
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:habits/habit-list",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 449,
+   "line_end": 449
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-name-duration-required",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 91,
+   "line_end": 94
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-name-duration-required",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 91,
+   "line_end": 94
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-bed-anchor-negated",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 59,
+   "line_end": 106
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-bed-anchor-negated",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 59,
+   "line_end": 106
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-window-fits-duration",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 107,
+   "line_end": 108
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-window-fits-duration",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 107,
+   "line_end": 108
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-weekly-times-range",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 132,
+   "line_end": 136
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-weekly-times-range",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 132,
+   "line_end": 136
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-interval-range",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 139,
+   "line_end": 144
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-interval-range",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 139,
+   "line_end": 144
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-keep-mapping",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 68,
+   "line_end": 119
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-keep-mapping",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 68,
+   "line_end": 119
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-energy-range",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 150,
+   "line_end": 154
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-energy-range",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 150,
+   "line_end": 154
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-rest-after",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 155,
+   "line_end": 159
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-rest-after",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 155,
+   "line_end": 159
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-finish-after-duration",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 160,
+   "line_end": 166
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-finish-after-duration",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 160,
+   "line_end": 166
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-during-habit",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 80,
+   "line_end": 100
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-during-habit",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 80,
+   "line_end": 100
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-cue-choices",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 45,
+   "line_end": 129
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-cue-choices",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 45,
+   "line_end": 129
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/delete-detaches-dependents",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 184,
+   "line_end": 196
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/delete-detaches-dependents",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 184,
+   "line_end": 196
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/edit-preserves-hidden-options",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 130,
+   "line_end": 149
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/edit-preserves-hidden-options",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 130,
+   "line_end": 149
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:habits/form-stop-finish-clears-children",
+   "to": "feature:habits/habit-editor",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 170,
+   "line_end": 180
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Habits.tsx#HabitForm",
+   "to": "rule:habits/form-stop-finish-clears-children",
+   "file": "src/components/settings/Habits.tsx",
+   "line_start": 170,
+   "line_end": 180
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:health-sleep/token-settings",
+   "to": "feature:health-sleep",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 10,
+   "line_end": 122
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Health.tsx#Health",
+   "to": "feature:health-sleep/token-settings",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 10,
+   "line_end": 122
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:health-sleep/token-settings",
+   "to": "integration:apple-shortcuts-health",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 9,
+   "line_end": 9
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/token-shown-once",
+   "to": "feature:health-sleep/token-settings",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 70,
+   "line_end": 92
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Health.tsx#Health",
+   "to": "rule:health-sleep/token-shown-once",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 70,
+   "line_end": 92
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/token-regenerate-invalidates-old",
+   "to": "feature:health-sleep/token-settings",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 29,
+   "line_end": 41
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Health.tsx#Health",
+   "to": "rule:health-sleep/token-regenerate-invalidates-old",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 29,
+   "line_end": 41
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/stop-import-rejects",
+   "to": "feature:health-sleep/token-settings",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 101,
+   "line_end": 119
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Health.tsx#Health",
+   "to": "rule:health-sleep/stop-import-rejects",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 101,
+   "line_end": 119
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:health-sleep/show-last-night",
+   "to": "feature:health-sleep/token-settings",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 53,
+   "line_end": 69
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Health.tsx#Health",
+   "to": "rule:health-sleep/show-last-night",
+   "file": "src/components/settings/Health.tsx",
+   "line_start": 53,
+   "line_end": 69
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notifications/settings",
+   "to": "feature:notifications",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 8,
+   "line_end": 85
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notifications.tsx#Notifications",
+   "to": "feature:notifications/settings",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 8,
+   "line_end": 85
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notifications/settings",
+   "to": "integration:web-push",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 6,
+   "line_end": 6
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/needs-home-screen",
+   "to": "feature:notifications/settings",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 49,
+   "line_end": 62
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notifications.tsx#Notifications",
+   "to": "rule:notifications/needs-home-screen",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 49,
+   "line_end": 62
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notifications/test-and-off-only-when-on",
+   "to": "feature:notifications/settings",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 64,
+   "line_end": 82
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notifications.tsx#Notifications",
+   "to": "rule:notifications/test-and-off-only-when-on",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 64,
+   "line_end": 82
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notifications/notice-lead-minutes",
+   "to": "feature:notifications/settings",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notifications/settings",
+   "to": "setting:notifications/notice-lead-minutes",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notifications.tsx#Notifications",
+   "to": "setting:notifications/notice-lead-minutes",
+   "file": "src/components/settings/Notifications.tsx",
+   "line_start": 43,
+   "line_end": 43
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:notion/connection-settings",
+   "to": "feature:notion",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 28,
+   "line_end": 287
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notion.tsx#Notion",
+   "to": "feature:notion/connection-settings",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 28,
+   "line_end": 287
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:notion/connection-settings",
+   "to": "integration:notion-api",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 17,
+   "line_end": 25
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/token-input-masked",
+   "to": "feature:notion/connection-settings",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 63,
+   "line_end": 132
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notion.tsx#Notion",
+   "to": "rule:notion/token-input-masked",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 63,
+   "line_end": 132
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/sync-needs-date-column",
+   "to": "feature:notion/connection-settings",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 247,
+   "line_end": 255
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notion.tsx#Notion",
+   "to": "rule:notion/sync-needs-date-column",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 247,
+   "line_end": 255
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/ignore-stage",
+   "to": "feature:notion/connection-settings",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 186,
+   "line_end": 213
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notion.tsx#Notion",
+   "to": "rule:notion/ignore-stage",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 186,
+   "line_end": 213
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notion/stage-minutes",
+   "to": "feature:notion/connection-settings",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 214,
+   "line_end": 240
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notion/connection-settings",
+   "to": "setting:notion/stage-minutes",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 214,
+   "line_end": 240
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notion.tsx#Notion",
+   "to": "setting:notion/stage-minutes",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 214,
+   "line_end": 240
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:notion/column-choice",
+   "to": "feature:notion/connection-settings",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 150,
+   "line_end": 181
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:notion/connection-settings",
+   "to": "setting:notion/column-choice",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 150,
+   "line_end": 181
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notion.tsx#Notion",
+   "to": "setting:notion/column-choice",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 150,
+   "line_end": 181
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/remove-deletes-imported-tasks",
+   "to": "feature:notion/connection-settings",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 256,
+   "line_end": 284
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notion.tsx#Notion",
+   "to": "rule:notion/remove-deletes-imported-tasks",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 256,
+   "line_end": 284
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:notion/manual-sync-applies-rows",
+   "to": "feature:notion/connection-settings",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 73,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Notion.tsx#Notion",
+   "to": "rule:notion/manual-sync-applies-rows",
+   "file": "src/components/settings/Notion.tsx",
+   "line_start": 73,
+   "line_end": 80
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/places",
+   "to": "feature:settings",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 58,
+   "line_end": 79
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Places.tsx#PlaceForm",
+   "to": "feature:settings/places",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 16,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Places.tsx#Places",
+   "to": "feature:settings/places",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 58,
+   "line_end": 79
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/place-travel-minutes-nonneg",
+   "to": "feature:settings/places",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 20,
+   "line_end": 27
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Places.tsx#PlaceForm",
+   "to": "rule:settings/place-travel-minutes-nonneg",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 20,
+   "line_end": 27
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/place-keywords-split",
+   "to": "feature:settings/places",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 10,
+   "line_end": 14
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Places.tsx#splitKeywords",
+   "to": "rule:settings/place-keywords-split",
+   "file": "src/components/settings/Places.tsx",
+   "line_start": 10,
+   "line_end": 14
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:rewards/rate-settings",
+   "to": "feature:rewards",
+   "file": "src/components/settings/Rewards.tsx",
+   "line_start": 17,
+   "line_end": 30
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Rewards.tsx#Rewards",
+   "to": "feature:rewards/rate-settings",
+   "file": "src/components/settings/Rewards.tsx",
+   "line_start": 17,
+   "line_end": 30
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "module:src/components/settings/Rewards.tsx",
+   "to": "feature:rewards/rate-settings",
+   "file": "src/components/settings/Rewards.tsx",
+   "line_start": 17,
+   "line_end": 30
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:rewards/rates",
+   "to": "feature:rewards/rate-settings",
+   "file": "src/components/settings/Rewards.tsx",
+   "line_start": 7,
+   "line_end": 28
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:rewards/rate-settings",
+   "to": "setting:rewards/rates",
+   "file": "src/components/settings/Rewards.tsx",
+   "line_start": 19,
+   "line_end": 26
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/Rewards.tsx#ROWS",
+   "to": "setting:rewards/rates",
+   "file": "src/components/settings/Rewards.tsx",
+   "line_start": 7,
+   "line_end": 14
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/routine-steps",
+   "to": "feature:settings",
+   "file": "src/components/settings/RoutineSteps.tsx",
+   "line_start": 60,
+   "line_end": 90
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/RoutineSteps.tsx#RoutineSteps",
+   "to": "feature:settings/routine-steps",
+   "file": "src/components/settings/RoutineSteps.tsx",
+   "line_start": 60,
+   "line_end": 90
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/RoutineSteps.tsx#StepRow",
+   "to": "feature:settings/routine-steps",
+   "file": "src/components/settings/RoutineSteps.tsx",
+   "line_start": 9,
+   "line_end": 58
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/routine-step-edit",
+   "to": "feature:settings/routine-steps",
+   "file": "src/components/settings/RoutineSteps.tsx",
+   "line_start": 37,
+   "line_end": 87
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/RoutineSteps.tsx#StepRow",
+   "to": "rule:settings/routine-step-edit",
+   "file": "src/components/settings/RoutineSteps.tsx",
+   "line_start": 37,
+   "line_end": 50
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/work-kinds",
+   "to": "feature:settings",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 10,
+   "line_end": 42
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Tags.tsx#Tags",
+   "to": "feature:settings/work-kinds",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 10,
+   "line_end": 42
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/tag-durations",
+   "to": "feature:settings/work-kinds",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 18,
+   "line_end": 23
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:settings/work-kinds",
+   "to": "setting:settings/tag-durations",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 18,
+   "line_end": 23
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Tags.tsx#Tags",
+   "to": "setting:settings/tag-durations",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 18,
+   "line_end": 23
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/tag-chunk-min-max-consistent",
+   "to": "feature:settings/work-kinds",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 20,
+   "line_end": 33
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Tags.tsx#Tags",
+   "to": "rule:settings/tag-chunk-min-max-consistent",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 20,
+   "line_end": 33
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/tag-rest-defaults-to-break",
+   "to": "feature:settings/work-kinds",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 22,
+   "line_end": 22
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Tags.tsx#Tags",
+   "to": "rule:settings/tag-rest-defaults-to-break",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 22,
+   "line_end": 22
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:settings/tag-rest-defaults-to-break",
+   "to": "setting:settings/break-minutes",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 22,
+   "line_end": 22
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/learned-minutes-used-when-enough-samples",
+   "to": "feature:settings/work-kinds",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 24,
+   "line_end": 29
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Tags.tsx#Tags",
+   "to": "rule:settings/learned-minutes-used-when-enough-samples",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 24,
+   "line_end": 29
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:settings/learn-min-samples",
+   "to": "feature:settings/work-kinds",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 29,
+   "line_end": 29
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:settings/learned-minutes-used-when-enough-samples",
+   "to": "setting:settings/learn-min-samples",
+   "file": "src/components/settings/Tags.tsx",
+   "line_start": 29,
+   "line_end": 29
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:timetable/course-editor",
+   "to": "feature:timetable",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 70,
+   "line_end": 255
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#CourseForm",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 70,
+   "line_end": 214
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#Timetable",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 216,
+   "line_end": 255
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "type:src/components/settings/Timetable.tsx#Draft",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 56,
+   "line_end": 68
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:timetable/course-editor",
+   "to": "feature:timetable/period-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 251,
+   "line_end": 251
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:timetable/period-editor",
+   "to": "feature:timetable",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 14,
+   "line_end": 54
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#PeriodsGroup",
+   "to": "feature:timetable/period-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 14,
+   "line_end": 54
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:timetable/period-delete-warns-used",
+   "to": "feature:timetable/period-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 33,
+   "line_end": 38
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#PeriodsGroup",
+   "to": "rule:timetable/period-delete-warns-used",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 33,
+   "line_end": 38
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:timetable/period-add-default",
+   "to": "feature:timetable/period-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 43,
+   "line_end": 51
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#PeriodsGroup",
+   "to": "rule:timetable/period-add-default",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 43,
+   "line_end": 51
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:timetable/course-term-end-after-start",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 94,
+   "line_end": 98
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#CourseForm",
+   "to": "rule:timetable/course-term-end-after-start",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 94,
+   "line_end": 98
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:timetable/course-time-end-after-start",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 110,
+   "line_end": 119
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#CourseForm",
+   "to": "rule:timetable/course-time-end-after-start",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 110,
+   "line_end": 119
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:timetable/course-default-term",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 74,
+   "line_end": 90
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#CourseForm",
+   "to": "rule:timetable/course-default-term",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 74,
+   "line_end": 90
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:timetable/course-optional-attendance",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 105,
+   "line_end": 107
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#CourseForm",
+   "to": "rule:timetable/course-optional-attendance",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 105,
+   "line_end": 107
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:timetable/course-cancelled-dates",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 198,
+   "line_end": 211
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#CourseForm",
+   "to": "rule:timetable/course-cancelled-dates",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 198,
+   "line_end": 211
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:timetable/course-ended-label",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 232,
+   "line_end": 244
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#Timetable",
+   "to": "rule:timetable/course-ended-label",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 232,
+   "line_end": 244
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:timetable/utokyo-terms",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 170,
+   "line_end": 181
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "feature:timetable/course-editor",
+   "to": "setting:timetable/utokyo-terms",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 170,
+   "line_end": 181
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Timetable.tsx#CourseForm",
+   "to": "setting:timetable/utokyo-terms",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 170,
+   "line_end": 181
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "const:src/components/settings/Timetable.tsx#WEEK",
+   "to": "feature:timetable/course-editor",
+   "file": "src/components/settings/Timetable.tsx",
+   "line_start": 12,
+   "line_end": 12
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:settings/treats",
+   "to": "feature:settings",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 71,
+   "line_end": 99
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Treats.tsx#Treats",
+   "to": "feature:settings/treats",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 71,
+   "line_end": 99
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Treats.tsx#TreatForm",
+   "to": "feature:settings/treats",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 10,
+   "line_end": 69
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/treat-flags",
+   "to": "feature:settings/treats",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 57,
+   "line_end": 77
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Treats.tsx#Treats",
+   "to": "rule:settings/treat-flags",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 76,
+   "line_end": 78
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Treats.tsx#TreatForm",
+   "to": "rule:settings/treat-flags",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 57,
+   "line_end": 66
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:settings/treat-condition-reward-only",
+   "to": "feature:settings/treats",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 19,
+   "line_end": 56
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Treats.tsx#TreatForm",
+   "to": "rule:settings/treat-condition-reward-only",
+   "file": "src/components/settings/Treats.tsx",
+   "line_start": 19,
+   "line_end": 56
+  },
+  {
+   "type": "PART_OF",
+   "from": "feature:weather/place-settings",
+   "to": "feature:weather",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 11,
+   "line_end": 80
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Weather.tsx#Weather",
+   "to": "feature:weather/place-settings",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 11,
+   "line_end": 80
+  },
+  {
+   "type": "DEPENDS_ON",
+   "from": "feature:weather/place-settings",
+   "to": "integration:open-meteo",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 8,
+   "line_end": 8
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:weather/place-change-resets-forecast",
+   "to": "feature:weather/place-settings",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 26,
+   "line_end": 40
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Weather.tsx#Weather",
+   "to": "rule:weather/place-change-resets-forecast",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 26,
+   "line_end": 40
+  },
+  {
+   "type": "PART_OF",
+   "from": "rule:weather/rain-label-at-threshold",
+   "to": "feature:weather/place-settings",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 69,
+   "line_end": 74
+  },
+  {
+   "type": "IMPLEMENTS",
+   "from": "fn:src/components/settings/Weather.tsx#Weather",
+   "to": "rule:weather/rain-label-at-threshold",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 69,
+   "line_end": 74
+  },
+  {
+   "type": "PART_OF",
+   "from": "setting:weather/rain-threshold",
+   "to": "feature:weather/place-settings",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 72,
+   "line_end": 72
+  },
+  {
+   "type": "CONFIGURED_BY",
+   "from": "rule:weather/rain-label-at-threshold",
+   "to": "setting:weather/rain-threshold",
+   "file": "src/components/settings/Weather.tsx",
+   "line_start": 72,
+   "line_end": 72
+  }
+ ]
+}

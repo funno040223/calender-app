@@ -1,0 +1,148 @@
+{
+  "sampled": [
+    {
+      "id": "feature:planner/replan",
+      "verdict": "正しい",
+      "evidence": "src/lib/mock/state.ts:497-588",
+      "reason": "replan が授業・睡眠・飛ばした習慣を整えて plan() を呼ぶ。画面（store.ts）とサーバー（src/lib/server/plan.ts:51）の両方から呼ばれる。"
+    },
+    {
+      "id": "rule:health-sleep/valid-numbers-only",
+      "verdict": "正しい",
+      "evidence": "src/lib/mock/state.ts:349-356",
+      "reason": "start・end・minutes がすべて有限の数の夜だけ残すフィルタ。"
+    },
+    {
+      "id": "rule:planner/keep-free-no-autofill",
+      "verdict": "正しい",
+      "evidence": "src/lib/mock/model.ts:259-260",
+      "reason": "型のコメントどおりで、実体は planner.ts:198-199（keepFree を busy に加える）で確認できる。ただし実体側の IMPLEMENTS がなく、rule:planner/keep-free-busy と内容が重複。"
+    },
+    {
+      "id": "rule:insights/day-log-rewrite-same-day",
+      "verdict": "正しい",
+      "evidence": "src/lib/mock/state.ts:632-661",
+      "reason": "同じ内容なら何もしない（658行）、今日以外は残して今日を置き換える（660-661行）。細部：習慣は前の控えに足していく（640行）ので完全な作り直しではなく、120日より前は消える。"
+    },
+    {
+      "id": "setting:planner/max-wake-shift",
+      "verdict": "誤り",
+      "evidence": "src/lib/scheduler/types.ts:115 / src/lib/scheduler/rhythm.ts:133",
+      "reason": "値30と説明は正しいが、所属が feature:planner/morning-routine-prep（朝ルーティンと身支度の配置）になっており、使っているのは起床計算（rhythm.ts:133 limitDailyShift）。同じ設定が setting:rhythm/max-wake-shift・setting:settings/max-wake-shift と3重にあり、ルールからの CONFIGURED_BY はこのノードに来ていない。",
+      "correct_content": "PART_OF は feature:rhythm/wake-calc。rule:rhythm/daily-shift-limit から CONFIGURED_BY される1つのノードにまとめる（設定画面 BasicSettings.tsx:36 で変更可）。"
+    },
+    {
+      "id": "setting:planner/cue-gap",
+      "verdict": "正しい",
+      "evidence": "src/lib/scheduler/types.ts:162, src/lib/scheduler/planner.ts:418-423,498-499",
+      "reason": "CUE_GAP_MINUTES=5。きっかけの5分後に始め、beforeHabit は5分前に終える。"
+    },
+    {
+      "id": "rule:notifications/test-own-devices-only",
+      "verdict": "正しい",
+      "evidence": "src/app/api/push/test/route.ts:6-16",
+      "reason": "セッションのクライアント（RLS）で端末を読み、0件は400、gone の端末は削除。"
+    },
+    {
+      "id": "feature:calendar/imported-travel",
+      "verdict": "正しい",
+      "evidence": "src/components/calendar/CalendarApp.tsx:328-354",
+      "reason": "source==='google' の予定に「移動（片道）」の選択（家にいる・10〜90分）があり importedTravel に保存。"
+    },
+    {
+      "id": "rule:sync/new-id-format",
+      "verdict": "正しい",
+      "evidence": "src/lib/mock/jst.ts:94-100",
+      "reason": "接頭辞-Date.now の36進-乱数8字。randomUUID があれば先頭8字。所属 feature:sync はやや遠い（汎用の ID 生成）。"
+    },
+    {
+      "id": "rule:today/morning-fatigue-levels",
+      "verdict": "正しい",
+      "evidence": "src/components/today/MorningCard.tsx:55-61",
+      "reason": "FATIGUE_OPTIONS が1〜5の5段階とラベルを持つ。"
+    },
+    {
+      "id": "setting:ical/feed-future-days",
+      "verdict": "正しい",
+      "evidence": "src/lib/ical/feed.ts:6-8,18",
+      "reason": "FEED_FUTURE_MS=15日で inRange の上限に使う。"
+    },
+    {
+      "id": "feature:ical/feed-settings",
+      "verdict": "正しい",
+      "evidence": "src/components/settings/Feed.tsx:8-109",
+      "reason": "作成・作り直し・停止とアドレスの1回表示を確認。"
+    },
+    {
+      "id": "rule:sync/load-timeout-fallback",
+      "verdict": "正しい",
+      "evidence": "src/lib/mock/store.ts:107-121,136,271,300-302",
+      "reason": "LOAD_TIMEOUT_MS=6000 で withTimeout、失敗時は offline にして端末の状態のまま進む。"
+    },
+    {
+      "id": "feature:today/work-now-habits",
+      "verdict": "正しい",
+      "evidence": "src/lib/mock/recovery.ts:79-105",
+      "reason": "条件で除外したうえで最大3件、選ぶと pinned の枠を足す。"
+    },
+    {
+      "id": "rule:habits/form-cue-choices",
+      "verdict": "正しい",
+      "evidence": "src/components/settings/Habits.tsx:86-129",
+      "reason": "routine・home・食事のあと（habit:）・就寝基準か食事の前（before:）。同じきっかけなら元の cue（orElse 含む）を残す。"
+    },
+    {
+      "id": "rule:night/late-wake-tap-closes-sleep",
+      "verdict": "正しい",
+      "evidence": "src/lib/mock/bedtime.ts:6-21",
+      "reason": "mode=sleep の立て直しを、start より後・end+6時間より前の最も早い活動開始で終え mode=woke にする。"
+    },
+    {
+      "id": "setting:health-sleep/max-samples",
+      "verdict": "正しい",
+      "evidence": "src/lib/health/sleep.ts:31,125",
+      "reason": "MAX_SAMPLES=5000 で読み取り結果を切る。"
+    },
+    {
+      "id": "setting:planner/unknown-travel-minutes",
+      "verdict": "正しい",
+      "evidence": "src/lib/scheduler/types.ts:57,116, src/lib/scheduler/travel.ts:35",
+      "reason": "既定60分で、場所が登録にない予定に使う。"
+    },
+    {
+      "id": "feature:notifications/test-send",
+      "verdict": "正しい",
+      "evidence": "src/app/api/push/test/route.ts:4-18, src/lib/sync/push.ts:68, src/components/settings/Notifications.tsx:69-71",
+      "reason": "設定画面のボタンから POST し、本人の端末へ送る。VAPID 鍵は send.ts:19-23。"
+    },
+    {
+      "id": "feature:notifications/build-schedule",
+      "verdict": "正しい",
+      "evidence": "src/lib/notify/build.ts:57-187",
+      "reason": "buildNotices が予定前・移動時間の質問・進み具合・枠の始まり・朝のまとめ・身支度・体力・タバコ・充電・寝る準備を集める。"
+    }
+  ],
+  "missing": [
+    {
+      "kind": "Setting",
+      "what": "Notion API の1回の呼び出しのタイムアウト（15秒）。iCal の取得（setting:ical/fetch-timeout-ms）やサーバー読み込み（setting:sync/load-timeout）は Setting になっているのに、これだけない",
+      "evidence": "src/lib/notion/api.ts:12"
+    },
+    {
+      "kind": "Edge",
+      "what": "API の Route ノード7件（/api/health/sleep・/api/ical/feed/[token]・/api/ical/sync・/api/notion/schema・/api/notion/sync・/api/push/dispatch・/api/push/replan）から機能への IMPLEMENTS が1本もない（画面の Route は持っている）。例：route:api:/api/push/dispatch → feature:notifications/dispatch",
+      "evidence": "src/app/api/push/dispatch/route.ts:12-47"
+    },
+    {
+      "kind": "Edge",
+      "what": "同じ設定キー maxWakeShiftMinutesPerDay を表す setting:planner/max-wake-shift・setting:rhythm/max-wake-shift・setting:settings/max-wake-shift が互いに結ばれておらず、設定画面の項目から rule:rhythm/daily-shift-limit へたどれない（同様の重複が planner/ と settings/ で15種：sleep-minutes・prep-minutes・task-strategy など）",
+      "evidence": "src/components/settings/BasicSettings.tsx:36, src/lib/scheduler/rhythm.ts:133"
+    }
+  ],
+  "summary": {
+    "correct": 19,
+    "wrong": 1,
+    "insufficient": 0,
+    "missing": 3
+  }
+}
