@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import type { DayPlan } from "@/lib/scheduler";
 import { useApp } from "@/components/app/StoreProvider";
-import { DAY_MS, MIN, dayStartOf, formatMinutes, formatTime } from "@/lib/mock/jst";
+import { DAY_MS, MIN, dayStartOf, formatMinutes, formatTime, fromInputTime } from "@/lib/mock/jst";
+import { WAKE_CANDIDATE_LABEL, asksWakeTime, wakeCandidates, type WakeCandidate } from "@/lib/mock/wake";
 import { SLEEP_SHORTCUT_URL, markHealthAsked } from "@/lib/sync/health";
 import { nightOf } from "@/lib/mock/night";
 import { dateKeyOf, wakeStreak, type MorningFatigue, type WakeLog, type MockData } from "@/lib/mock/model";
-import { Card, Row, btnPrimary } from "@/components/ui/controls";
+import { Card, Row, btnPrimary, btnSecondary } from "@/components/ui/controls";
 import { labelCls, textBtn, CheckCircle, todaysTreat, TreatText } from "./parts";
 
 /**
@@ -52,7 +53,57 @@ function SleepInput({
   );
 }
 
-const FATIGUE_OPTIONS: { value: MorningFatigue; label: string }[] = [
+/**
+ * 「いつ起きた？」：遅れて押すとき（押し忘れ・寝坊）と、あとから起きた時刻を直すとき。
+ * 候補（予定・ヘルスケア・アプリを開いた・朝ルーティン・タバコ・いま）を1回押すか、時刻を入れる
+ */
+function WakePicker({ candidates, current, now, onPick }: { candidates: WakeCandidate[]; current?: number; now: number; onPick: (at: number) => void }) {
+  const [typed, setTyped] = useState("");
+  const typedAt = (ref: number) => {
+    const at = fromInputTime(typed, ref, "before");
+    return at !== undefined && ref - at < 16 * 60 * MIN ? at : undefined;
+  };
+  const valid = typedAt(now) !== undefined;
+  return (
+    <div className="flex flex-col gap-2">
+      <p className={labelCls}>いつ起きた？</p>
+      <div className="grid grid-cols-3 gap-1.5">
+        {candidates.map((c) => {
+          const on = current !== undefined && Math.abs(current - c.at) < MIN;
+          return (
+            <button
+              key={c.kind}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPick(c.kind === "now" ? Date.now() : c.at)}
+              className={`press flex flex-col items-center rounded-xl py-1.5 ${on ? "bg-tint text-on-tint" : "bg-surface2"}`}
+            >
+              <span className="text-[17px] font-semibold tabular-nums">{formatTime(c.at)}</span>
+              <span className={`text-[11px] ${on ? "" : "text-muted"}`}>{WAKE_CANDIDATE_LABEL[c.kind]}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="time"
+          aria-label="起きた時刻"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-line bg-surface2 p-2"
+        />
+        <button type="button" aria-label="起きた時刻を記録" disabled={!valid} onClick={() => {
+            const at = typedAt(Date.now());
+            if (at !== undefined) onPick(at);
+          }} className={`${btnSecondary} shrink-0 py-2`}>
+          記録
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const FATIGUE_OPTIONS:{ value: MorningFatigue; label: string }[] = [
   { value: 1, label: "元気" },
   { value: 2, label: "少し" },
   { value: 3, label: "ふつう" },
@@ -127,6 +178,14 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
   // ヘルスケアの起床で組み直した朝も、前の晩に予定していた起床と比べる（予定どおり起きたか）
   const expectedWake = state.result.rhythmResets?.find((r) => r.plannedEnd !== undefined && dateKeyOf(r.end) === key)?.plannedEnd ?? day?.wake;
   const lateBy = log.wokeAt !== undefined && plannedWake !== undefined ? Math.round((log.wokeAt - plannedWake) / MIN) : 0;
+  // 遅れて押すとき（押し忘れ・寝坊）は、いつ起きたかを聞く。記録したあとも、時刻を押すと直せる
+  const [editingWake, setEditingWake] = useState(false);
+  const askWake = asksWakeTime(now, expectedWake);
+  const candidates = wakeCandidates(state, key, log.plannedWake ?? expectedWake, now);
+  const pickWake = (at: number) => {
+    setLog((l) => ({ ...l, wokeAt: at, plannedWake: l.wokeAt !== undefined ? (l.plannedWake ?? expectedWake) : expectedWake }), true);
+    setEditingWake(false);
+  };
   // ヘルスケアを取り込んでいて、今朝の分がまだ届いていないとき（ロック中は読めないので、ここから送る）。「起きた」を押す前から出す
   const healthLink = Object.keys(state.healthSleep).length > 0 && !state.healthSleep[key] && log.sleepMinutes === undefined && (
     <a href={SLEEP_SHORTCUT_URL} onClick={markHealthAsked} className={`${textBtn} self-start`}>
@@ -163,6 +222,9 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
       <div className="flex flex-col gap-3 px-4 pt-2 pb-3.5">
         {log.wokeAt === undefined ? (
           <>
+            {askWake ? (
+              <WakePicker candidates={candidates} now={now} onPick={pickWake} />
+            ) : (
             <button
               type="button"
               onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), plannedWake: expectedWake }), true)}
@@ -170,6 +232,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
             >
               起きた
             </button>
+            )}
             {/* 今日の楽しみは伏せておき、起きたら開く（起き上がるきっかけに） */}
             {treat && <p className="text-center text-[13px] text-muted">起きると、今日の楽しみが開きます</p>}
             {healthLink}
@@ -179,7 +242,16 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
             <div className="flex items-center gap-3">
               <CheckCircle on />
               <p className="min-w-0 flex-1 text-[15px]">
-                <span className="tabular-nums">{formatTime(log.wokeAt)}</span>に起きました
+                <button
+                  type="button"
+                  aria-expanded={editingWake}
+                  aria-label={`起きた時刻 ${formatTime(log.wokeAt)} を直す`}
+                  onClick={() => setEditingWake((v) => !v)}
+                  className="press tabular-nums underline decoration-dotted underline-offset-4"
+                >
+                  {formatTime(log.wokeAt)}
+                </button>
+                に起きました
                 {day && Math.abs(lateBy) >= 5 && (
                   <span className="block text-[13px] text-muted">予定より{formatMinutes(Math.abs(lateBy))}{lateBy > 0 ? "遅く" : "早く"}</span>
                 )}
@@ -200,6 +272,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
                 取り消す
               </button>
             </div>
+            {editingWake && <WakePicker candidates={candidates} current={log.wokeAt} now={now} onPick={pickWake} />}
             <div>
               <p className={`mb-1.5 ${labelCls}`}>今の疲れ</p>
               <div className="grid grid-cols-5 gap-1.5">

@@ -1,5 +1,6 @@
 import { resolveTravel, type CalendarEvent, type Habit, type Place, type PlanResult, type Settings } from "@/lib/scheduler";
 import { formatDate, formatTime } from "@/lib/mock/jst";
+import { dateKeyOf, type DateKey } from "@/lib/mock/model";
 
 /** 1件の通知。サーバーが at の時刻に送る。key は同じ通知を2回送らないための名前 */
 export interface Notice {
@@ -14,6 +15,11 @@ export interface Notice {
    * 予定が始まる・出発する・枠が終わるなど、知らせる意味がなくなる時刻。なければ at から10分
    */
   until?: number;
+  /**
+   * 起きたと分かるまで送らない朝（起きた日）。予定の起床から4時間の、習慣・タスクの枠の通知に付ける。
+   * 送る側で、その朝の記録（「起きた」・朝ルーティン・アプリを開いた・ヘルスケアの目覚め）を見て決める
+   */
+  wakeDate?: DateKey;
 }
 
 export interface NoticeInput {
@@ -42,6 +48,8 @@ export const NOTICE_HORIZON_MS = 48 * 60 * MIN;
 export const SMOKE_CUTOFF_MINUTES = 180;
 /** Apple Watch の充電を始める合図（就寝の何分前）。寝るときに満タンにして、睡眠を記録する。外出から帰るのがこれより遅い日は、帰宅の時刻に */
 export const WATCH_CHARGE_MINUTES = 120;
+/** 予定の起床からこの時間までの習慣・タスクの通知は、起きたと分かるまで送らない（寝坊した朝に何件もたまらないように） */
+export const WAKE_HOLD_MINUTES = 4 * 60;
 
 /**
  * 配置の結果から、これから送る通知を作る。
@@ -64,6 +72,12 @@ export function buildNotices(input: NoticeInput): Notice[] {
   if (days[0]) quiet.unshift({ start: days[0].wake - settings.sleepMinutes * MIN, end: days[0].wake });
   quiet.push(...(result.rhythmResets ?? []).filter((r) => r.mode !== "tired"));
   const isQuiet = (t: number) => quiet.some((q) => t >= q.start && t < q.end);
+  // 起きたと分かるまで送らない朝。その朝の起床がもう分かっていれば（「起きた」・ヘルスケアで組み直した朝）止めない
+  const wakeKnown = (dayStart: number) => (result.rhythmResets ?? []).some((r) => r.mode === "woke" && r.end >= dayStart && r.end < dayStart + 24 * 60 * MIN);
+  const holdUntilAwake = (t: number) => {
+    const d = days.find((x) => t >= x.wake && t < x.wake + WAKE_HOLD_MINUTES * MIN);
+    return d && !wakeKnown(d.dayStart) ? { wakeDate: dateKeyOf(d.dayStart) } : {};
+  };
 
   const out: Notice[] = [];
   const add = (n: Notice) => {
@@ -99,7 +113,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
 
   // 枠ごとに実績を確認する。未回答分は今日の画面でまとめて確認できる。
   for (const b of result.blocks) {
-    if (b.kind === "task") add({ key: `check:${b.refId}:${b.start}`, at: b.end, title: b.title, body: "どのくらい進んだ？", url: "/" });
+    if (b.kind === "task") add({ key: `check:${b.refId}:${b.start}`, at: b.end, title: b.title, body: "どのくらい進んだ？", url: "/", ...holdUntilAwake(b.end) });
   }
 
   // 自炊のように余裕がある日だけの習慣と、食事・入浴のように少しだけやる形のない習慣には「まず5分」を出さない
@@ -114,6 +128,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
       body: b.kind === "habit" && cued.has(b.refId) ? "まず5分" : `${formatTime(b.start)}〜${formatTime(b.end)}`,
       // 通知を開くことと実行の確認は別にする
       url: b.kind === "task" ? `/?task=${encodeURIComponent(`${b.refId}:${b.start}`)}` : "/",
+      ...holdUntilAwake(b.start),
     });
   }
 

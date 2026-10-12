@@ -12,6 +12,7 @@ import { fetchRainChance } from "@/lib/weather/openMeteo";
 import { fetchNotionRows } from "@/lib/sync/notion";
 import { loadSleepNights, takeHealthAsked } from "@/lib/sync/health";
 import { dateKeyOf } from "@/lib/mock/model";
+import { markOpened } from "@/lib/mock/wake";
 import { applyNotionRows, deleteTask as removeTask } from "@/lib/mock/notion";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
@@ -110,6 +111,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const { state } = store;
   const warnings = warningCount(state);
+
+  // その朝に最初に開いた時刻を残す（「いつ起きた？」の候補と、起きるまで止める通知に使う）
+  const latest = useRef(state);
+  useEffect(() => {
+    latest.current = state;
+  });
+  useEffect(() => {
+    if (store.sync === "loading") return;
+    const mark = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      const s = latest.current;
+      const day = s.result.dayPlans.find((d) => d.dayStart === dayStartOf(now));
+      const window = day && { wake: day.wake, end: day.bed - s.settings.windDownMinutes * 60_000 };
+      if (markOpened(s, now, window) !== s) update((d) => markOpened(d, now, window), { auto: true });
+    };
+    mark();
+    document.addEventListener("visibilitychange", mark);
+    return () => document.removeEventListener("visibilitychange", mark);
+  }, [store.sync, update]);
 
   // 天気予報：場所があれば、開いたときと3時間ごとに雨の確率を取り直す（取れなければ前の予報のまま）
   const place = state.weatherPlace;

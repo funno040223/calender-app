@@ -1,5 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { cleanNotices, isDue, sendPush, type PushTarget } from "@/lib/push/send";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { cleanNotices, heldUntilAwake, isDue, sendPush, type PushTarget } from "@/lib/push/send";
+import { awakeSince } from "@/lib/mock/wake";
+import type { WakeLog } from "@/lib/mock/model";
 import { authorized } from "@/lib/push/cron";
 import { deliverNotice, deliveryLedger } from "@/lib/push/delivery";
 
@@ -20,7 +23,13 @@ export async function POST(request: Request) {
   let sent = 0;
   let failed = 0;
   for (const row of rows ?? []) {
-    const due = cleanNotices(row.items).filter((n) => isDue(n, now));
+    let due = cleanNotices(row.items).filter((n) => isDue(n, now));
+    // 寝坊した朝は、起きたと分かるまで習慣・タスクの通知を止める
+    const dates = [...new Set(due.flatMap((n) => (n.wakeDate ? [n.wakeDate] : [])))];
+    if (dates.length) {
+      const awake = await awakeTimes(db, row.user_id, dates);
+      due = due.filter((n) => !heldUntilAwake(n, n.wakeDate ? awake.get(n.wakeDate) : undefined));
+    }
     if (!due.length) continue;
 
     const { data: subs } = await db.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", row.user_id);
@@ -44,4 +53,22 @@ export async function POST(request: Request) {
 
   await db.from("push_sent").delete().lt("sent_at", new Date(now - KEEP_SENT_MS).toISOString());
   return Response.json({ sent, failed });
+}
+
+/** その朝に起きていると分かった最初の時刻（朝の記録とヘルスケアの目覚めから）。読めなければ、止めずに送る */
+async function awakeTimes(db: SupabaseClient, userId: string, dates: string[]): Promise<Map<string, number | undefined>> {
+  const [state, health] = await Promise.all([
+    db.from("app_state").select("data").eq("user_id", userId).maybeSingle(),
+    db.from("health_sleep").select("night, sleep_end").eq("user_id", userId).in("night", dates),
+  ]);
+  if (state.error) return new Map(dates.map((d) => [d, -Infinity]));
+  const logs: unknown = (state.data?.data as { wakeLogs?: unknown } | undefined)?.wakeLogs;
+  const list = Array.isArray(logs) ? (logs as Partial<WakeLog>[]) : [];
+  return new Map(
+    dates.map((d) => {
+      const h = health.data?.find((x) => x.night === d);
+      const end = h ? Date.parse(h.sleep_end) : undefined;
+      return [d, awakeSince(list.find((l) => l?.date === d), Number.isFinite(end) ? end : undefined)];
+    }),
+  );
 }

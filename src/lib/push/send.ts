@@ -58,9 +58,19 @@ export function cleanNotices(raw: unknown): Notice[] {
       body: typeof n.body === "string" ? n.body.slice(0, 300) : "",
       url,
       ...(typeof n.until === "number" && Number.isFinite(n.until) ? { until: n.until } : {}),
+      ...(typeof n.wakeDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(n.wakeDate) ? { wakeDate: n.wakeDate } : {}),
     });
   }
   return out;
+}
+
+/** 起きたあとに始まった枠だけ送る（少しの遅れは許す）。起きたと分かる前の分は、起きたあとにまとめて届かないように捨てる */
+const AWAKE_GRACE_MS = 5 * 60_000;
+
+/** 起きたと分かるまで止める通知か。awake はその朝に起きていると分かった最初の時刻（分からなければ undefined） */
+export function heldUntilAwake(n: Pick<Notice, "at" | "wakeDate">, awake: number | undefined): boolean {
+  if (!n.wakeDate) return false;
+  return awake === undefined || awake > n.at + AWAKE_GRACE_MS;
 }
 
 /** 遅れて届いた一覧でも、at から10分までは送る */

@@ -126,3 +126,22 @@ describe("buildNotices", () => {
     expect(buildNotices(input({ events })).filter((n) => n.key.startsWith("event:"))).toEqual([]);
   });
 });
+
+describe("起きたと分かるまで止める通知", () => {
+  const blocks = [
+    { kind: "task" as const, refId: "t1", title: "レポート", start: jst(2026, 10, 1, 10), end: jst(2026, 10, 1, 11) },
+    { kind: "habit" as const, refId: "h1", title: "散歩", start: jst(2026, 10, 1, 15), end: jst(2026, 10, 1, 15, 30) },
+  ];
+  it("予定の起床から4時間の習慣・タスクの通知に、その朝の日付を付ける", () => {
+    const got = buildNotices(input({ result: { ...input().result, blocks } }));
+    expect(got.find((n) => n.key.startsWith("block:task"))?.wakeDate).toBe("2026-10-01");
+    expect(got.find((n) => n.key.startsWith("check:"))?.wakeDate).toBe("2026-10-01");
+    expect(got.find((n) => n.key.startsWith("block:habit"))?.wakeDate).toBeUndefined();
+    expect(got.find((n) => n.key.startsWith("morning:"))?.wakeDate).toBeUndefined();
+  });
+  it("その朝の起床がもう分かっていれば付けない", () => {
+    const resets = [{ id: "woke:2026-10-01", mode: "woke" as const, start: jst(2026, 10, 1, 1), end: jst(2026, 10, 1, 8, 5) }];
+    const got = buildNotices(input({ result: { ...input().result, blocks, rhythmResets: resets } }));
+    expect(got.find((n) => n.key.startsWith("block:task"))?.wakeDate).toBeUndefined();
+  });
+});
