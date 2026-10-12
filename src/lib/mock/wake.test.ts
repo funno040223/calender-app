@@ -11,12 +11,12 @@ it("予定の起床から30分を過ぎて押すときだけ、いつ起きた�
   expect(asksWakeTime(planned + 31 * 60_000, planned)).toBe(true);
 });
 
-it("候補は予定・その朝の手がかり・いまを古い順に、近いものはまとめる", () => {
+it("候補は予定・その朝に動いていた手がかり・いまを古い順に。ヘルスケアの目覚めは出さない", () => {
   const d = sampleData(now);
   const data = {
     ...d,
     smokeLogs: [jst(2026, 10, 6, 9, 40), jst(2026, 10, 5, 22)],
-    healthSleep: { "2026-10-06": { start: jst(2026, 10, 6, 1), end: jst(2026, 10, 6, 9, 2), minutes: 480 } },
+    healthSleep: { "2026-10-06": { start: jst(2026, 10, 6, 1), end: jst(2026, 10, 6, 8, 30), minutes: 450 } },
     wakeLogs: [{ date: "2026-10-06", doneStepIds: [], openedAt: jst(2026, 10, 6, 9, 20) }],
   };
   const got = wakeCandidates(data, "2026-10-06", planned, now);

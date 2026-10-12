@@ -121,7 +121,9 @@ export function isMorning(state: ReturnType<typeof useApp>["state"], day: DayPla
   if (now < wake - 2 * 60 * MIN) return false;
   const log = state.wakeLogs.find((l) => l.date === dateKeyOf(today));
   if (log?.wokeAt === undefined) return now < (day?.bed ?? today + DAY_MS) - state.settings.windDownMinutes * MIN;
-  if (now >= wake + 4 * 60 * MIN) return false;
+  // 前の時刻で記録したとき（押し忘れ・寝坊）も、記録してから2時間は出して、疲れと朝ルーティンを聞く
+  const until = Math.max(wake + 4 * 60 * MIN, Math.min((log.wokeRecordedAt ?? 0) + 2 * 60 * MIN, (day?.bed ?? today + DAY_MS) - state.settings.windDownMinutes * MIN));
+  if (now >= until) return false;
   const finished =
     log?.wokeAt !== undefined && log.fatigue !== undefined && (state.routineSteps.length === 0 || log.routineDoneAt !== undefined);
   return !finished;
@@ -183,7 +185,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
   const askWake = asksWakeTime(now, expectedWake);
   const candidates = wakeCandidates(state, key, log.plannedWake ?? expectedWake, now);
   const pickWake = (at: number) => {
-    setLog((l) => ({ ...l, wokeAt: at, plannedWake: l.wokeAt !== undefined ? (l.plannedWake ?? expectedWake) : expectedWake }), true);
+    setLog((l) => ({ ...l, wokeAt: at, wokeRecordedAt: Date.now(), plannedWake: l.wokeAt !== undefined ? (l.plannedWake ?? expectedWake) : expectedWake }), true);
     setEditingWake(false);
   };
   // ヘルスケアを取り込んでいて、今朝の分がまだ届いていないとき（ロック中は読めないので、ここから送る）。「起きた」を押す前から出す
@@ -227,7 +229,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
             ) : (
             <button
               type="button"
-              onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), plannedWake: expectedWake }), true)}
+              onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), wokeRecordedAt: Date.now(), plannedWake: expectedWake }), true)}
               className={`${btnPrimary} h-14 w-full rounded-2xl text-[18px] font-bold`}
             >
               起きた
@@ -263,6 +265,7 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
                   setLog((l) => {
                     const next = { ...l };
                     delete next.wokeAt;
+                    delete next.wokeRecordedAt;
                     // 朝ルーティンを始めていれば、そのときの予定の起床は残す
                     if (next.routineStartedAt === undefined) delete next.plannedWake;
                     return next;

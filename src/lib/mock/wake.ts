@@ -8,7 +8,7 @@ const CANDIDATE_FROM_MINUTES = 3 * 60;
 /** 近い候補はまとめる */
 const SAME_MINUTES = 5;
 
-export type WakeCandidateKind = "planned" | "health" | "opened" | "routine" | "smoke" | "now";
+export type WakeCandidateKind = "planned" | "opened" | "routine" | "smoke" | "now";
 
 export interface WakeCandidate {
   kind: WakeCandidateKind;
@@ -17,7 +17,6 @@ export interface WakeCandidate {
 
 export const WAKE_CANDIDATE_LABEL: Record<WakeCandidateKind, string> = {
   planned: "予定",
-  health: "ヘルスケア",
   opened: "アプリを開いた",
   routine: "朝ルーティン",
   smoke: "タバコ",
@@ -29,11 +28,12 @@ export const asksWakeTime = (now: number, expected: number | undefined) =>
   expected !== undefined && now > expected + ASK_WAKE_AFTER_MINUTES * MIN;
 
 /**
- * 「いつ起きた？」の候補：予定の起床と、その朝に起きていた手がかり（ヘルスケアの目覚め・最初にアプリを開いた・朝ルーティンの最初のチェック・最初のタバコ）、いま。
+ * 「いつ起きた？」の候補：予定の起床と、その朝に起きて動いていた手がかり（最初にアプリを開いた・朝ルーティンの最初のチェック・最初のタバコ）、いま。
+ * ヘルスケアの目覚めは出さない（目が覚めても起き上がったとは限らない。夜の記録で活動と睡眠を分けているため）。
  * 古い順。近いもの（5分以内）は先に出たほうだけ残す（いまは必ず残す）
  */
 export function wakeCandidates(
-  data: Pick<MockData, "wakeLogs" | "healthSleep" | "smokeLogs">,
+  data: Pick<MockData, "wakeLogs" | "smokeLogs">,
   date: DateKey,
   expected: number | undefined,
   now: number,
@@ -43,7 +43,6 @@ export function wakeCandidates(
   const smoke = data.smokeLogs.filter((t) => t >= from && t <= now).sort((a, b) => a - b)[0];
   const raw: (WakeCandidate | undefined)[] = [
     expected !== undefined ? { kind: "planned", at: expected } : undefined,
-    data.healthSleep[date] ? { kind: "health", at: data.healthSleep[date].end } : undefined,
     log?.openedAt !== undefined ? { kind: "opened", at: log.openedAt } : undefined,
     log?.routineStartedAt !== undefined ? { kind: "routine", at: log.routineStartedAt } : undefined,
     smoke !== undefined ? { kind: "smoke", at: smoke } : undefined,

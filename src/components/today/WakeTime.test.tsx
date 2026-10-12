@@ -55,3 +55,9 @@ it("記録した起床の時刻は、あとから直せる", () => {
   expect(screen.getByRole("button", { name: "起きた時刻 9:20 を直す" })).toBeTruthy();
   expect(seen.state!.wakeLogs.find((l) => l.date === "2026-10-06")?.wokeAt).toBe(jst(2026, 10, 6, 9, 20));
 });
+
+it("前の時刻で記録しても、朝のカードを出したままにして疲れを聞く", () => {
+  render(<Harness><TodayScreen /></Harness>);
+  fireEvent.click(screen.getByRole("button", { name: /9:00\s*予定/ }));
+  expect(screen.getByText("今の疲れ")).toBeTruthy();
+});
