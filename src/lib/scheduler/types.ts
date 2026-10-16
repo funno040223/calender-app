@@ -358,6 +358,12 @@ export interface PlanInput {
   habitDoneDays?: Record<string, number[]>;
   /** 前回の配置。始まった枠と固定した枠はそのまま残す */
   previousBlocks: Block[];
+  /**
+   * 起きた時刻が分かった（記録した・直した）日。新しい朝ルーティンと重なる前の計画の自動の枠は外す。
+   * relayout のときは、実際の起床から朝を組み直す：過ぎていても朝ルーティンと朝の流れの記録する習慣を置く。
+   * keep は外さない枠（記録・確認の済んだもの。refId:start）
+   */
+  anchor?: { dayStart: number; keep: string[]; relayout?: boolean };
   /** 帰宅時に答えた残りの体力（日の 0:00 → 答え）。帰宅から就寝までのタスクの入れ方が変わる */
   eveningEnergy?: Record<number, EveningEnergy>;
   /** 雨の日にした日（日の 0:00）。rainAlternative のある習慣を代わりのものにする */

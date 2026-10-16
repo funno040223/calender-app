@@ -1,7 +1,8 @@
-import { bedtimeSleeps, reconcileBedtime, settledResets } from "./bedtime";
+import { RESET_KEEP_DAYS, bedtimeSleeps, manualSleeps, reconcileBedtime } from "./bedtime";
+import { nightOf, recordReset, sleepSessions } from "./night";
 import { captureTaskBlocks, planTagsOf } from "./progress";
-import { DEFAULT_SETTINGS, buildOutlook, contactDays, plan, wakingDayStart, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardBank, type RewardRates, type RewardSpend, type BedLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
+import { DEFAULT_SETTINGS, computeDayPlans, buildOutlook, contactDays, plan, wakingDayStart, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardBank, type RewardRates, type RewardSpend, type SleepLog, type SleepMark, type TiredPause, type WakeLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
 import { EMPTY_REWARD_BANK, bankRewards } from "./stats";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
 import { UTOKYO_TERMS } from "./utokyo";
@@ -37,6 +38,11 @@ export interface MockState extends MockData {
   plannedAt: number;
   /** 配置に使った作業の種類（所要時間の目安は、実績がたまれば実績の中央値） */
   planTags: Tag[];
+  /**
+   * 組み直しで決めた、習慣をやった日（保存しない）。lastDone＝間隔の習慣の最後にやった時刻、
+   * weekDays＝週に何回かの習慣の今日より前にやった日（直近14日、その日の 0:00）
+   */
+  habitDone: { lastDone: Record<string, number>; weekDays: Record<string, number[]> };
 }
 
 export { LEARN_MIN_SAMPLES, learnedMinutes, planTagsOf } from "./progress";
@@ -61,9 +67,9 @@ export const DATA_KEYS = [
   "events",
   "blocks",
   "wakeLogs",
-  "habitLastDone",
-  "habitDoneDays",
-  "bedLogs",
+  "habitStarts",
+  "anchoredWakes",
+  "sleepLogs",
   "dayLogs",
   "healthSleep",
   "hiddenCalendars",
@@ -120,9 +126,9 @@ export function sampleData(now: number): MockData {
     events: buildSampleOwnEvents(now),
     blocks: [],
     wakeLogs: [],
-    habitLastDone: {},
-    habitDoneDays: {},
-    bedLogs: {},
+    habitStarts: {},
+    anchoredWakes: {},
+    sleepLogs: [],
     dayLogs: {},
     healthSleep: {},
     hiddenCalendars: [],
@@ -170,6 +176,10 @@ const MIGRATIONS = [
   "2026-10-01-treats-adventure",
   "2026-10-01-track-meals-bath",
   "2026-10-01-routine-no-drink",
+  // 寝た・起きた時刻を眠りの記録（sleepLogs）にまとめた（bedLogs・wakeLogs の起きた時刻・立て直しの睡眠から。fromStoredV2 で移す）
+  "2026-10-12-sleep-logs",
+  // やった日の控え（habitLastDone・habitDoneDays）を保存しないようにした（組み直すたびに決める。fromStoredV2 で読まない）
+  "2026-10-12-habit-done-derived",
 ] as const;
 
 /** 以前の初期値のままの朝ルーティン・楽しみ（このままなら 2026-10-01 に聞いた中身に置き換える） */
@@ -304,6 +314,143 @@ function migrateHabit(h: Habit): Habit {
 const isArray = (v: unknown): v is unknown[] => Array.isArray(v);
 const arr = <T,>(v: unknown, fallback: T[]): T[] => (isArray(v) ? (v as T[]) : fallback);
 
+const finite = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+const SLEEP_SOURCES: SleepMark["source"][] = ["button", "picked", "reset"];
+const isMark = (x: unknown): x is SleepMark =>
+  isRecord(x) && finite(x.at) && SLEEP_SOURCES.includes(x.source as SleepMark["source"]) && (x.recordedAt === undefined || finite(x.recordedAt));
+const isReset = (x: unknown): x is { id: string; mode: string; start: number; end: number } =>
+  isRecord(x) && typeof x.id === "string" && finite(x.start) && finite(x.end) && x.end > x.start && x.end - x.start <= 48 * 60 * MIN;
+
+/** 記録しない習慣の、始まった枠の時刻を残す日数 */
+export const HABIT_START_KEEP_DAYS = 60;
+
+/**
+ * 記録しない習慣の、始まった枠の時刻。以前の行（habitStarts がない）は、控えから引き継ぐ：
+ * habitLastDone は最後に始まった枠の時刻、habitDoneDays はやった日（0:00）なので、その日の正午を始まった時刻とする
+ * （その日の分として数え、夜中の睡眠とも重ならない）
+ */
+function parseHabitStarts(v: unknown, legacyLastDone: unknown, legacyDoneDays: unknown): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  if (isRecord(v)) {
+    for (const [id, ts] of Object.entries(v)) if (Array.isArray(ts)) out[id] = ts.filter(finite);
+    return out;
+  }
+  const add = (id: string, t: unknown) => {
+    if (finite(t)) out[id] = [...new Set([...(out[id] ?? []), t])].sort((a, b) => a - b);
+  };
+  if (isRecord(legacyLastDone)) for (const [id, t] of Object.entries(legacyLastDone)) add(id, t);
+  if (isRecord(legacyDoneDays)) for (const [id, days] of Object.entries(legacyDoneDays)) if (Array.isArray(days)) for (const day of days) if (finite(day)) add(id, day + 12 * 60 * MIN);
+  return out;
+}
+
+/** 眠りの記録の上限（1日1〜2件で1年あまり。保存は pruneOldLogs で400日） */
+const SLEEP_LOG_MAX = 500;
+
+function parseSleepLogs(v: unknown): SleepLog[] {
+  return arr<unknown>(v, [])
+    // 昼寝の記録（以前の版の nap）は捨てる（昼の休みは「休む」だけにした）
+    .filter((x) => !(isRecord(x) && x.nap === true))
+    .map((x) => {
+      if (!isRecord(x) || !("nap" in x)) return x;
+      const { nap: _nap, ...rest } = x;
+      void _nap;
+      return rest;
+    })
+    .filter(
+      (x): x is SleepLog =>
+        isRecord(x) &&
+        typeof x.id === "string" &&
+        typeof x.date === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(x.date) &&
+        (x.bed === undefined || isMark(x.bed)) &&
+        (x.up === undefined || isMark(x.up)) &&
+        [x.until, x.plannedBed, x.plannedWake].every((t) => t === undefined || finite(t)),
+    )
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-SLEEP_LOG_MAX);
+}
+
+/**
+ * 以前の形の記録（「寝る」の bedLogs、wakeLogs の起きた時刻と予定の起床、立て直しの sleep・woke）を、眠りの記録に移す。
+ * 以前の版で保存された行にだけ残っている（今の版は保存しない）ので、残っていれば毎回移す。眠りの記録にもうある日は、そちらを使う
+ */
+export function withLegacySleep(logs: SleepLog[], d: Partial<Record<string, unknown>>): SleepLog[] {
+  const byDate = new Map<string, SleepLog>();
+  const night = (date: string) => byDate.get(date) ?? byDate.set(date, { id: date, date }).get(date)!;
+  for (const l of arr<unknown>(d.wakeLogs, [])) {
+    if (!isRecord(l) || typeof l.date !== "string") continue;
+    if (finite(l.wokeAt)) night(l.date).up = { at: l.wokeAt, source: "button", ...(finite(l.wokeRecordedAt) ? { recordedAt: l.wokeRecordedAt } : {}) };
+    if (finite(l.plannedWake)) night(l.date).plannedWake = l.plannedWake;
+  }
+  if (isRecord(d.bedLogs)) {
+    for (const [key, b] of Object.entries(d.bedLogs)) {
+      const day = dayStartOfKey(key);
+      if (day === undefined || !isRecord(b) || !finite(b.at) || !finite(b.plannedBed)) continue;
+      const n = night(dateKeyOf(day + DAY_MS));
+      n.bed = { at: b.at, source: "button" };
+      n.plannedBed = b.plannedBed;
+    }
+  }
+  let legacy = [...byDate.values()];
+  // その朝の活動開始（「起きた」・朝ルーティンの最初のチェック）。これより後に入れた立て直し（昼寝）は移さずに捨てる
+  // （夜の記録を置き換えないため。ヘルスケアの目覚めは使わない）
+  const rawWake = arr<unknown>(d.wakeLogs, []).filter(isRecord);
+  const dayUp = (date: string) => {
+    const times = [legacy.find((s) => s.date === date)?.up?.at, rawWake.find((l) => l.date === date)?.routineStartedAt].filter(finite);
+    return times.length ? Math.min(...times) : undefined;
+  };
+  // 立て直しは、以前の読み方（自分で入れた時刻を優先し、同じ朝なら終わりの遅いほう）になるように古い順に重ねる
+  const resets = arr<unknown>(d.rhythmResets, []).filter(isReset).filter((r): r is typeof r & { mode: "sleep" | "woke" } => r.mode === "sleep" || r.mode === "woke");
+  for (const r of resets.sort((a, b) => a.end - b.end)) {
+    const up = dayUp(dateKeyOf(r.end));
+    if (up !== undefined && up <= r.start) continue;
+    legacy = recordReset(legacy, r);
+  }
+  // 立て直しで入れた起床の朝は、予定の起床・就寝を計画の控え（前の日の予定の就寝。就寝＝翌日の起床 − 睡眠時間）から補う
+  const dayLogs = isRecord(d.dayLogs) ? d.dayLogs : {};
+  const sleepMinutes = isRecord(d.settings) && finite(d.settings.sleepMinutes) ? d.settings.sleepMinutes : DEFAULT_SETTINGS.sleepMinutes;
+  legacy = legacy.map((n) => {
+    const day = dayStartOfKey(n.date);
+    const prev = day === undefined ? undefined : dayLogs[dateKeyOf(day - DAY_MS)];
+    const bed = isRecord(prev) && finite(prev.bed) ? prev.bed : undefined;
+    if (n.up?.source !== "reset" || bed === undefined) return n;
+    return { ...n, plannedBed: n.plannedBed ?? bed, plannedWake: n.plannedWake ?? bed + sleepMinutes * MIN };
+  });
+  if (!legacy.length) return logs;
+  const have = new Set(logs.map((s) => s.date));
+  return [...logs, ...legacy.filter((s) => !have.has(s.date))].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * 以前の版（眠りの記録を知らない。iPhone に開いたままの古い画面など）が保存した行には sleepLogs がない。
+ * その行を読むときは、この端末にある眠りの記録のうち、行にない夜を残す（行にある夜は行のほう）。
+ * 何も残さなければ同じものを返す
+ */
+export function keepLocalSleep(raw: unknown, remote: MockData, local: Pick<MockData, "sleepLogs">): MockData {
+  if (!isRecord(raw) || "sleepLogs" in raw) return remote;
+  const when = (m: SleepMark | undefined) => (m ? (m.recordedAt ?? m.at) : -Infinity);
+  let changed = false;
+  const byId = new Map(remote.sleepLogs.map((s) => [s.id, s]));
+  for (const l of local.sleepLogs) {
+    const r = byId.get(l.id);
+    // 行にない夜（昼寝を含む）は、この端末のものを残す
+    if (!r) {
+      byId.set(l.id, l);
+      changed = true;
+      continue;
+    }
+    // 両方にある夜は、寝た・起きた時刻ごとに、あとから記録したほう（この端末の「いつ起きた？」で直した時刻など）
+    const next = { ...r };
+    if (when(l.bed) > when(r.bed)) Object.assign(next, { bed: l.bed, ...(l.plannedBed !== undefined ? { plannedBed: l.plannedBed } : {}), ...(l.until !== undefined ? { until: l.until } : {}) });
+    if (when(l.up) > when(r.up)) Object.assign(next, { up: l.up, ...(l.plannedWake !== undefined ? { plannedWake: l.plannedWake } : {}) });
+    if (next.bed !== r.bed || next.up !== r.up) {
+      byId.set(l.id, next);
+      changed = true;
+    }
+  }
+  return changed ? { ...remote, sleepLogs: [...byId.values()].sort((a, b) => a.date.localeCompare(b.date)) } : remote;
+}
+
 /** 保存された v2 のデータ。欠けている項目はサンプルで補う */
 export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
   if (!raw || typeof raw !== "object") return undefined;
@@ -328,16 +475,19 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     tasks: arr(d.tasks, s.tasks),
     events: arr(d.events, s.events),
     blocks: arr(d.blocks, []),
-    wakeLogs: arr(d.wakeLogs, []),
-    habitLastDone:
-      d.habitLastDone && typeof d.habitLastDone === "object" && !Array.isArray(d.habitLastDone)
-        ? (d.habitLastDone as Record<string, number>)
-        : {},
-    habitDoneDays: isRecord(d.habitDoneDays)
-      ? Object.fromEntries(
-          Object.entries(d.habitDoneDays).map(([id, v]) => [id, Array.isArray(v) ? v.filter((t): t is number => typeof t === "number") : []]),
-        )
+    wakeLogs: arr<unknown>(d.wakeLogs, []).filter(isRecord).map((l) => {
+      // 起きた時刻と予定の起床は眠りの記録へ移した
+      const { wokeAt: _a, wokeRecordedAt: _b, plannedWake: _c, ...rest } = l;
+      void [_a, _b, _c];
+      return rest as unknown as WakeLog;
+    }),
+    sleepLogs: withLegacySleep(parseSleepLogs(d.sleepLogs), d),
+    // 以前保存していた habitLastDone・habitDoneDays は、組み直すたびに決めるので読まない。
+    // 記録しない習慣の最後に始まった枠（habitLastDone の値）だけは、始まった時刻として引き継ぐ
+    anchoredWakes: isRecord(d.anchoredWakes)
+      ? Object.fromEntries(Object.entries(d.anchoredWakes).filter((e): e is [string, number] => /^\d{4}-\d{2}-\d{2}$/.test(e[0]) && finite(e[1])))
       : {},
+    habitStarts: parseHabitStarts(d.habitStarts, (raw as Record<string, unknown>).habitLastDone, (raw as Record<string, unknown>).habitDoneDays),
     dayLogs: isRecord(d.dayLogs)
       ? Object.fromEntries(
           Object.entries(d.dayLogs).filter(
@@ -351,13 +501,6 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
           Object.entries(d.healthSleep).filter(
             (e): e is [string, HealthSleep] =>
               isRecord(e[1]) && [e[1].start, e[1].end, e[1].minutes].every((x) => typeof x === "number" && Number.isFinite(x)),
-          ),
-        )
-      : {},
-    bedLogs: isRecord(d.bedLogs)
-      ? Object.fromEntries(
-          Object.entries(d.bedLogs).filter(
-            (e): e is [string, BedLog] => isRecord(e[1]) && typeof e[1].at === "number" && typeof e[1].plannedBed === "number",
           ),
         )
       : {},
@@ -446,8 +589,8 @@ export function fromStoredV2(raw: unknown, now: number): MockData | undefined {
     taskChecks: isRecord(d.taskChecks)
       ? Object.fromEntries(Object.entries(d.taskChecks).filter((e): e is [string, TaskCheck] => isRecord(e[1]) && typeof e[1].at === "number"))
       : {},
-    rhythmResets: arr<unknown>(d.rhythmResets, []).filter((x): x is NonNullable<MockData["rhythmResets"]>[number] =>
-      isRecord(x) && typeof x.id === "string" && ["sleep", "woke", "tired"].includes(String(x.mode)) && typeof x.start === "number" && Number.isFinite(x.start) && typeof x.end === "number" && Number.isFinite(x.end) && x.end > x.start && x.end - x.start <= 48 * 60 * MIN),
+    // 「疲れている」だけ。寝た・起きた時刻（以前の sleep・woke）は眠りの記録へ移した
+    rhythmResets: arr<unknown>(d.rhythmResets, []).filter((x): x is TiredPause => isReset(x) && x.mode === "tired"),
     keepFree: arr<unknown>(d.keepFree, []).filter((x): x is NonNullable<MockData["keepFree"]>[number] =>
       isRecord(x) && typeof x.id === "string" && typeof x.start === "number" && Number.isFinite(x.start) && typeof x.end === "number" && Number.isFinite(x.end) && x.end > x.start && (x.taskId === undefined || typeof x.taskId === "string")),
     rewardBank: parseRewardBank(d.rewardBank),
@@ -499,57 +642,92 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   const classEvents = buildClassEvents(data.courses, data.periods);
   const events = planEvents(data, classEvents, googleEvents);
   // 「寝る」「起きた」の記録から見積もった睡眠（自分で入れた立て直しのほうが優先）
-  const sleeps = bedtimeSleeps(data, events, now);
-  const resets = settledResets(data);
+  const resets = [...manualSleeps(data, now), ...(data.rhythmResets ?? []).filter((r) => r.end > now - RESET_KEEP_DAYS * DAY_MS)];
+  const sleeps = bedtimeSleeps(data, events, now, resets);
   const asleep = [...resets.filter((r) => r.mode !== "tired"), ...sleeps];
   // 「今日は飛ばす」にした習慣：その日には置かず、もう始まっている枠も外す。「できなかった」にした枠も外す（あとに入れ直す）
   const skipDays = byHabit(data.habitSkips);
   const missed = new Set(Object.values(data.habitMisses).flat());
-  const isSkipped = (b: MockData["blocks"][number]) =>
-    b.kind === "habit" &&
-    ((skipDays[b.refId] ?? []).some((day) => b.start >= day && b.start < day + DAY_MS) || missed.has(`${b.refId}:${b.start}`));
+  // 飛ばした日は「起きている日」で見る（夜中の枠は前の日の分。画面で記録・飛ばすときと同じ）
+  // 画面（今日の流れ・カレンダー）と同じく、前回の計画の起床〜就寝で日を分ける（計画の外は、予定から決めた起床・就寝）
+  const today0 = dayStartOfKey(dateKeyOf(now))!;
+  const knownDays = [
+    ...((data as Partial<MockState>).result?.dayPlans ?? []),
+    ...computeDayPlans(today0 - (HABIT_START_KEEP_DAYS + 1) * DAY_MS, HABIT_START_KEEP_DAYS + 3, events, data.places, data.settings),
+  ];
+  const wakingDayOf = (t: number) => dayStartOfKey(dateKeyOf(wakingDayStart(t, knownDays, data.settings.tzOffsetMinutes)))!;
+  const isSkipped = (b: Pick<MockData["blocks"][number], "kind" | "refId" | "start">) =>
+    b.kind === "habit" && ((skipDays[b.refId] ?? []).includes(wakingDayOf(b.start)) || missed.has(`${b.refId}:${b.start}`));
   // やっていない枠：飛ばした・できなかった・寝ていた間の枠
-  const notDone = (b: MockData["blocks"][number]) => isSkipped(b) || asleep.some((r) => b.start < r.end && b.end > r.start);
-  // 間隔で置く習慣（洗濯など）の最後にやった日。「記録する」ものは「やった」を押した日だけ
-  // （時刻が過ぎただけで数えると、寝坊して過ぎた枠も「やった」になり、次が何日も先へ送られる）。
-  // 記録しないものは、始まった枠をもって「やった」とみなす。やっていない枠で数えていたら取り消す
-  const habitLastDone = { ...data.habitLastDone };
-  for (const h of data.habits) {
-    if (h.frequency.type !== "interval" || !h.track) continue;
-    const last = Object.keys(data.habitLogs).filter((k) => data.habitLogs[k]?.[h.id]).sort().at(-1);
-    const day = last === undefined ? undefined : dayStartOfKey(last);
-    if (day === undefined) delete habitLastDone[h.id];
-    else habitLastDone[h.id] = day;
+  // 寝ていた時間は、組み直しの睡眠（直近2日の見積もりを含む）に加えて、眠りの記録とヘルスケアの睡眠からも見る
+  // （habitStarts を残す60日のあいだ、あとから「寝ていた」と分かった枠がやったに戻らないように）
+  const slept = [
+    ...asleep,
+    ...sleepSessions(data).flatMap((x) => {
+      const end = x.up?.at ?? x.until ?? (x.bed ? x.bed.at + data.settings.sleepMinutes * MIN : undefined);
+      return x.bed && end !== undefined && end > x.bed.at ? [{ start: x.bed.at, end }] : [];
+    }),
+    ...Object.values(data.healthSleep).map((h) => ({ start: h.start, end: h.end })),
+  ];
+  const notDone = (b: Pick<MockData["blocks"][number], "kind" | "refId" | "start" | "end">) =>
+    isSkipped(b) || slept.some((r) => b.start < r.end && b.end > r.start);
+  // 記録しない習慣は、始まった枠をもって「やった」とみなす。始まった時刻だけを事実として残し（habitStarts）、
+  // やったかどうかは毎回ここで決め直す（あとから寝ていたと分かった枠・飛ばした枠は数えない）
+  // 起きた時刻が分かった日：新しい朝ルーティンと重なる前の計画の枠は外す（planner）。予定の起床から大きくずれた朝は、
+  // 実際の起床から朝を組み直し（段階2）、起床から今までに前の計画が置いた自動の習慣を外す（作業の枠は「作業の進み具合」で聞くので残す）
+  const anchorDay = wakingDayOf(now);
+  const anchor = anchorOf(data, anchorDay, now, wakingDayOf, computeDayPlans(anchorDay, 1, events, data.places, data.settings)[0]?.wake);
+  const dropped = new Set(anchor?.dropped ?? []);
+  const droppedKeys = new Set([...dropped].map((b) => `${b.refId}:${b.start}`));
+  const given = data.blocks;
+  if (anchor?.relayout) {
+    // 組み直した起床を残す（同じ起床で何度も組み直さない）
+    data = { ...data, blocks: data.blocks.filter((b) => !dropped.has(b)), anchoredWakes: { ...data.anchoredWakes, [dateKeyOf(anchor.dayStart)]: anchor.wake } };
   }
+  const startsFrom = now - HABIT_START_KEEP_DAYS * DAY_MS;
+  const starts = new Map<string, Set<number>>();
+  const addStart = (id: string, t: number) => {
+    if (t < startsFrom || t > now) return;
+    (starts.get(id) ?? starts.set(id, new Set()).get(id)!).add(t);
+  };
+  // 「記録する」に変えた習慣の分は捨てる（記録で数えるので）
+  const plainIds = new Set(data.habits.filter((h) => !h.track).map((h) => h.id));
+  // 組み直しで外した枠は、始まっていてもやったに数えない
+  for (const [id, ts] of Object.entries(data.habitStarts)) if (plainIds.has(id)) for (const t of ts) if (!droppedKeys.has(`${id}:${t}`)) addStart(id, t);
   for (const b of data.blocks) {
     const h = data.habits.find((x) => x.id === b.refId);
-    if (b.kind !== "habit" || h?.frequency.type !== "interval" || h.track || b.title !== h.name || b.start > now) continue;
-    if (!notDone(b)) habitLastDone[h.id] = Math.max(habitLastDone[h.id] ?? 0, b.start);
-    else if (habitLastDone[h.id] === b.start) delete habitLastDone[h.id];
+    if (b.kind === "habit" && h && !h.track && !dropped.has(b) && (b.title === h.name || b.title === h.rainAlternative?.title)) addStart(h.id, b.start);
   }
-  // 週に何回かの習慣は、今週やった日を数える（「記録する」の習慣は記録、ほかは始まった枠）
+  const habitStarts = Object.fromEntries([...starts].map(([id, ts]) => [id, [...ts].sort((a, b) => a - b)]));
+  const doneStarts = (h: Habit) =>
+    (habitStarts[h.id] ?? []).filter((t) => !notDone({ kind: "habit", refId: h.id, start: t, end: t + h.durationMinutes * MIN }));
+  // 「記録する」習慣は「やった」を押した日だけ（時刻が過ぎただけで数えると、寝坊して過ぎた枠も「やった」になり、次が何日も先へ送られる）
+  const markedDays = (h: Habit) => Object.keys(data.habitLogs).filter((k) => data.habitLogs[k]?.[h.id]).flatMap((k) => dayStartOfKey(k) ?? []);
+  // 間隔で置く習慣（洗濯など）の最後にやった日・時刻と、週に何回かの習慣の今日より前にやった日（直近14日）。保存せず、ここで決める
   const today = dayStartOfKey(dateKeyOf(now))!;
-  const habitDoneDays: Record<string, number[]> = {};
+  const habitLastDone: Record<string, number> = {};
   const doneForPlan: Record<string, number[]> = {};
   for (const h of data.habits) {
-    if (h.frequency.type !== "weekly") continue;
-    const recent = Array.from({ length: 14 }, (_, i) => today - (i + 1) * DAY_MS);
-    if (h.track) {
-      doneForPlan[h.id] = recent.filter((day) => data.habitLogs[dateKeyOf(day)]?.[h.id]);
-      continue;
+    if (h.frequency.type === "interval") {
+      const last = Math.max(-Infinity, ...(h.track ? markedDays(h) : doneStarts(h)));
+      if (Number.isFinite(last)) habitLastDone[h.id] = last;
+    } else if (h.frequency.type === "weekly") {
+      const days = new Set(h.track ? markedDays(h) : doneStarts(h).map(wakingDayOf));
+      doneForPlan[h.id] = [...days].filter((t) => t < today && t >= today - 14 * DAY_MS).sort((a, b) => a - b);
     }
-    const days = new Set((data.habitDoneDays[h.id] ?? []).filter((t) => t >= recent.at(-1)!));
-    for (const b of data.blocks) {
-      if (b.kind === "habit" && b.refId === h.id && b.start <= now && !notDone(b) && (b.title === h.name || b.title === h.rainAlternative?.title)) {
-        days.add(dayStartOfKey(dateKeyOf(wakingDayStart(b.start, [], data.settings.tzOffsetMinutes)))!);
-      }
-    }
-    habitDoneDays[h.id] = [...days].sort((a, b) => a - b);
-    doneForPlan[h.id] = habitDoneDays[h.id].filter((t) => t < today);
   }
-  data = captureTaskBlocks({ ...data, habitLastDone, habitDoneDays }, now);
+  data = captureTaskBlocks({ ...data, habitStarts }, now);
   const planTags = planTagsOf(data);
   data = reconcileBedtime(data, sleeps, now);
+  // この組み直しで1つ目（回すなど）を外した（寝ていた・組み直しで外した）待ち時間のある習慣は、2つ目（干すなど）も外す。
+  // 前の日に始めた・手で動かした1つ目（もともとないもの）では外さない
+  const removed = given.filter((b) => dropped.has(b) || !data.blocks.includes(b));
+  for (const b of data.blocks) {
+    const h = b.kind === "habit" ? data.habits.find((x) => x.id === b.refId) : undefined;
+    if (!h?.finish || b.title !== h.finish.title || b.title === h.name || b.pinned || dropped.has(b)) continue;
+    const parentStart = b.start - h.finish.afterStartMinutes * MIN;
+    if (removed.some((x) => x.refId === h.id && x.title === h.name && x.start === parentStart)) dropped.add(b);
+  }
   const result = plan({
     now,
     rhythmResets: [...resets, ...sleeps],
@@ -571,7 +749,8 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
     recoveryOptions: SAMPLE_RECOVERY_OPTIONS,
     habitLastDone,
     habitDoneDays: doneForPlan,
-    previousBlocks: data.blocks.filter((b) => !isSkipped(b)),
+    previousBlocks: data.blocks.filter((b) => !isSkipped(b) && !dropped.has(b)),
+    ...(anchor ? { anchor: { dayStart: anchor.dayStart, keep: anchor.keep, relayout: anchor.relayout } } : {}),
     eveningEnergy: Object.fromEntries(
       Object.entries(data.eveningEnergy).flatMap(([k, v]) => {
         const day = dayStartOfKey(k);
@@ -584,7 +763,50 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   });
   data = captureDayLog(data, result, events, now);
   data = pruneOldLogs({ ...data, rewardBank: bankRewards(data, now) }, now);
-  return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now, planTags };
+  return { ...toData(data), classEvents, googleEvents, blocks: result.blocks, result, plannedAt: now, planTags, habitDone: { lastDone: habitLastDone, weekDays: doneForPlan } };
+}
+
+/** 予定の起床からこれ以上ずれた朝だけ、実際の起床から朝を組み直す（1時間までは大きなずれとしない。2026-10-13 に決めた） */
+export const ANCHOR_AFTER_MINUTES = 60;
+
+/**
+ * 起きた時刻が分かった日（その日の活動開始＝夜の記録の up が今より前）。keep＝その日の記録・確認の済んだ枠。
+ * relayout＝実際の起床から朝を組み直す（段階2）：予定の起床から60分より大きくずれていて、まだその起床で組み直していない
+ * （anchoredWakes に残した起床と違う）とき。そのときの dropped＝起床から今までに収まる、前の計画の自動の習慣
+ * （固定・記録の済んだもの、今も続いている枠、作業の枠は除く）と、その1つ目を外した待ち時間のある習慣の2つ目（干すなど）
+ */
+export function anchorOf(
+  data: MockData,
+  dayStart: number,
+  now: number,
+  wakingDayOf: (t: number) => number,
+  plannedWake: number | undefined,
+): { dayStart: number; wake: number; relayout: boolean; dropped: MockData["blocks"]; keep: string[] } | undefined {
+  const key = dateKeyOf(dayStart);
+  const night = nightOf(data, key);
+  const up = night.up?.at;
+  if (up === undefined || up > now) return undefined;
+  const planned = night.plannedWake ?? plannedWake;
+  const relayout = planned !== undefined && Math.abs(up - planned) > ANCHOR_AFTER_MINUTES * MIN && data.anchoredWakes[key] !== up;
+  const dayEnd = dayStart + DAY_MS + 4 * 60 * MIN;
+  const recorded = (b: MockData["blocks"][number]) => {
+    const k = `${b.refId}:${b.start}`;
+    if (b.kind === "task") return data.taskBlockLog[k]?.reviewedAt !== undefined || data.taskBlockLog[k]?.doneAt !== undefined;
+    return b.kind === "habit" && data.habitLogs[dateKeyOf(wakingDayOf(b.start))]?.[b.refId] !== undefined;
+  };
+  const onDay = data.blocks.filter((b) => b.start >= dayStart && b.start < dayEnd && wakingDayOf(b.start) === dayStart);
+  const keep = onDay.filter(recorded).map((b) => `${b.refId}:${b.start}`);
+  if (!relayout) return { dayStart, wake: up, relayout, dropped: [], keep };
+  // 作業の枠は外さない（起床から記録するまでの作業は「作業の進み具合」で聞く。FR-S2）
+  const dropped = onDay.filter((b) => b.kind === "habit" && b.start >= up && b.end <= now && !b.pinned && !recorded(b));
+  // 1つ目（回すなど）を外したら、その2つ目（干すなど）も外す（今も続いていても、1つ目をしていないので）
+  const children = onDay.filter((b) => {
+    const h = b.kind === "habit" ? data.habits.find((x) => x.id === b.refId) : undefined;
+    if (!h?.finish || b.title !== h.finish.title || b.pinned || recorded(b) || dropped.includes(b)) return false;
+    const parentStart = b.start - h.finish.afterStartMinutes * MIN;
+    return dropped.some((x) => x.refId === h.id && x.title === h.name && x.start === parentStart);
+  });
+  return { dayStart, wake: up, relayout, dropped: [...dropped, ...children], keep };
 }
 
 /** 日ごとの記録を残す日数。ご褒美は3週間より前の分を繰り越してあるので、消えても減らない */
@@ -605,10 +827,11 @@ export function pruneOldLogs(d: MockData, now: number): MockData {
     habitLogs: byKey(d.habitLogs),
     eveningEnergy: byKey(d.eveningEnergy),
     energyChecks: byKey(d.energyChecks),
-    bedLogs: byKey(d.bedLogs),
     contactLogs: byKey(d.contactLogs),
+    anchoredWakes: byKey(d.anchoredWakes),
     smokeLogs: upTo(d.smokeLogs, (t) => t >= from),
     wakeLogs: upTo(d.wakeLogs, (l) => l.date >= fromKey),
+    sleepLogs: upTo(d.sleepLogs, (l) => l.date >= fromKey),
     doneTasks: upTo(d.doneTasks, (t) => t.doneAt >= from),
     taskBlockLog: Object.values(d.taskBlockLog).every((b) => b.start >= from) ? d.taskBlockLog : Object.fromEntries(Object.entries(d.taskBlockLog).filter(([, b]) => b.start >= from)),
   };

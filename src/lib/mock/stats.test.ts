@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { jst } from "@/lib/scheduler/test-helpers";
-import { DEFAULT_REWARD_RATES, type MockData } from "./model";
+import { DEFAULT_REWARD_RATES, type MockData, type SleepLog } from "./model";
 import { DAY_MS } from "./jst";
 import { bedNights, bedStats, habitProgress, habitWeeks, keepMarkValues, mondayOf, periodStats, rewardBalance, rewardBreakdown, rewardEarned, workMinutes } from "./stats";
 
+const btn = (at: number) => ({ at, source: "button" as const });
+/** 起きる日 date の眠りの記録 */
+const sleepOn = (date: string, x: Omit<SleepLog, "id" | "date">): SleepLog => ({ id: date, date, ...x });
 const ex = { id: "ex", name: "運動", durationMinutes: 5, windowStart: 0, windowEnd: 1440, frequency: { type: "weekly" as const, times: 3 }, skippable: true, track: true };
 const walk = { id: "walk", name: "散歩", durationMinutes: 20, windowStart: 0, windowEnd: 150, frequency: { type: "daily" as const }, skippable: true, track: true };
 const data = {
   habits: [ex, walk],
   wakeLogs: [
-    { date: "2026-10-01", wokeAt: jst(2026, 10, 1, 9, 20), plannedWake: jst(2026, 10, 1, 9), routineDoneAt: jst(2026, 10, 1, 9, 40), doneStepIds: [] },
-    { date: "2026-10-02", wokeAt: jst(2026, 10, 2, 10), plannedWake: jst(2026, 10, 2, 9), doneStepIds: [] },
+    { date: "2026-10-01", routineDoneAt: jst(2026, 10, 1, 9, 40), doneStepIds: [] },
+    { date: "2026-10-02", doneStepIds: [] },
+  ],
+  sleepLogs: [
+    sleepOn("2026-10-01", { up: btn(jst(2026, 10, 1, 9, 20)), plannedWake: jst(2026, 10, 1, 9) }),
+    sleepOn("2026-10-02", { up: btn(jst(2026, 10, 2, 10)), plannedWake: jst(2026, 10, 2, 9) }),
   ],
   habitLogs: { "2026-10-01": { ex: "five" as const, walk: "five" as const }, "2026-10-02": { walk: "done" as const } },
   taskBlockLog: {
@@ -47,10 +54,10 @@ describe("ご褒美のお金", () => {
       rewardSpends: [],
       wakeLogs: [{ date: "2026-10-02", doneStepIds: [], fatigue: 3 as const, sleepMinutes: 420 }],
       eveningEnergy: { "2026-10-02": "normal" as const },
-      bedLogs: {
-        "2026-10-01": { at: jst(2026, 10, 2, 2, 10), plannedBed: jst(2026, 10, 2, 2) },
-        "2026-10-02": { at: jst(2026, 10, 3, 2, 40), plannedBed: jst(2026, 10, 3, 2) },
-      },
+      sleepLogs: [
+        sleepOn("2026-10-02", { bed: btn(jst(2026, 10, 2, 2, 10)), plannedBed: jst(2026, 10, 2, 2) }),
+        sleepOn("2026-10-03", { bed: btn(jst(2026, 10, 3, 2, 40)), plannedBed: jst(2026, 10, 3, 2) }),
+      ],
       habitLogs: {},
       taskBlockLog: {},
     };
@@ -86,12 +93,12 @@ describe("週のまとめ", () => {
   });
 
   it("寝た夜は、記録を始めた日から数え、今夜はまだ数えない", () => {
-    const bedLogs = {
-      "2026-09-29": { at: jst(2026, 9, 30, 1), plannedBed: jst(2026, 9, 30, 1) },
-      "2026-09-30": { at: jst(2026, 10, 1, 3), plannedBed: jst(2026, 10, 1, 1) },
-    };
+    const sleepLogs = [
+      sleepOn("2026-09-30", { bed: btn(jst(2026, 9, 30, 1)), plannedBed: jst(2026, 9, 30, 1) }),
+      sleepOn("2026-10-01", { bed: btn(jst(2026, 10, 1, 3)), plannedBed: jst(2026, 10, 1, 1) }),
+    ];
     // 10/1 の夜は記録がないまま翌日の昼を過ぎたので数え、10/2 の夜（今夜）はまだ数えない
-    expect(bedStats({ bedLogs }, jst(2026, 9, 28), jst(2026, 10, 5), now)).toEqual({ done: 1, total: 3 });
+    expect(bedStats({ sleepLogs }, jst(2026, 9, 28), jst(2026, 10, 5), now)).toEqual({ done: 1, total: 3 });
   });
 
   it("「寝る」を押した夜はその時刻、押していない夜はヘルスケアの入眠で、予定の就寝から30分以内なら予定どおり", () => {
@@ -102,21 +109,21 @@ describe("週のまとめ", () => {
       // 予定 1:00。押していない夜は入眠 1:40 で見る → 予定どおりではない
       "2026-10-01": { start: jst(2026, 10, 1, 1, 40), end: jst(2026, 10, 1, 9), minutes: 430 },
     };
-    const bedLogs = { "2026-09-29": { at: jst(2026, 9, 30, 1, 30), plannedBed: jst(2026, 9, 30, 1) } };
-    const nights = bedNights({ bedLogs, healthSleep, dayLogs });
+    const sleepLogs = [sleepOn("2026-09-30", { bed: btn(jst(2026, 9, 30, 1, 30)), plannedBed: jst(2026, 9, 30, 1) })];
+    const nights = bedNights({ sleepLogs, healthSleep, dayLogs });
     expect(nights.map((n) => [n.key, n.source, n.onTime])).toEqual([
       ["2026-09-29", "button", true],
       ["2026-09-30", "health", false],
     ]);
-    expect(rewardBreakdown({ ...data, bedLogs, healthSleep, dayLogs }).bed).toBe(DEFAULT_REWARD_RATES.bed);
+    expect(rewardBreakdown({ ...data, sleepLogs, healthSleep, dayLogs }).bed).toBe(DEFAULT_REWARD_RATES.bed);
   });
 
   it("アプリを開かなかった日も、翌朝「起きた」を押した予定の起床 − 睡眠時間を予定の就寝として見る", () => {
-    const wakeLogs = [{ date: "2026-10-02", doneStepIds: [], wokeAt: jst(2026, 10, 2, 9), plannedWake: jst(2026, 10, 2, 9) }];
+    const sleepLogs = [sleepOn("2026-10-02", { up: btn(jst(2026, 10, 2, 9)), plannedWake: jst(2026, 10, 2, 9) })];
     const healthSleep = { "2026-10-02": { start: jst(2026, 10, 2, 2, 20), end: jst(2026, 10, 2, 9), minutes: 400 } };
     const settings = { sleepMinutes: 7 * 60 } as MockData["settings"];
     // 予定の就寝 2:00、寝ついたのは 2:20 → 30分以内なので予定どおり
-    expect(bedNights({ healthSleep, wakeLogs, settings })).toMatchObject([{ key: "2026-10-01", source: "health", onTime: true }]);
+    expect(bedNights({ healthSleep, sleepLogs, settings })).toMatchObject([{ key: "2026-10-01", source: "health", onTime: true }]);
   });
 
   it("今週の習慣は、月〜日の記録と週の目安を出す", () => {

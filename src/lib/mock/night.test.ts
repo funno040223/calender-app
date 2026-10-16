@@ -4,7 +4,7 @@ import { bedOnTimeOf, fallAsleepMinutes, getUpMinutes, nightOf, upOnTime } from 
 import { replan, sampleData } from "./state";
 import type { MockData } from "./model";
 
-const base = { wakeLogs: [] as MockData["wakeLogs"], bedLogs: {} as MockData["bedLogs"], settings: { sleepMinutes: 420 } as MockData["settings"] };
+const base = { wakeLogs: [] as MockData["wakeLogs"], sleepLogs: [] as MockData["sleepLogs"], settings: { sleepMinutes: 420 } as MockData["settings"] };
 const health = { "2026-10-02": { start: jst(2026, 10, 2, 1, 35), end: jst(2026, 10, 2, 8, 50), minutes: 410 } };
 
 describe("夜の記録", () => {
@@ -12,8 +12,16 @@ describe("夜の記録", () => {
     const n = nightOf(
       {
         ...base,
-        bedLogs: { "2026-10-01": { at: jst(2026, 10, 2, 1, 10), plannedBed: jst(2026, 10, 2, 2) } },
-        wakeLogs: [{ date: "2026-10-02", doneStepIds: [], wokeAt: jst(2026, 10, 2, 9, 20), plannedWake: jst(2026, 10, 2, 9) }],
+        sleepLogs: [
+          {
+            id: "2026-10-02",
+            date: "2026-10-02",
+            bed: { at: jst(2026, 10, 2, 1, 10), source: "button" },
+            up: { at: jst(2026, 10, 2, 9, 20), source: "button" },
+            plannedBed: jst(2026, 10, 2, 2),
+            plannedWake: jst(2026, 10, 2, 9),
+          },
+        ],
         healthSleep: health,
       },
       "2026-10-02",
@@ -30,14 +38,27 @@ describe("夜の記録", () => {
   });
 
   it("手で入れた時刻 → ボタン → 朝ルーティンの最初のチェック の順に使う", () => {
-    const routineOnly = nightOf({ ...base, wakeLogs: [{ date: "2026-10-02", doneStepIds: ["a"], routineStartedAt: jst(2026, 10, 2, 9, 40), plannedWake: jst(2026, 10, 2, 9) }] }, "2026-10-02");
+    const routineOnly = nightOf(
+      {
+        ...base,
+        wakeLogs: [{ date: "2026-10-02", doneStepIds: ["a"], routineStartedAt: jst(2026, 10, 2, 9, 40) }],
+        sleepLogs: [{ id: "2026-10-02", date: "2026-10-02", plannedWake: jst(2026, 10, 2, 9) }],
+      },
+      "2026-10-02",
+    );
     expect(routineOnly.up).toEqual({ at: jst(2026, 10, 2, 9, 40), source: "routine" });
     expect(upOnTime(routineOnly)).toBe(false);
     const manual = nightOf(
       {
         ...base,
-        wakeLogs: [{ date: "2026-10-02", doneStepIds: [], wokeAt: jst(2026, 10, 2, 12) }],
-        rhythmResets: [{ id: "r", mode: "woke", start: jst(2026, 10, 2, 3), end: jst(2026, 10, 2, 11, 30) }],
+        sleepLogs: [
+          {
+            id: "2026-10-02",
+            date: "2026-10-02",
+            bed: { at: jst(2026, 10, 2, 3), source: "reset" },
+            up: { at: jst(2026, 10, 2, 11, 30), source: "reset" },
+          },
+        ],
       },
       "2026-10-02",
     );
@@ -49,8 +70,9 @@ describe("夜の記録", () => {
     const buttons = nightOf(
       {
         ...base,
-        bedLogs: { "2026-10-01": { at: jst(2026, 10, 2, 1), plannedBed: jst(2026, 10, 2, 2) } },
-        wakeLogs: [{ date: "2026-10-02", doneStepIds: [], wokeAt: jst(2026, 10, 2, 8, 30) }],
+        sleepLogs: [
+          { id: "2026-10-02", date: "2026-10-02", bed: { at: jst(2026, 10, 2, 1), source: "button" }, up: { at: jst(2026, 10, 2, 8, 30), source: "button" } },
+        ],
       },
       "2026-10-02",
     );
@@ -67,7 +89,18 @@ describe("朝ルーティンを起床の直後にできなかった日", () => {
     const d = sampleData(now);
     const wokeAt = jst(2026, 10, 3, 9);
     const started = jst(2026, 10, 3, 10, 15);
-    const state = replan({ ...d, courses: [], tasks: [], events: [], wakeLogs: [{ date: "2026-10-03", doneStepIds: ["step-curtain"], wokeAt, routineStartedAt: started }] }, [], now);
+    const state = replan(
+      {
+        ...d,
+        courses: [],
+        tasks: [],
+        events: [],
+        wakeLogs: [{ date: "2026-10-03", doneStepIds: ["step-curtain"], routineStartedAt: started }],
+        sleepLogs: [{ id: "2026-10-03", date: "2026-10-03", up: { at: wokeAt, source: "button" } }],
+      },
+      [],
+      now,
+    );
     const routine = state.result.blocks.find((b) => b.refId === "routine" && b.start >= jst(2026, 10, 3) && b.start < jst(2026, 10, 4));
     expect(routine?.start).toBe(started);
     const breakfast = state.result.blocks.find((b) => b.refId === "habit-breakfast" && b.start >= jst(2026, 10, 3) && b.start < jst(2026, 10, 4));

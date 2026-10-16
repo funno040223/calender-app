@@ -10,7 +10,7 @@ import type { Block, CalendarEvent } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
 import type { MockData } from "./model";
 import { fingerprints, mergeConflict, type Fingerprints } from "./merge";
-import { contactDaysFor, travelAsks, fromStoredV2, migrateV1, planEvents, replan, sampleData, toData, type MockState } from "./state";
+import { contactDaysFor, travelAsks, fromStoredV2, keepLocalSleep, migrateV1, planEvents, replan, sampleData, toData, type MockState } from "./state";
 
 export type { OwnEvent } from "./model";
 export { TAGS, fromStoredV2, migrateV1, planEvents, sampleData, toData, type MockState } from "./state";
@@ -272,9 +272,12 @@ export function useMockStore() {
       // サーバーが、前に合わせたあとで変わったか／この端末にまだ送っていない変更があるか
       const remoteChanged = !!row && row.updatedAt > Math.max(remoteAt.current, readNumber(REMOTE_AT_KEY));
       const localEdited = dirty.current || readEditedAt() > readNumber(SYNCED_AT_KEY);
-      const remote = row && remoteChanged ? fromStoredV2(row.data, Date.now()) : undefined;
+      const loaded = row && remoteChanged ? fromStoredV2(row.data, Date.now()) : undefined;
+      // 以前の版が保存した行（眠りの記録がない）でも、この端末の眠りの記録を失わない。残したらサーバーにも送り直す
+      const remote = loaded && keepLocalSleep(row!.data, loaded, stateRef.current);
+      const restored = !!remote && remote !== loaded;
       if (row) remoteAt.current = Math.max(remoteAt.current, row.updatedAt);
-      if (remote && localEdited) {
+      if (remote && (localEdited || restored)) {
         // どちらも変えていた：項目ごとに合わせ、この端末で足した記録を失わない。合わせたものをサーバーにも送る
         undoData.current = undefined;
         setCanUndo(false);

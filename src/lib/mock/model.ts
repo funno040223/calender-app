@@ -1,4 +1,4 @@
-import type { AvoidWindow, Block, CalendarEvent, EveningEnergy, Habit, Place, Settings, Tag, Task } from "@/lib/scheduler";
+import type { AvoidWindow, Block, CalendarEvent, EveningEnergy, Habit, Place, RhythmReset, Settings, Tag, Task } from "@/lib/scheduler";
 import type { CalendarId, OwnCalendarId } from "./calendars";
 import { DAY_MS, MIN, TZ, fromInputDateTime, toInputDate, weekdayOf } from "./jst";
 import { UTOKYO_NO_CLASS_DAYS } from "./utokyo";
@@ -101,14 +101,8 @@ export interface RoutineStep {
 /** その日の朝の記録。date が主キー */
 export interface WakeLog {
   date: DateKey;
-  /** 起きた時刻。「起きた」を押した時刻か、遅れて押したときに「いつ起きた？」で選んだ時刻（あとから直せる） */
-  wokeAt?: number;
-  /** 起きた時刻を記録した（「起きた」・「いつ起きた？」で答えた）時刻。前の時刻で記録しても、朝のカードをしばらく出して疲れを聞く */
-  wokeRecordedAt?: number;
   /** その朝に最初にアプリを開いた時刻（「いつ起きた？」の候補と、起きるまで止める通知に使う） */
   openedAt?: number;
-  /** 「起きた」を押したとき（押す前に朝ルーティンを始めたときは、その最初のチェックのとき）の、前の晩に予定していた起床時刻（予定どおり起きられたかを数える） */
-  plannedWake?: number;
   /** 朝ルーティンの最初のチェックの時刻。朝ルーティンはここから始めたものとして組み直す（「起きた」がなければ活動開始にもする） */
   routineStartedAt?: number;
   /** 朝ルーティンの手順をすべて終えた時刻 */
@@ -192,11 +186,41 @@ export interface RewardRates {
   log: number;
 }
 export const DEFAULT_REWARD_RATES: RewardRates = { wake: 30, routine: 30, habit: 30, task: 100, bed: 30, log: 10 };
-/** 「寝る」を押した記録。その日（起きている日）の日付が主キー */
-export interface BedLog {
+/**
+ * 眠りの記録の時刻の出どころ。button＝「寝る」「起きた」、picked＝「いつ起きた？」で選んだ・入れた時刻、
+ * reset＝「今から立て直す」（今から寝る・起きたところ）で入れた時刻
+ */
+export type SleepSource = "button" | "picked" | "reset";
+
+export interface SleepMark {
   at: number;
-  /** 押したときの、予定の就寝時刻 */
-  plannedBed: number;
+  source: SleepSource;
+  /** 記録した時刻。前の時刻で記録しても、朝のカードをしばらく出して疲れを聞く */
+  recordedAt?: number;
+}
+
+/** 「疲れている」で休む時間 */
+export type TiredPause = RhythmReset & { mode: "tired" };
+
+/**
+ * 眠りの記録（1回の眠り）。寝床に入った・起きて動き出した時刻と、記録したときの予定の就寝・起床。
+ * 読むときは night.ts（nightOf・sleepSessions）を通す。書くときも night.ts の関数を使う
+ */
+export interface SleepLog {
+  /** 夜の眠りは起きた日の日付。同じ日の昼寝などは「日付:寝た時刻」 */
+  id: string;
+  /** 起きた日（まだ起きていなければ、起きる予定の日） */
+  date: DateKey;
+  /** 寝床に入った（活動終了） */
+  bed?: SleepMark;
+  /** 起きて動き出した（活動開始） */
+  up?: SleepMark;
+  /** 「今から寝る」で入れた起きる予定。起きたと分かるまでは、ここまで眠るものとして組み直す */
+  until?: number;
+  /** 寝た時刻を記録したときの、予定の就寝 */
+  plannedBed?: number;
+  /** 起きた時刻を記録したとき（押す前に朝ルーティンを始めたときはそのとき。「今から寝る」は入れた起きる予定）の、予定の起床。予定どおり起きたかを数える */
+  plannedWake?: number;
 }
 export const taskBlockKey = (refId: string, start: number) => `${refId}:${start}`;
 
@@ -259,7 +283,8 @@ export interface EnergyCheck {
 }
 
 export interface MockData {
-  rhythmResets?: import("@/lib/scheduler").RhythmReset[];
+  /** 「疲れている」で休む時間（作業を入れない）。寝た・起きた時刻は sleepLogs に置く */
+  rhythmResets?: TiredPause[];
   /** 「この時間は空ける」にした時間（タスクの枠を外したところ）。自動では何も入れない */
   keepFree?: { id: string; start: number; end: number; taskId?: string }[];
   version: 2;
@@ -277,12 +302,15 @@ export interface MockData {
   /** 前回の配置（固定した枠を含む）。次の組み直しに渡す */
   blocks: Block[];
   wakeLogs: WakeLog[];
-  /** 間隔で置く習慣（洗濯など）を最後にした時刻。習慣の ID → epoch ミリ秒 */
-  habitLastDone: Record<string, number>;
-  /** 週に何回かの習慣（「記録する」でないもの）の枠が始まった日。習慣の ID → その日の 0:00（直近14日） */
-  habitDoneDays: Record<string, number[]>;
-  /** 「寝る」を押した記録（その日の日付 → 記録） */
-  bedLogs: Record<DateKey, BedLog>;
+  /**
+   * 「記録する」でない習慣の枠が始まった時刻（習慣の ID → 時刻。直近60日）。始まった枠をもって「やった」とみなすための事実だけを残す。
+   * 間隔の習慣の最後にやった日・週に何回かの習慣のやった日は、ここと habitLogs から組み直すたびに決める（保存しない）
+   */
+  habitStarts: Record<string, number[]>;
+  /** 実際の起床から朝を組み直した日と、そのときの起床（日付 → 時刻）。同じ起床では二度組み直さない（2台でも同じ） */
+  anchoredWakes: Record<DateKey, number>;
+  /** 眠りの記録（「寝る」「起きた」「いつ起きた？」「今から立て直す」で入れた、寝た・起きた時刻） */
+  sleepLogs: SleepLog[];
   /** その日の計画の控え（120日ぶん） */
   dayLogs: Record<DateKey, DayLog>;
   /** ヘルスケアの睡眠（起きた日 → まとめ。60日ぶん） */
@@ -457,20 +485,6 @@ export function treatFor(dayStart: number, treats: Treat[], day: { holiday?: boo
   const pool = fit.length ? fit : treats;
   const i = treatIndexFor(dayNumberOf(dayStart), pool.length, treats.map((t) => t.id).join("|"));
   return i < 0 ? undefined : pool[i];
-}
-
-// ---------- 起床の記録 ----------
-
-/** 「起きた」を続けて記録した日数。今日がまだなら昨日までを数える */
-export function wakeStreak(logs: WakeLog[], today: number): number {
-  const woke = new Set(logs.filter((l) => l.wokeAt !== undefined).map((l) => l.date));
-  let day = woke.has(dateKeyOf(today)) ? today : today - DAY_MS;
-  let n = 0;
-  while (woke.has(dateKeyOf(day))) {
-    n++;
-    day -= DAY_MS;
-  }
-  return n;
 }
 
 // ---------- 時刻の入力 ----------

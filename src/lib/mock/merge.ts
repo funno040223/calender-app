@@ -1,4 +1,4 @@
-import type { MockData } from "./model";
+import type { MockData, SleepLog } from "./model";
 import { DATA_KEYS } from "./state";
 
 /** 項目ごとの変更を見分けるための指紋。jsonb は項目の並びを変えるので、並びに関係なく同じ値なら同じ指紋にする */
@@ -31,8 +31,56 @@ function hash(text: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
+/** 眠りの記録を夜ごと（id ごと）に指紋にした印（これがない指紋は、夜ごとの前の値が分からない） */
+const SLEEP_ENTRIES_MARK = "sleepLogs#entries";
+const sleepKey = (id: string) => `sleepLogs:${id}`;
+
 export function fingerprints(d: Partial<MockData>): Fingerprints {
-  return Object.fromEntries(DATA_KEYS.map((k) => [k, hash(stable(d[k]))]));
+  const out: Fingerprints = Object.fromEntries(DATA_KEYS.map((k) => [k, hash(stable(d[k]))]));
+  out[SLEEP_ENTRIES_MARK] = "1";
+  for (const s of Array.isArray(d.sleepLogs) ? d.sleepLogs : []) out[sleepKey(s.id)] = hash(stable(s));
+  return out;
+}
+
+/** 寝た・起きた時刻を記録した時刻（記録した時刻がなければ、その時刻） */
+const markedAt = (m: SleepLog["bed"]) => (m ? (m.recordedAt ?? m.at) : -Infinity);
+
+/** 両方で変えた夜：寝た側（寝た時刻・予定の就寝・起きる予定）と起きた側（起きた時刻・予定の起床）を、それぞれあとから記録したほうから取る（同じならサーバーのほう） */
+function mergeNight(l: SleepLog, r: SleepLog): SleepLog {
+  const bedFrom = markedAt(l.bed) > markedAt(r.bed) ? l : r;
+  const upFrom = markedAt(l.up) > markedAt(r.up) ? l : r;
+  const out: SleepLog = { ...r };
+  for (const k of ["bed", "plannedBed", "until"] as const) delete out[k];
+  for (const k of ["up", "plannedWake"] as const) delete out[k];
+  return {
+    ...out,
+    ...(bedFrom.bed ? { bed: bedFrom.bed } : {}),
+    ...(bedFrom.plannedBed !== undefined ? { plannedBed: bedFrom.plannedBed } : {}),
+    ...(bedFrom.until !== undefined ? { until: bedFrom.until } : {}),
+    ...(upFrom.up ? { up: upFrom.up } : {}),
+    ...(upFrom.plannedWake !== undefined ? { plannedWake: upFrom.plannedWake } : {}),
+  };
+}
+
+/**
+ * 眠りの記録を夜ごと（id ごと）に合わせる。片方だけ変えた夜はその側を使い、両方で変えた夜は、寝た側・起きた側をそれぞれ
+ * あとから記録したほうから取る（別々の端末で「寝る」と「起きた」を押しても両方残す）。base は夜ごとの指紋を持つもの（前の指紋にない夜は、なかったものとみなす）
+ */
+function mergeSleepLogs(base: Fingerprints, local: SleepLog[], remote: SleepLog[]): SleepLog[] {
+  const absent = hash(stable(undefined));
+  const l = new Map(local.map((s) => [s.id, s]));
+  const r = new Map(remote.map((s) => [s.id, s]));
+  const out: SleepLog[] = [];
+  for (const id of new Set([...l.keys(), ...r.keys()])) {
+    const lv = l.get(id);
+    const rv = r.get(id);
+    const lf = hash(stable(lv));
+    const rf = hash(stable(rv));
+    const bf = base[sleepKey(id)] ?? absent;
+    const v = lf === rf || lf === bf ? rv : rf === bf ? lv : lv && rv ? mergeNight(lv, rv) : (lv ?? rv);
+    if (v) out.push(v);
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -74,6 +122,8 @@ export function mergeConflict(base: Fingerprints | undefined, local: MockData, r
     const l = local[k];
     const r = remote[k];
     if (lf[k] === rf[k]) out[k] = r;
+    // 眠りの記録は、夜ごとの前の指紋があれば夜ごとに合わせる（なければ、ほかと同じく全体で見る）
+    else if (k === "sleepLogs" && base?.[SLEEP_ENTRIES_MARK] !== undefined) out[k] = mergeSleepLogs(base, l as SleepLog[], r as SleepLog[]);
     else if (base && lf[k] === base[k]) out[k] = r;
     else if (base && rf[k] === base[k]) out[k] = l;
     else if (k === "migrations") out[k] = [...new Set([...(l as string[]), ...(r as string[])])];

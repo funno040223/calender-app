@@ -3,19 +3,18 @@ import React, { useEffect, useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { AppContext, type AppContextValue } from "@/components/app/StoreProvider";
-import { replan, sampleData } from "@/lib/mock/state";
+import { replan, sampleData, type MockState } from "@/lib/mock/state";
 import type { MockData } from "@/lib/mock/model";
 import { jst } from "@/lib/scheduler/test-helpers";
 import { MIN } from "@/lib/mock/jst";
 import ProgressCard from "./ProgressCard";
-import RecoveryCard from "./RecoveryCard";
 import WorkNowCard from "./WorkNowCard";
 import TodayScreen from "./TodayScreen";
 
 const now = jst(2026, 10, 1, 12);
 const task = { id: "t", title: "レポート", durationMinutes: 180, priority: 2 as const };
 const block = { kind: "task" as const, refId: task.id, title: task.title, start: now - 60 * MIN, end: now };
-let last: MockData;
+let last: MockState;
 const openTask = vi.fn();
 const notify = vi.fn();
 function Harness({ children, init }: { children: React.ReactNode; init?: (d: MockData) => MockData }) {
@@ -45,14 +44,6 @@ it("できなかったを1回押すだけで確認を終え、進捗を増やさ
   fireEvent.click(screen.getByRole("button", { name: "できなかった" }));
   expect(last.tasks[0].remainingMinutes).toBe(180);
   expect(screen.queryByText("作業の進み具合")).toBeNull();
-});
-it("徹夜後の睡眠を入力し、表示と保存する予定へ反映できる", () => {
-  render(<Harness><RecoveryCard now={now} /></Harness>);
-  fireEvent.click(screen.getByRole("button", { name: "今から寝る" }));
-  fireEvent.change(screen.getByLabelText("立て直しの終了時刻"), { target: { value: "19:00" } });
-  fireEvent.click(screen.getByRole("button", { name: "組み直す" }));
-  expect(last.rhythmResets?.[0].end).toBe(jst(2026, 10, 1, 19));
-  expect(notify).toHaveBeenCalledWith("組み直しました");
 });
 it("候補を見るだけでは予定を変更しない", () => {
   render(<Harness><WorkNowCard now={now} /></Harness>);
@@ -94,12 +85,4 @@ it("食事と入浴は「少しだけ」を出さず、「やった」だけで�
   expect(screen.queryByRole("button", { name: `${lunch.name}：少しだけ` })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: `${lunch.name}：やった` }));
   expect(last.habitLogs["2026-10-01"]?.[lunch.id]).toBe("done");
-});
-it("起きたところは時刻だけで入れ、日付は今から決める（昨夜寝て、今朝起きた）", () => {
-  render(<Harness><RecoveryCard now={now} /></Harness>);
-  fireEvent.click(screen.getByRole("button", { name: "起きたところ" }));
-  fireEvent.change(screen.getByLabelText("寝た時刻"), { target: { value: "03:30" } });
-  fireEvent.change(screen.getByLabelText("立て直しの終了時刻"), { target: { value: "11:15" } });
-  fireEvent.click(screen.getByRole("button", { name: "組み直す" }));
-  expect(last.rhythmResets?.at(-1)).toMatchObject({ mode: "woke", start: jst(2026, 10, 1, 3, 30), end: jst(2026, 10, 1, 11, 15) });
 });

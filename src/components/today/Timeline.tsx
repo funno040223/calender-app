@@ -8,6 +8,7 @@ import { DAY_MS, dayStartOf, formatTime } from "@/lib/mock/jst";
 import { allowsFive, dateKeyOf, type HabitMark } from "@/lib/mock/model";
 import { missHabitBlock, rainyDayKeys, releaseKeepFree } from "@/lib/mock/state";
 import { allEventRefs, eventIndex, formatEventWhen, tasksByEvent, travelBands } from "@/lib/mock/related";
+import { activePause, endPause } from "@/lib/mock/recovery";
 import { Card } from "@/components/ui/controls";
 import { colorOf, textBtn } from "./parts";
 
@@ -137,6 +138,19 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
       color: "var(--muted)",
       dim: true,
       action: { label: "戻す", onClick: () => update((d) => releaseKeepFree(d, k.id)) },
+    });
+  }
+  // 「休む」にした時間。途中で終えられる
+  const pause = activePause(state, now);
+  if (pause && pause.start < dayEnd) {
+    items.push({
+      key: `pause:${pause.id}`,
+      title: "休む",
+      start: pause.start,
+      end: pause.end,
+      color: "var(--muted)",
+      dim: true,
+      action: { label: "終える", ariaLabel: "休むのを終える", onClick: () => update((d) => endPause(d, pause.id, Date.now())) },
     });
   }
   items.sort((a, b) => a.start - b.start || a.end - b.end);

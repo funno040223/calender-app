@@ -3,6 +3,7 @@ import { DAY_MS, MIN, TZ, dayStartOf } from "./jst";
 import { dateKeyOf, dayStartOfKey, type MockData } from "./model";
 import { planEvents, type MockState } from "./state";
 import { bedNights } from "./stats";
+import { allNights, upRecorded } from "./night";
 import { workedByTask } from "./progress";
 import { intersect, merge } from "@/lib/scheduler/intervals";
 
@@ -218,7 +219,7 @@ function smokeInsight(state: MockState, events: CalendarEvent[], from: number, n
     { label: "作業の枠の途中", spans: worked.map((b) => ({ start: b.start, end: b.end })) },
     { label: "作業のあと30分", spans: worked.map((b) => ({ start: b.end, end: b.end + 30 * MIN })) },
     { label: "食事のあと30分", spans: meals.map((m) => ({ start: m.start + m.dur, end: m.start + m.dur + 30 * MIN })) },
-    { label: "起きて1時間", spans: state.wakeLogs.flatMap((l) => (l.wokeAt ? [{ start: l.wokeAt, end: l.wokeAt + H }] : [])) },
+    { label: "起きて1時間", spans: allNights(state).flatMap((n) => (n.up && upRecorded(n) ? [{ start: n.up.at, end: n.up.at + H }] : [])) },
     { label: "寝る前1時間", spans: bedNights(state).map((b) => ({ start: b.at - H, end: b.at })) },
   ];
   const found = scenes

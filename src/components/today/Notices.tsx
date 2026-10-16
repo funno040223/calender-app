@@ -2,18 +2,26 @@
 
 import { useState } from "react";
 import type { MockState } from "@/lib/mock/store";
-import { formatDate, formatDeadline, formatMinutes } from "@/lib/mock/jst";
+import { formatDate, formatDateTime, formatDeadline, formatMinutes } from "@/lib/mock/jst";
+import { sleepConflicts } from "@/lib/mock/recovery";
 import { eventIndex } from "@/lib/mock/related";
 import { travelAsks } from "@/lib/mock/state";
 
 /** 今日の画面に出すお知らせがあるか（なければカードごと出さない） */
 export function hasNotices(state: MockState) {
   const r = state.result;
-  return r.shortfalls.length + r.travelQuestions.length + travelAsks(state, state.plannedAt).length + r.skippedHabits.filter((s) => s.reason === "deadline").length > 0;
+  return (
+    r.shortfalls.length +
+      r.travelQuestions.length +
+      travelAsks(state, state.plannedAt).length +
+      r.skippedHabits.filter((s) => s.reason === "deadline").length +
+      sleepConflicts(state, state.plannedAt).length >
+    0
+  );
 }
 
 export function warningCount(state: MockState) {
-  return state.result.shortfalls.length + state.result.travelQuestions.length + travelAsks(state, state.plannedAt).length;
+  return state.result.shortfalls.length + state.result.travelQuestions.length + travelAsks(state, state.plannedAt).length + sleepConflicts(state, state.plannedAt).length;
 }
 
 const TRAVEL_CHOICES = [0, 15, 30, 45, 60, 90];
@@ -86,11 +94,21 @@ export default function Notices({
   const deadlineSkips = result.skippedHabits.filter((s) => s.reason === "deadline");
 
   const asks = travelAsks(state, state.plannedAt);
-  if (result.shortfalls.length === 0 && result.travelQuestions.length === 0 && asks.length === 0 && deadlineSkips.length === 0) {
+  // 睡眠と重なって、もう間に合わない予定（遅く寝た・寝坊した）
+  const conflicts = sleepConflicts(state, state.plannedAt);
+  if (result.shortfalls.length === 0 && result.travelQuestions.length === 0 && asks.length === 0 && deadlineSkips.length === 0 && conflicts.length === 0) {
     return null;
   }
   return (
     <ul className="flex flex-col divide-y divide-line">
+      {conflicts.map((c) => (
+        <li key={`sleep:${c.title}:${c.start}`} role="alert" className="flex gap-3 px-4 py-3 text-[14px]">
+          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
+          <span>
+            睡眠と重なる予定：{formatDateTime(c.start)} {c.title}
+          </span>
+        </li>
+      ))}
       {result.shortfalls.map((s) => {
         const task = state.tasks.find((t) => t.id === s.taskId);
         const fixes: { fix: ShortfallFix; label: string; on: boolean }[] = [

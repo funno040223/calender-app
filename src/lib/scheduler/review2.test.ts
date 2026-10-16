@@ -86,7 +86,7 @@ describe("週に何回かの習慣の記録（state.ts）", () => {
     const monBlock = onDay(mon.result, exercise.id, jst(2026, 10, 5));
     const tue = replan(mon, [], jst(2026, 10, 6, 8));
     expect(monBlock).toHaveLength(1);
-    expect(tue.habitDoneDays[exercise.id]).toEqual([jst(2026, 10, 5)]);
+    expect(tue.habitDone.weekDays[exercise.id]).toEqual([jst(2026, 10, 5)]);
   });
 
   it("「記録する」の習慣は、やった記録で数える", async () => {

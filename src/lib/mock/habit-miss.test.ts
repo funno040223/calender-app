@@ -28,20 +28,20 @@ describe("習慣の「できなかった」", () => {
   it("記録しない間隔の習慣は、始まった枠で数え、「できなかった」で取り消す", () => {
     const plain = { ...laundry, track: undefined };
     const first = replan(data(plain), [], now);
-    expect(first.habitLastDone[plain.id]).toBe(past(plain).start);
+    expect(first.habitDone.lastDone[plain.id]).toBe(past(plain).start);
     const state = replan(missHabitBlock(toData(first), past(plain)), [], now);
-    expect(state.habitLastDone[plain.id]).toBeUndefined();
+    expect(state.habitDone.lastDone[plain.id]).toBeUndefined();
     expect(state.blocks.some((b) => b.refId === plain.id && b.start >= now)).toBe(true);
   });
   it("記録する間隔の習慣（洗濯）は、時刻が過ぎただけでは数えず、「やった」を押した日だけ数える", () => {
-    expect(replan(data(laundry), [], now).habitLastDone[laundry.id]).toBeUndefined();
+    expect(replan(data(laundry), [], now).habitDone.lastDone[laundry.id]).toBeUndefined();
     const done = replan({ ...data(laundry), habitLogs: { "2026-10-01": { [laundry.id]: "done" } } }, [], now);
-    expect(done.habitLastDone[laundry.id]).toBe(jst(2026, 10, 1));
+    expect(done.habitDone.lastDone[laundry.id]).toBe(jst(2026, 10, 1));
   });
   it("寝坊して過ぎた洗濯は「やった」にならず、その日の空いている時間に入れ直す", () => {
-    const sleptThrough = { ...data(laundry), habitLastDone: { [laundry.id]: past(laundry).start }, wakeLogs: [{ date: "2026-10-01", doneStepIds: [], wokeAt: now - 30 * MIN }] };
+    const sleptThrough = { ...data(laundry), habitStarts: { [laundry.id]: [past(laundry).start] }, sleepLogs: [{ id: "2026-10-01", date: "2026-10-01", up: { at: now - 30 * MIN, source: "button" as const } }] };
     const state = replan(sleptThrough, [], now);
-    expect(state.habitLastDone[laundry.id]).toBeUndefined();
+    expect(state.habitDone.lastDone[laundry.id]).toBeUndefined();
     expect(state.blocks.some((b) => b.refId === laundry.id && b.title === laundry.name && b.start >= now && b.start < jst(2026, 10, 2))).toBe(true);
   });
 });

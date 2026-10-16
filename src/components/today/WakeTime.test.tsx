@@ -53,11 +53,26 @@ it("記録した起床の時刻は、あとから直せる", () => {
   fireEvent.change(screen.getByLabelText("起きた時刻"), { target: { value: "09:20" } });
   fireEvent.click(screen.getByRole("button", { name: "起きた時刻を記録" }));
   expect(screen.getByRole("button", { name: "起きた時刻 9:20 を直す" })).toBeTruthy();
-  expect(seen.state!.wakeLogs.find((l) => l.date === "2026-10-06")?.wokeAt).toBe(jst(2026, 10, 6, 9, 20));
+  expect(nightOf(seen.state!, "2026-10-06").up?.at).toBe(jst(2026, 10, 6, 9, 20));
 });
 
 it("前の時刻で記録しても、朝のカードを出したままにして疲れを聞く", () => {
   render(<Harness><TodayScreen /></Harness>);
   fireEvent.click(screen.getByRole("button", { name: /9:00\s*予定/ }));
   expect(screen.getByText("今の疲れ")).toBeTruthy();
+});
+
+it("疲れのスライダーは、指を離したときに記録する（動かしている途中で朝のカードがたたまれない）", () => {
+  render(<Harness><TodayScreen /></Harness>);
+  fireEvent.click(screen.getByRole("button", { name: /9:00\s*予定/ }));
+  const slider = screen.getByRole("slider", { name: "今の疲れ" });
+  slider.setPointerCapture = vi.fn();
+  slider.hasPointerCapture = () => true;
+  slider.getBoundingClientRect = () => ({ left: 0, width: 100, top: 0, height: 10, right: 100, bottom: 10, x: 0, y: 0, toJSON: () => ({}) });
+  fireEvent.pointerDown(slider, { pointerId: 1, clientX: 0 });
+  // 動かしている間は記録しない
+  expect(seen.state!.wakeLogs.find((l) => l.date === "2026-10-06")?.fatigue).toBeUndefined();
+  expect(screen.getByRole("slider", { name: "今の疲れ" })).toBeTruthy();
+  fireEvent.pointerUp(slider, { pointerId: 1 });
+  expect(seen.state!.wakeLogs.find((l) => l.date === "2026-10-06")?.fatigue).toBe(1);
 });

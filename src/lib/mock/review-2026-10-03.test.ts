@@ -28,7 +28,8 @@ describe("ご褒美の残高は、記録の保存期限が切れても減らな�
       ...d,
       rewardRates: DEFAULT_REWARD_RATES,
       taskBlockLog: { "t:1": { title: "レポート", start: old, end: old + 3600_000, doneAt: old + 1800_000 } },
-      wakeLogs: [{ date: dateKeyOf(old), wokeAt: old, plannedWake: old, routineDoneAt: old + 600_000, doneStepIds: [] }],
+      wakeLogs: [{ date: dateKeyOf(old), routineDoneAt: old + 600_000, doneStepIds: [] }],
+      sleepLogs: [{ id: dateKeyOf(old), date: dateKeyOf(old), up: { at: old, source: "button" as const }, plannedWake: old }],
     };
   };
 
@@ -39,7 +40,7 @@ describe("ご褒美の残高は、記録の保存期限が切れても減らな�
     const banked = { ...d, rewardBank: bankRewards(d, now) };
     expect(rewardEarned(banked)).toBe(before);
     // 記録のほうは消える
-    const expired = { ...banked, taskBlockLog: {}, wakeLogs: [] };
+    const expired = { ...banked, taskBlockLog: {}, wakeLogs: [], sleepLogs: [] };
     expect(rewardEarned(expired)).toBe(before);
     expect(rewardBalance(expired)).toBe(before);
   });

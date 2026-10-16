@@ -5,7 +5,6 @@ import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, dayStartOf, formatDate, formatTime, newId } from "@/lib/mock/jst";
 import { Card, ScreenHeader } from "@/components/ui/controls";
 import ProgressCard from "./ProgressCard";
-import RecoveryCard from "./RecoveryCard";
 import WorkNowCard from "./WorkNowCard";
 import Notices, { hasNotices } from "./Notices";
 import BedCard, { bedDayOf } from "./BedCard";
@@ -143,7 +142,6 @@ export default function TodayScreen() {
             </div>
             <div className="flex flex-col gap-4">
               <Timeline now={now} dayEnd={dayEnd} />
-              <RecoveryCard now={now} />
             </div>
           </>
         ) : (
@@ -153,8 +151,6 @@ export default function TodayScreen() {
             {/* 狭い画面では、今日の流れを上に（いまと次だけ） */}
             <Timeline now={now} dayEnd={dayEnd} limit={5} />
             {rest}
-            {/* 崩れた日の立て直しは、ときどき使うものなので下に */}
-            <RecoveryCard now={now} />
           </>
         )}
       </div>

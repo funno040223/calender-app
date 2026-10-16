@@ -6,6 +6,7 @@ import { MIN, DAY_MS } from "./jst";
 import { confirmWork, pendingWork } from "./progress";
 import { freeNowMinutes, resetRhythm, resetConflicts, startHabitNow, startWorkNow, workNowChoices, workNowGap, workNowHabits } from "./recovery";
 import { fromStoredV2, replan, sampleData, toData } from "./state";
+import { dateKeyOf } from "./model";
 
 const now = jst(2026, 10, 1, 12);
 const task = { id: "task", title: "レポート", durationMinutes: 180, priority: 2 as const };
@@ -53,11 +54,14 @@ describe("生活リズムの立て直し", () => {
     const r = { id: "sleep", mode: "sleep" as const, start: now, end: now + 7 * 60 * MIN };
     const state = replan(resetRhythm(data(), r, now), [], now);
     expect(state.result.dayPlans[0].wake).toBe(r.end);
-    expect(state.blocks.some((b) => b.refId === "sleep:sleep")).toBe(true);
+    expect(state.blocks.some((b) => b.refId === `sleep:${dateKeyOf(r.end)}`)).toBe(true);
     expect(state.blocks.filter((b) => b.kind !== "routine" && b.start < r.end && b.end > r.start)).toHaveLength(0);
     const notices = buildNotices({ now, result: state.result, events: [], places: [], settings: state.settings });
     expect(notices.filter((n) => n.at >= r.start && n.at < r.end)).toHaveLength(0);
-    expect(fromStoredV2(toData(state), now)?.rhythmResets).toEqual([r]);
+    // 眠りの記録に、寝た時刻と起きる予定として残る（起きる予定を予定の起床にもする）
+    const saved = fromStoredV2(toData(state), now);
+    expect(saved?.rhythmResets).toEqual([]);
+    expect(saved?.sleepLogs).toEqual([{ id: dateKeyOf(r.end), date: dateKeyOf(r.end), bed: { at: r.start, source: "reset", recordedAt: now }, until: r.end }]);
   });
   it("寝坊した日の食事を起床後に動かす", () => {
     const r = { id: "late", mode: "woke" as const, start: jst(2026, 10, 1, 7), end: jst(2026, 10, 1, 14) };

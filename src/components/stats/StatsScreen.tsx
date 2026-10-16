@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/components/app/StoreProvider";
 import { INSIGHT_DAYS, applyInsightAction, buildInsights } from "@/lib/mock/insights";
-import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatMinutes, newId } from "@/lib/mock/jst";
+import { DAY_MS, MIN, TZ, dayStartOf, formatDate, formatMinutes, fromInputTime, newId, toInputTime } from "@/lib/mock/jst";
 import { dateKeyOf, type HabitMark } from "@/lib/mock/model";
 import {
   REWARD_SOURCES,
@@ -19,7 +19,7 @@ import {
   type RewardSource,
 } from "@/lib/mock/stats";
 import { Card, Row, ScreenHeader, btnPrimary, btnSecondary, inputBase } from "@/components/ui/controls";
-import { fallAsleepMinutes, getUpMinutes, nightOf } from "@/lib/mock/night";
+import { correctBed, fallAsleepMinutes, getUpMinutes, nightOf, recordUp, type Night } from "@/lib/mock/night";
 
 const yen = (n: number) => `¥${Math.round(n).toLocaleString("ja-JP")}`;
 
@@ -312,8 +312,6 @@ function Work() {
   );
 }
 
-const FATIGUE_LABEL = ["", "元気", "少し", "ふつう", "かなり", "ぐったり"];
-
 /** 朝の疲れ：直近14日の点（濃いほど疲れている） */
 function Fatigue() {
   const { state } = useApp();
@@ -332,7 +330,7 @@ function Fatigue() {
               <div key={d} className="flex w-5 flex-col items-center gap-1">
                 <span
                   role="img"
-                  aria-label={`${formatDate(d)} ${v ? FATIGUE_LABEL[v] : "記録なし"}`}
+                  aria-label={`${formatDate(d)} ${v ? `疲れ ${v}` : "記録なし"}`}
                   className={`h-4 w-4 rounded-full ${v ? "" : "border border-line"}`}
                   style={v ? { background: color, opacity: 0.18 + 0.2 * (v - 1) } : undefined}
                 />
@@ -357,8 +355,46 @@ function Fatigue() {
  * 夜：寝床に入った〜起きて動き出した（活動。縦の線）と、眠っていた時間（ヘルスケア。帯）を並べる。
  * その差が、寝つくまでと起き上がるまで
  */
+/**
+ * その夜の寝た・起きた時刻を直す（時刻だけを入れる。日付はその夜に決める：寝た＝前の日の12時〜その日の12時、起きた＝その日のうち）
+ */
+function NightEdit({ night, day, onDone }: { night: Night; day: number; onDone: () => void }) {
+  const { update } = useApp();
+  const [bed, setBed] = useState(night.bed ? toInputTime(night.bed.at) : "");
+  const [up, setUp] = useState(night.up && night.up.source !== "routine" ? toInputTime(night.up.at) : "");
+  const bedAt = bed ? fromInputTime(bed, day + 12 * 60 * MIN, "before") : undefined;
+  const upAt = up ? fromInputTime(up, day + DAY_MS - MIN, "before") : undefined;
+  const valid = (bedAt !== undefined || upAt !== undefined) && (bedAt === undefined || upAt === undefined || upAt > bedAt);
+  const input = "min-w-0 flex-1 rounded-lg border border-line bg-surface2 p-2";
+  return (
+    <div className="flex items-center gap-2 pb-1">
+      <input type="time" aria-label="寝た時刻" value={bed} onChange={(e) => setBed(e.target.value)} className={input} />
+      <input type="time" aria-label="起きた時刻" value={up} onChange={(e) => setUp(e.target.value)} className={input} />
+      <button
+        type="button"
+        disabled={!valid}
+        onClick={() => {
+          update((d) => {
+            const t = Date.now();
+            let logs = d.sleepLogs;
+            if (bedAt !== undefined && bedAt !== night.bed?.at) logs = correctBed(logs, night.date, bedAt, t);
+            if (upAt !== undefined && upAt !== night.up?.at) logs = recordUp(logs, night.date, upAt, "picked", undefined, t);
+            return logs === d.sleepLogs ? d : { ...d, sleepLogs: logs };
+          });
+          onDone();
+        }}
+        className={`${btnSecondary} shrink-0 py-2`}
+      >
+        記録
+      </button>
+    </div>
+  );
+}
+
 function Nights() {
   const { state } = useApp();
+  // 押した夜の時刻を直す
+  const [editing, setEditing] = useState<string>();
   const end = dayStartOf(state.plannedAt) + DAY_MS;
   const days = Array.from({ length: 7 }, (_, i) => end - (7 - i) * DAY_MS);
   const nights = days.map((d) => nightOf(state, dateKeyOf(d)));
@@ -376,7 +412,14 @@ function Nights() {
         {nights.map((n, i) => {
           const d = days[i];
           return (
-            <div key={n.date} className="flex items-center gap-2">
+            <div key={n.date} className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              aria-expanded={editing === n.date}
+              aria-label={`${formatDate(d)}の夜の時刻を直す`}
+              onClick={() => setEditing(editing === n.date ? undefined : n.date)}
+              className="flex items-center gap-2 text-left"
+            >
               <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-muted">{dayNum(d)}</span>
               <div className="relative h-4 flex-1 rounded bg-surface2" role="img" aria-label={`${formatDate(d)}の夜`}>
                 {n.asleep !== undefined && n.awake !== undefined && (
@@ -388,6 +431,8 @@ function Nights() {
               <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-muted">
                 {gap(fallAsleepMinutes(n))}・{gap(getUpMinutes(n))}
               </span>
+            </button>
+            {editing === n.date && <NightEdit night={n} day={d} onDone={() => setEditing(undefined)} />}
             </div>
           );
         })}

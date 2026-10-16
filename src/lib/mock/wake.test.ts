@@ -34,6 +34,13 @@ it("最初に開いた時刻は朝のうちだけ、1回だけ残す", () => {
 });
 
 it("起きていると分かった最初の時刻", () => {
-  expect(awakeSince(undefined)).toBeUndefined();
-  expect(awakeSince({ openedAt: 3, wokeAt: 5 }, 4)).toBe(3);
+  expect(awakeSince({}, "2026-10-06")).toBeUndefined();
+  const data = {
+    wakeLogs: [{ date: "2026-10-06", doneStepIds: [], openedAt: 3 }],
+    sleepLogs: [{ id: "2026-10-06", date: "2026-10-06", up: { at: 5, source: "button" as const } }],
+  };
+  expect(awakeSince(data, "2026-10-06", 4)).toBe(3);
+  // 「今から立て直す」の起きたところも、起きた記録として見る
+  const reset = { sleepLogs: [{ id: "2026-10-06", date: "2026-10-06", bed: { at: 1, source: "reset" as const }, up: { at: 2, source: "reset" as const } }] };
+  expect(awakeSince(reset, "2026-10-06", 4)).toBe(2);
 });

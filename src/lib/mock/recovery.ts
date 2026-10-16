@@ -1,6 +1,7 @@
-import { estimateMinutes, resolveTravel, type RhythmReset } from "@/lib/scheduler";
+import { estimateMinutes, resolveTravel, type PlanResult, type RhythmReset } from "@/lib/scheduler";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
 import { dateKeyOf, type MockData } from "./model";
+import { pressBed, recordReset } from "./night";
 import { captureTaskBlocks } from "./progress";
 import { planEvents, rainyDayKeys, type MockState } from "./state";
 
@@ -15,7 +16,11 @@ export function resetConflicts(state: MockState, reset: RhythmReset) {
   ].filter((e) => e.start < reset.end && e.end > reset.start);
 }
 
-export function resetRhythm(d: MockData, reset: RhythmReset, now: number): MockData {
+/**
+ * 睡眠・休む時間を入れる。今から寝る（sleep）・起きたところ（woke）は眠りの記録に（planned は記録するときの予定の就寝・起床）、
+ * 休む（tired）は休む時間に残す
+ */
+export function resetRhythm(d: MockData, reset: RhythmReset, now: number, planned: { bed?: number; wake?: number } = {}): MockData {
   if (!Number.isFinite(reset.start) || !Number.isFinite(reset.end) || reset.end <= reset.start || reset.end - reset.start > 48 * 60 * MIN) return d;
   d = captureTaskBlocks(d, now);
   const logs = { ...d.taskBlockLog };
@@ -27,14 +32,16 @@ export function resetRhythm(d: MockData, reset: RhythmReset, now: number): MockD
     else if (reset.mode !== "tired" && b.start < reset.start && b.end > reset.start) logs[key] = { ...logs[key], end: reset.start };
     else if (b.start < now && b.end > now) logs[key] = { ...logs[key], end: now };
   }
+  // 重なる休む時間は、過ぎた分（新しい時間の始まりまで）だけ残す
+  const pauses = trimPauses(d.rhythmResets ?? [], reset.start).filter((r) => r.end > now - 60 * DAY_MS && !(r.start < reset.end && r.end > reset.start));
   return { ...d, taskBlockLog: logs,
-    rhythmResets: [...(d.rhythmResets ?? []).filter((r) => r.end > now - 60 * DAY_MS && !(r.start < reset.end && r.end > reset.start)), reset],
+    rhythmResets: reset.mode === "tired" ? [...pauses, { ...reset, mode: "tired" }] : pauses,
+    sleepLogs: reset.mode === "tired" ? d.sleepLogs : recordReset(d.sleepLogs, { mode: reset.mode, start: reset.start, end: reset.end }, planned, now),
     // 睡眠中に過ぎた食事も組み直す。固定した枠は衝突を表示して維持する。
     blocks: d.blocks.filter((b) => b.pinned || b.end <= Math.min(now, reset.start)),
   };
 }
 
-/** 他の固定枠と習慣を守り、動かせるタスクだけを除いた「今」の空き時間を調べる。 */
 /**
  * 「今から何する？」で使える、今からの時間。自分で「今やる」と決めたので、作業のあとの休憩・帰宅後の休憩は数えない。
  * 守るのは、予定（移動を含む）・今の計画の習慣や朝ルーティン・始まった作業・睡眠・寝る準備だけ
@@ -110,6 +117,42 @@ export function startWorkNow(state: MockState, taskId: string, minutes: number, 
   return { ...state, blocks: [...state.blocks.filter((b) => b.pinned || b.start < now || b.kind !== "task"),
     { kind: "task", refId: taskId, title: choice.task.title, start: choice.start, end: choice.end, pinned: true }],
   };
+}
+
+// ---------- 今から寝る・休む（今日の画面の「今から何する？」と「おやすみ」） ----------
+
+/** 休む時間を at で終える（at より前に始まった分は残し、あとに始まるものは消す） */
+function trimPauses<T extends { start: number; end: number }>(pauses: T[], at: number): T[] {
+  return pauses.flatMap((r) => (r.end <= at ? [r] : r.start < at ? [{ ...r, end: at }] : []));
+}
+
+/**
+ * 「今から何する？」の「寝る」：いつ押しても、その夜の眠り（おやすみのカードの「寝る」と同じ。起床を見積もる）。
+ * その夜＝今が入っている日（起床〜就寝）、就寝を過ぎていれば（朝帰り・徹夜）就寝を過ぎたいちばん近い日。休んでいる時間はここで終える
+ */
+export function sleepNow(d: MockData, result: Pick<PlanResult, "dayPlans" | "lastNight">, now: number): MockData {
+  const days: { dayStart: number; bed: number; wake?: number }[] = [...result.dayPlans, ...(result.lastNight ? [result.lastNight] : [])];
+  const night =
+    result.dayPlans.find((x) => now >= x.wake && now < x.bed) ?? days.filter((x) => x.bed <= now).sort((a, b) => b.bed - a.bed)[0];
+  if (!night) return d;
+  return { ...d, rhythmResets: trimPauses(d.rhythmResets ?? [], now), sleepLogs: pressBed(d.sleepLogs, dateKeyOf(night.dayStart + DAY_MS), now, night.bed) };
+}
+
+/** 休む時間を今で終える（まだ始まっていなければ消す）。これからの自動の枠は、今から置き直す */
+export function endPause(d: MockData, id: string, now: number): MockData {
+  const rhythmResets = (d.rhythmResets ?? []).flatMap((r) => (r.id !== id ? [r] : r.start < now ? [{ ...r, end: Math.min(r.end, now) }] : []));
+  return { ...d, rhythmResets, blocks: d.blocks.filter((b) => b.pinned || b.start <= now) };
+}
+
+/** 今の休む時間 */
+export const activePause = (d: Pick<MockData, "rhythmResets">, now: number) => (d.rhythmResets ?? []).find((r) => r.start <= now && r.end > now);
+
+/** 睡眠と重なって、もう間に合わない予定（お知らせに出す） */
+export function sleepConflicts(state: MockState, now: number): { title: string; start: number; end: number }[] {
+  return [
+    ...(state.result.rhythmResets ?? []).flatMap((r) => resetConflicts(state, r)),
+    ...state.result.dayPlans.flatMap((d) => (d.firstEvent && Math.min(d.leave ?? Infinity, d.firstEvent.start) < d.wake ? [d.firstEvent] : [])),
+  ].filter((c, i, all) => c.end > now && all.findIndex((x) => x.title === c.title && x.start === c.start) === i);
 }
 
 // 夜中（0時を過ぎて、まだ寝る前）は、今夜の就寝まで

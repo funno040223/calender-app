@@ -64,10 +64,13 @@ describe("気づき", () => {
   });
 
   it("起きてすぐに吸うことが多ければ、場面と倍率を出す", () => {
-    const wakeLogs = Array.from({ length: 20 }, (_, i) => ({ date: dateKeyOf(now - (i + 1) * DAY_MS), doneStepIds: [], wokeAt: jst(2026, 10, 28 - i, 9) }));
+    const sleepLogs = Array.from({ length: 20 }, (_, i) => {
+      const date = dateKeyOf(now - (i + 1) * DAY_MS);
+      return { id: date, date, up: { at: jst(2026, 10, 28 - i, 9), source: "button" as const } };
+    });
     // 毎朝起きて30分に1本、ほかは昼と夜にばらけて1本ずつ
-    const smokeLogs = wakeLogs.flatMap((l) => [l.wokeAt! + 30 * MIN, l.wokeAt! + 5 * 60 * MIN, l.wokeAt! + 11 * 60 * MIN]);
-    const found = buildInsights(base({ wakeLogs, smokeLogs }), now).find((x) => x.id === "smoke");
+    const smokeLogs = sleepLogs.flatMap((l) => [l.up.at + 30 * MIN, l.up.at + 5 * 60 * MIN, l.up.at + 11 * 60 * MIN]);
+    const found = buildInsights(base({ sleepLogs, smokeLogs }), now).find((x) => x.id === "smoke");
     expect(found?.text).toBe("吸うことが多いのは、起きて1時間");
     expect(found?.sub).toMatch(/^ふだんの\d+\.\d倍（20本）/);
   });

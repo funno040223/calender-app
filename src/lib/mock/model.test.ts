@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DAY_MS, jstTime } from "./jst";
-import { buildClassEvents, classEventsForPlan, dateKeyOf, parseClassEventId, treatFor, treatIndexFor, wakeStreak, type Course } from "./model";
+import { buildClassEvents, classEventsForPlan, dateKeyOf, parseClassEventId, treatFor, treatIndexFor, type Course } from "./model";
+import { wakeStreak } from "./night";
 import { SAMPLE_PERIODS, SAMPLE_ROUTINE_STEPS, SAMPLE_TREATS } from "./sample";
 import { fromStoredV2, migrateV1, sampleData, toData } from "./store";
 
@@ -70,14 +71,19 @@ describe("treatIndexFor", () => {
 
 describe("wakeStreak", () => {
   const today = jstTime(2026, 9, 28);
-  const log = (ms: number) => ({ date: dateKeyOf(ms), wokeAt: ms + 7 * 3600_000, doneStepIds: [] });
+  const log = (ms: number) => ({ id: dateKeyOf(ms), date: dateKeyOf(ms), up: { at: ms + 7 * 3600_000, source: "button" as const } });
 
   it("今日から続けて起きた日を数える", () => {
-    expect(wakeStreak([log(today), log(today - DAY_MS), log(today - 3 * DAY_MS)], today)).toBe(2);
+    expect(wakeStreak({ sleepLogs: [log(today), log(today - DAY_MS), log(today - 3 * DAY_MS)] }, today)).toBe(2);
   });
   it("今日がまだなら昨日までを数える", () => {
-    expect(wakeStreak([log(today - DAY_MS), log(today - 2 * DAY_MS)], today)).toBe(2);
-    expect(wakeStreak([{ date: dateKeyOf(today), doneStepIds: ["a"] }], today)).toBe(0);
+    expect(wakeStreak({ sleepLogs: [log(today - DAY_MS), log(today - 2 * DAY_MS)] }, today)).toBe(2);
+    // 朝ルーティンを始めただけでは数えない
+    expect(wakeStreak({ wakeLogs: [{ date: dateKeyOf(today), doneStepIds: ["a"], routineStartedAt: today + 8 * 3600_000 }] }, today)).toBe(0);
+  });
+  it("「今から立て直す」の起きたところも、起きた記録に数える", () => {
+    const reset = { id: dateKeyOf(today), date: dateKeyOf(today), bed: { at: today, source: "reset" as const }, up: { at: today + 9 * 3600_000, source: "reset" as const } };
+    expect(wakeStreak({ sleepLogs: [reset, log(today - DAY_MS)] }, today)).toBe(2);
   });
 });
 

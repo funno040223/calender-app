@@ -14,7 +14,7 @@ function Harness({ fixed = false, morning = false }: { fixed?: boolean; morning?
   const time = morning ? jst(2026, 10, 1, 8) : now;
   const [state, setState] = useState(() => replan({ ...sampleData(time), tasks: [], courses: [], habits: [], blocks: [],
     settings: { ...sampleData(time).settings, routineMinutes: 10, prepMinutes: 40 },
-    bedLogs: morning ? { "2026-09-30": { at: now, plannedBed: now - 60 * 60_000 } } : {},
+    sleepLogs: morning ? [{ id: "2026-10-01", date: "2026-10-01", bed: { at: now, source: "button" as const }, plannedBed: now - 60 * 60_000 }] : [],
     events: fixed ? [{ id: "out", title: "外出", start: jst(2026, 10, 1, 11), end: jst(2026, 10, 1, 12), atHome: false, travelMinutes: 30 }] : [],
   }, [], time));
   const value = { state, update: (fn: (d: MockData) => MockData) => setState((s) => replan(fn(s), [], time)), patch: vi.fn() } as unknown as AppContextValue;

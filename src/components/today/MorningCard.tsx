@@ -7,8 +7,9 @@ import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, MIN, dayStartOf, formatMinutes, formatTime, fromInputTime } from "@/lib/mock/jst";
 import { WAKE_CANDIDATE_LABEL, asksWakeTime, wakeCandidates, type WakeCandidate } from "@/lib/mock/wake";
 import { SLEEP_SHORTCUT_URL, markHealthAsked } from "@/lib/sync/health";
-import { nightOf } from "@/lib/mock/night";
-import { dateKeyOf, wakeStreak, type MorningFatigue, type WakeLog, type MockData } from "@/lib/mock/model";
+import { bedDayOf } from "./BedCard";
+import { dropPlannedWake, nightOf, notePlannedWake, plannedOf, recordUp, undoUp, upRecorded, wakeStreak } from "@/lib/mock/night";
+import { dateKeyOf, type MorningFatigue, type WakeLog, type MockData, type SleepLog } from "@/lib/mock/model";
 import { Card, Row, btnPrimary, btnSecondary } from "@/components/ui/controls";
 import { labelCls, textBtn, CheckCircle, todaysTreat, TreatText } from "./parts";
 
@@ -103,13 +104,73 @@ function WakePicker({ candidates, current, now, onPick }: { candidates: WakeCand
   );
 }
 
-const FATIGUE_OPTIONS:{ value: MorningFatigue; label: string }[] = [
-  { value: 1, label: "元気" },
-  { value: 2, label: "少し" },
-  { value: 3, label: "ふつう" },
-  { value: 4, label: "かなり" },
-  { value: 5, label: "ぐったり" },
-];
+/**
+ * 朝の疲れ（1 元気 〜 5 ぐったり）のスライダー。指で押した・動かした位置の段に合わせる。
+ * 答えるまでつまみは出さない（押した場所で決まる）。iPhone の標準のスライダーは線を押しても動かないので、自前で作る
+ */
+function FatigueSlider({ value: saved, onChange }: { value?: MorningFatigue; onChange: (v: MorningFatigue) => void }) {
+  // 指で動かしている間は記録せず、離したときに記録する（記録すると朝のカードがたたまれることがあるため）
+  const [draft, setDraft] = useState<MorningFatigue>();
+  const value = draft ?? saved;
+  const commit = () => {
+    if (draft !== undefined) onChange(draft);
+    setDraft(undefined);
+  };
+  const levelAt = (el: HTMLElement, x: number): MorningFatigue => {
+    const r = el.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (x - r.left) / r.width));
+    return (Math.round(ratio * 4) + 1) as MorningFatigue;
+  };
+  const set = (v: number) => onChange(Math.min(5, Math.max(1, v)) as MorningFatigue);
+  const pct = value === undefined ? 0 : ((value - 1) / 4) * 100;
+  return (
+    <div>
+      <div
+        role="slider"
+        tabIndex={0}
+        aria-label="今の疲れ"
+        aria-valuemin={1}
+        aria-valuemax={5}
+        aria-valuenow={value}
+        aria-valuetext={value === undefined ? "未回答" : `${value}`}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setDraft(levelAt(e.currentTarget, e.clientX));
+        }}
+        onPointerMove={(e) => {
+          if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+          const v = levelAt(e.currentTarget, e.clientX);
+          if (v !== value) setDraft(v);
+        }}
+        onPointerUp={commit}
+        onLostPointerCapture={commit}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight" || e.key === "ArrowUp") set((value ?? 2) + 1);
+          if (e.key === "ArrowLeft" || e.key === "ArrowDown") set((value ?? 4) - 1);
+        }}
+        className="relative mx-3 h-9 cursor-pointer touch-none select-none"
+      >
+        <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-surface2" />
+        {value !== undefined && <div className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-tint" style={{ width: `${pct}%` }} />}
+        {[0, 25, 50, 75, 100].map((p) => (
+          <span key={p} className="absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-line" style={{ left: `${p}%` }} />
+        ))}
+        {value !== undefined && (
+          <span
+            className="absolute top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-tint text-[13px] font-semibold text-on-tint shadow tabular-nums"
+            style={{ left: `${pct}%` }}
+          >
+            {value}
+          </span>
+        )}
+      </div>
+      <div className="flex justify-between text-[11px] text-muted">
+        <span>元気</span>
+        <span>ぐったり</span>
+      </div>
+    </div>
+  );
+}
 
 /**
  * 朝のうち（起床の2時間前〜4時間後）で、起きた・疲れ・朝ルーティンがまだ終わっていない。
@@ -118,14 +179,18 @@ const FATIGUE_OPTIONS:{ value: MorningFatigue; label: string }[] = [
 export function isMorning(state: ReturnType<typeof useApp>["state"], day: DayPlan | undefined, now: number): boolean {
   const today = dayStartOf(now);
   const wake = day?.wake ?? today + 9 * 60 * MIN;
-  if (now < wake - 2 * 60 * MIN) return false;
-  const log = state.wakeLogs.find((l) => l.date === dateKeyOf(today));
-  if (log?.wokeAt === undefined) return now < (day?.bed ?? today + DAY_MS) - state.settings.windDownMinutes * MIN;
+  const key = dateKeyOf(today);
+  const log = state.wakeLogs.find((l) => l.date === key);
+  // 起きた記録（「起きた」「いつ起きた？」「今から立て直す」の起きたところ）は夜の記録から見る
+  const night = nightOf(state, key);
+  // 「寝る」を押したあとは、おやすみのカードが消えたら、見積もった起床より前でも「起きた」を押せるように出す（次に起きるまで）
+  const sleeping = !!night.bed && !night.up && !bedDayOf(state.result, now, state.settings.windDownMinutes);
+  if (now < wake - 2 * 60 * MIN && !sleeping) return false;
+  if (!upRecorded(night)) return now < (day?.bed ?? today + DAY_MS) - state.settings.windDownMinutes * MIN;
   // 前の時刻で記録したとき（押し忘れ・寝坊）も、記録してから2時間は出して、疲れと朝ルーティンを聞く
-  const until = Math.max(wake + 4 * 60 * MIN, Math.min((log.wokeRecordedAt ?? 0) + 2 * 60 * MIN, (day?.bed ?? today + DAY_MS) - state.settings.windDownMinutes * MIN));
+  const until = Math.max(wake + 4 * 60 * MIN, Math.min((night.upRecordedAt ?? 0) + 2 * 60 * MIN, (day?.bed ?? today + DAY_MS) - state.settings.windDownMinutes * MIN));
   if (now >= until) return false;
-  const finished =
-    log?.wokeAt !== undefined && log.fatigue !== undefined && (state.routineSteps.length === 0 || log.routineDoneAt !== undefined);
+  const finished = log?.fatigue !== undefined && (state.routineSteps.length === 0 || log.routineDoneAt !== undefined);
   return !finished;
 }
 
@@ -136,17 +201,17 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
   const today = dayStartOf(now);
   const key = dateKeyOf(today);
   const log: WakeLog = state.wakeLogs.find((l) => l.date === key) ?? { date: key, doneStepIds: [] };
-  const streak = wakeStreak(state.wakeLogs, today);
+  const streak = wakeStreak(state, today);
   const steps = state.routineSteps;
   const treat = todaysTreat(state, today, day);
 
-  const setLog = (fn: (l: WakeLog) => WakeLog, affectsWake = false) => {
+  const setLog = (fn: (l: WakeLog) => WakeLog, affectsWake = false, sleep?: (logs: SleepLog[]) => SleepLog[]) => {
     const change = (d: MockData) => {
       const cur = d.wakeLogs.find((l) => l.date === key) ?? { date: key, doneStepIds: [] };
       const next = fn(cur);
       // 記録は1年ぶんだけ残す
       const rest = d.wakeLogs.filter((l) => l.date !== key);
-      return { wakeLogs: [...rest, next].sort((a, b) => a.date.localeCompare(b.date)).slice(-400) };
+      return { wakeLogs: [...rest, next].sort((a, b) => a.date.localeCompare(b.date)).slice(-400), ...(sleep ? { sleepLogs: sleep(d.sleepLogs) } : {}) };
     };
     if (affectsWake) update((d) => ({ ...d, ...change(d) }));
     else patch(change);
@@ -158,34 +223,40 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
     const done = log.doneStepIds.includes(id) ? log.doneStepIds.filter((x) => x !== id) : [...log.doneStepIds, id];
     const starts = log.routineStartedAt === undefined && done.length > 0;
     const clears = log.routineStartedAt !== undefined && done.length === 0;
-    setLog((l) => {
-      const next: WakeLog = { ...l, doneStepIds: done };
-      const all = steps.length > 0 && steps.every((s) => done.includes(s.id));
-      if (all) next.routineDoneAt = l.routineDoneAt ?? Date.now();
-      else delete next.routineDoneAt;
-      if (starts) {
-        next.routineStartedAt = Date.now();
-        if (l.plannedWake === undefined && expectedWake !== undefined) next.plannedWake = expectedWake;
-      }
-      if (clears) {
-        delete next.routineStartedAt;
-        if (l.wokeAt === undefined) delete next.plannedWake;
-      }
-      return next;
-    }, starts || clears);
+    setLog(
+      (l) => {
+        const next: WakeLog = { ...l, doneStepIds: done };
+        const all = steps.length > 0 && steps.every((s) => done.includes(s.id));
+        if (all) next.routineDoneAt = l.routineDoneAt ?? Date.now();
+        else delete next.routineDoneAt;
+        if (starts) next.routineStartedAt = Date.now();
+        if (clears) delete next.routineStartedAt;
+        return next;
+      },
+      starts || clears,
+      starts ? (logs) => notePlannedWake(logs, key, expectedWake) : clears ? (logs) => dropPlannedWake(logs, key) : undefined,
+    );
   };
 
-  const plannedWake = log.plannedWake ?? day?.wake;
+  // 起きた時刻と予定の起床は、夜の記録（眠りの記録）から
   const night = nightOf(state, key);
+  const wokeAt = upRecorded(night) ? night.up?.at : undefined;
+  const plannedWake = night.plannedWake ?? day?.wake;
   // ヘルスケアの起床で組み直した朝も、前の晩に予定していた起床と比べる（予定どおり起きたか）
-  const expectedWake = state.result.rhythmResets?.find((r) => r.plannedEnd !== undefined && dateKeyOf(r.end) === key)?.plannedEnd ?? day?.wake;
-  const lateBy = log.wokeAt !== undefined && plannedWake !== undefined ? Math.round((log.wokeAt - plannedWake) / MIN) : 0;
+  const expectedWake = plannedOf(state.result, key).wake ?? day?.wake;
+  const lateBy = wokeAt !== undefined && plannedWake !== undefined ? Math.round((wokeAt - plannedWake) / MIN) : 0;
   // 遅れて押すとき（押し忘れ・寝坊）は、いつ起きたかを聞く。記録したあとも、時刻を押すと直せる
   const [editingWake, setEditingWake] = useState(false);
   const askWake = asksWakeTime(now, expectedWake);
-  const candidates = wakeCandidates(state, key, log.plannedWake ?? expectedWake, now);
+  const candidates = wakeCandidates(state, key, night.plannedWake ?? expectedWake, now);
+  // at がなければ今の時刻（「起きた」）
+  const recordWake = (source: "button" | "picked", at?: number) =>
+    update((d) => {
+      const t = Date.now();
+      return { ...d, sleepLogs: recordUp(d.sleepLogs, key, at ?? t, source, expectedWake, t) };
+    });
   const pickWake = (at: number) => {
-    setLog((l) => ({ ...l, wokeAt: at, wokeRecordedAt: Date.now(), plannedWake: l.wokeAt !== undefined ? (l.plannedWake ?? expectedWake) : expectedWake }), true);
+    recordWake("picked", at);
     setEditingWake(false);
   };
   // ヘルスケアを取り込んでいて、今朝の分がまだ届いていないとき（ロック中は読めないので、ここから送る）。「起きた」を押す前から出す
@@ -209,8 +280,8 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
           detail={
             log.routineDoneAt !== undefined
               ? `${formatTime(log.routineDoneAt)} 完了`
-              : log.wokeAt !== undefined
-                ? `${formatTime(log.wokeAt)} 起床`
+              : wokeAt !== undefined
+                ? `${formatTime(wokeAt)} 起床`
                 : "記録なし"
           }
           onClick={() => setOpen(true)}
@@ -222,14 +293,14 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
   return (
     <Card title="朝ルーティン" right={streakBadge}>
       <div className="flex flex-col gap-3 px-4 pt-2 pb-3.5">
-        {log.wokeAt === undefined ? (
+        {wokeAt === undefined ? (
           <>
             {askWake ? (
               <WakePicker candidates={candidates} now={now} onPick={pickWake} />
             ) : (
             <button
               type="button"
-              onClick={() => setLog((l) => ({ ...l, wokeAt: Date.now(), wokeRecordedAt: Date.now(), plannedWake: expectedWake }), true)}
+              onClick={() => recordWake("button")}
               className={`${btnPrimary} h-14 w-full rounded-2xl text-[18px] font-bold`}
             >
               起きた
@@ -247,11 +318,11 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
                 <button
                   type="button"
                   aria-expanded={editingWake}
-                  aria-label={`起きた時刻 ${formatTime(log.wokeAt)} を直す`}
+                  aria-label={`起きた時刻 ${formatTime(wokeAt)} を直す`}
                   onClick={() => setEditingWake((v) => !v)}
                   className="press tabular-nums underline decoration-dotted underline-offset-4"
                 >
-                  {formatTime(log.wokeAt)}
+                  {formatTime(wokeAt)}
                 </button>
                 に起きました
                 {day && Math.abs(lateBy) >= 5 && (
@@ -262,35 +333,20 @@ export default function MorningCard({ day, now, compact }: { day?: DayPlan; now:
                 type="button"
                 className={`${textBtn} text-muted`}
                 onClick={() =>
-                  setLog((l) => {
-                    const next = { ...l };
-                    delete next.wokeAt;
-                    delete next.wokeRecordedAt;
-                    // 朝ルーティンを始めていれば、そのときの予定の起床は残す
-                    if (next.routineStartedAt === undefined) delete next.plannedWake;
-                    return next;
-                  }, true)
+                  // 朝ルーティンを始めていれば、そのときの予定の起床は残す
+                  update((d) => ({
+                    ...d,
+                    sleepLogs: undoUp(d.sleepLogs, key, d.wakeLogs.find((l) => l.date === key)?.routineStartedAt !== undefined),
+                  }))
                 }
               >
                 取り消す
               </button>
             </div>
-            {editingWake && <WakePicker candidates={candidates} current={log.wokeAt} now={now} onPick={pickWake} />}
+            {editingWake && <WakePicker candidates={candidates} current={wokeAt} now={now} onPick={pickWake} />}
             <div>
               <p className={`mb-1.5 ${labelCls}`}>今の疲れ</p>
-              <div className="grid grid-cols-5 gap-1.5">
-                {FATIGUE_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    type="button"
-                    aria-pressed={log.fatigue === o.value}
-                    onClick={() => setLog((l) => ({ ...l, fatigue: o.value }))}
-                    className={`press rounded-xl py-2 text-[13px] font-medium ${log.fatigue === o.value ? "bg-tint text-on-tint" : "bg-surface2"}`}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
+              <FatigueSlider value={log.fatigue} onChange={(v) => setLog((l) => ({ ...l, fatigue: v }))} />
             </div>
             {treat && (
               <div className="reveal rounded-xl bg-surface2 px-3.5 py-3">

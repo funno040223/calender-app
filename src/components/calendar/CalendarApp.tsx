@@ -371,7 +371,7 @@ export default function CalendarApp() {
 }
 
 /** 枠の記録：タスクは「やった」、習慣は「やった／少しだけ」「できなかった」と「今日は飛ばす」 */
-function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void }) {
+export function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void }) {
   const { state, update, notify } = useApp();
   // 「今」は組み直した時刻（描くたびに Date.now() を呼ばない）
   const started = block.start <= state.plannedAt;
@@ -407,9 +407,10 @@ function BlockRecord({ block, onSkipped }: { block: Block; onSkipped: () => void
     });
   return (
     <div className="flex flex-col gap-2">
-      {started && (
+      {/* 「やった」は記録する習慣だけ（記録しない習慣は、始まった枠でやったとみなす） */}
+      {started && habit?.track && (
         <div className="flex gap-2">
-          {habit && allowsFive(habit) && (
+          {allowsFive(habit) && (
             <button type="button" aria-pressed={mark === "five"} className={btn(mark === "five")} onClick={() => setMark("five")}>
               少しだけ
             </button>

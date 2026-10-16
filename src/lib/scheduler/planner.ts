@@ -170,6 +170,11 @@ export function plan(input: PlanInput): PlanResult {
     const routineEnd = routineStartOf(d) + s.routineMinutes * MIN;
     return goal === undefined ? routineEnd : Math.max(routineEnd, goal - s.prepMinutes * MIN);
   };
+  /** 朝ルーティン（身支度が続く日は身支度まで）の時間。最初の予定・出発より後ろへは延ばさない */
+  const routineSpanOf = (d: DayPlan): Interval => ({
+    start: routineStartOf(d),
+    end: Math.min(morningEnd(d), d.leave ?? Infinity, d.firstEvent?.start ?? Infinity),
+  });
   /** 朝の準備が終わる時刻（身支度が朝ルーティンに続く日は身支度まで） */
   const morningEnd = (d: DayPlan) => {
     const routineEnd = routineStartOf(d) + s.routineMinutes * MIN;
@@ -249,6 +254,18 @@ export function plan(input: PlanInput): PlanResult {
   kept = kept.filter((b) => b.start <= now || !keepFree.some((v) => overlaps(v, b)));
   const near = previous.filter((b) => !kept.includes(b) && exists(b) && b.start > now && b.start < now + 30 * MIN && !busy.some((v) => overlaps(v, b)) && !pauses.some((v) => overlaps(v, b)) && days.some((d) => b.start >= morningEnd(d) && b.end <= d.bed - s.windDownMinutes * MIN));
   kept = [...kept, ...near];
+  // ---- 起きた時刻が分かった日 ----
+  // 前の計画は予定の起床から組んだもの。新しい朝ルーティンと重なる自動の枠は外す（固定した枠・記録や確認の済んだ枠は残す。
+  // 外した作業の枠も「作業の進み具合」で聞ける）。大きくずれた朝（relayout）は、実際の起床から朝を組み直す（段階2）。
+  // そのとき、過ぎた時間の自動の習慣と、1つ目を外した干すなどは、組み直す前に外してある（state.ts）
+  const wokeDay = input.anchor ? days.find((d) => d.dayStart === input.anchor!.dayStart && d.wake <= now) : undefined;
+  const anchorDay = input.anchor?.relayout ? wokeDay : undefined;
+  const keepKeys = new Set(input.anchor?.keep ?? []);
+  const fixed = (b: Block) => !!b.pinned || keepKeys.has(`${b.refId}:${b.start}`);
+  if (wokeDay) {
+    const morning = routineSpanOf(wokeDay);
+    if (morning.end > now || anchorDay) kept = kept.filter((b) => fixed(b) || !overlaps(b, morning));
+  }
   // 待ち時間のある習慣（洗濯など）は、始まった枠を残すなら2つ目の枠（干すなど）も残す
   const finishedParents = kept.flatMap((b) => {
     const h = b.kind === "habit" ? input.habits.find((x) => x.id === b.refId) : undefined;
@@ -269,7 +286,8 @@ export function plan(input: PlanInput): PlanResult {
     const routineStart = routineStartOf(d);
     const together = prepStart !== undefined && prepStart === routineStart + s.routineMinutes * MIN;
     const end = Math.min(morningEnd(d), cap);
-    if (end > routineStart && end > now && !busy.some((v) => overlaps(v, { start: routineStart, end }))) {
+    // 起きた時刻が分かった日は、過ぎていても実際の起床からの朝ルーティンを置く（記録として見せる）
+    if (end > routineStart && (end > now || d === anchorDay) && !busy.some((v) => overlaps(v, { start: routineStart, end }))) {
       routineBlocks.push({ kind: "routine", refId: "routine", title: together ? "朝ルーティン・身支度" : "朝ルーティン", start: routineStart, end });
     }
     if (prepStart !== undefined && !together) {
@@ -307,6 +325,25 @@ export function plan(input: PlanInput): PlanResult {
     .map((d) => ({ start: Math.max(d.wake, now), end: d.bed - s.windDownMinutes * MIN }))
     .filter((i) => i.end > i.start);
   free = subtract(free, [...busy, ...[...routineBlocks, ...kept].map(withBreak)]);
+  // 起きた日の、起床から今までの空き。朝の流れの記録する習慣（朝食・散歩など）だけを置く（やった／できなかったで確かめる）。
+  // 記録しない習慣とタスクは置かない（記録しない習慣は、始まった枠でやったとみなすため）
+  let pastFree = anchorDay ? subtract([{ start: anchorDay.wake, end: now }], [...busy, ...[...routineBlocks, ...kept].map(withBreak)]) : [];
+  /** 朝ルーティンから続く記録する習慣（きっかけが朝ルーティン、またはその習慣のあと） */
+  const morningChain = new Set<string>();
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const h of input.habits) {
+      if (!h.track || morningChain.has(h.id) || h.frequency.type !== "daily") continue;
+      let follows = false;
+      for (let c = h.cue; c; c = c.orElse) if (c.type === "routine" || (c.type === "habit" && morningChain.has(c.habitId))) follows = true;
+      if (follows) {
+        morningChain.add(h.id);
+        grew = true;
+      }
+    }
+  }
+  /** その日に過ぎた時間へも置ける習慣か */
+  const pastOk = (habit: Habit, d: DayPlan) => d === anchorDay && morningChain.has(habit.id);
 
   const blocks: Block[] = [...kept, ...routineBlocks];
   const skippedHabits: SkippedHabit[] = [];
@@ -322,6 +359,7 @@ export function plan(input: PlanInput): PlanResult {
     blocks.push(block);
     placedHabits.push({ block, habit, releasable });
     free = subtract(free, [block]);
+    pastFree = subtract(pastFree, [block]);
     addEnergy(block.start, blockEnergy(block));
   };
 
@@ -354,19 +392,23 @@ export function plan(input: PlanInput): PlanResult {
     tryPlaceOn: (d: DayPlan) => boolean,
     windowOf: (d: DayPlan) => Interval,
   ) => {
+    // 過ぎた枠をやったとみなすかは、組み直しの側（habitLastDone）で決める（「記録する」習慣は「やった」を押した日だけ）。
+    // ここで数えるのは、これからの固定した枠だけ。habitLastDone を渡さない呼び出しでは、記録しない習慣の過ぎた枠も数える
+    const pastCounts = input.habitLastDone === undefined && !habit.track;
     const keptDays = kept
-      .filter((b) => b.kind === "habit" && b.refId === habit.id && b.title === habit.name)
+      .filter((b) => b.kind === "habit" && b.refId === habit.id && b.title === habit.name && (b.start > now || pastCounts))
       .map((b) => dayIdx(localDayStart(b.start, s.tzOffsetMinutes)));
     const lastDone = input.habitLastDone?.[habit.id];
     // 記録がなければ、今日から置いてよいものとする
-    let last = keptDays.length
-      ? Math.max(...keptDays)
-      : lastDone !== undefined
-        ? dayIdx(localDayStart(lastDone, s.tzOffsetMinutes))
-        : -minDays;
+    // 枠が残っている日（まだ「やった」を押していない過ぎた枠も）には、もう1つは置かない
+    const occupied = new Set(
+      kept.filter((b) => b.kind === "habit" && b.refId === habit.id && b.title === habit.name).map((b) => dayIdx(localDayStart(b.start, s.tzOffsetMinutes))),
+    );
+    const doneDays = [...keptDays, ...(lastDone !== undefined ? [dayIdx(localDayStart(lastDone, s.tzOffsetMinutes))] : [])];
+    let last = doneDays.length ? Math.max(...doneDays) : -minDays;
     // 今日から先の日だけ（夜中に前の日の続きがあっても、洗濯などは置かない）
     const list = days.filter((d) => dayIdx(d.dayStart) >= 0);
-    const open = (d: DayPlan) => windowOf(d).end > now;
+    const open = (d: DayPlan) => windowOf(d).end > now && !occupied.has(dayIdx(d.dayStart));
     // 条件の悪さ（小さいほどよい）：家にいられる日を優先し、少しでも出かける日・雨の日（避けるものだけ）・外出の日の順に悪い。
     // 洗濯は間をあけすぎると着る服がなくなるので、悪い日も外さずに候補に残す
     const penalty = (d: DayPlan) =>
@@ -498,7 +540,8 @@ export function plan(input: PlanInput): PlanResult {
       // きっかけのある習慣は、15分刻みにそろえず、きっかけのちょうど5分後から（直前に置くものは、ちょうど5分前に終える）
       const exact = cueOn(habit.cue, d)?.cue.type === "beforeHabit" ? window.end - len : habit.cue ? window.start : undefined;
       // 食事は家にいない時間（旅行・帰省など）にも置かない
-      const room = habit.meal ? subtract(intersect(free, window), mergedAway) : intersect(free, window);
+      const slots = pastOk(habit, d) ? merge([...pastFree, ...free]) : free;
+      const room = habit.meal ? subtract(intersect(slots, window), mergedAway) : intersect(slots, window);
       let start = findStart(room, len, ok, exact ?? prevOf(window));
       // 「家で食べる」にした食事は、時間帯に入らなければ、時間帯の終わりから2時間まで遅らせて置く（寝る準備より前）。
       // 昼食が夜になるような、ありえない時刻には置かない
@@ -535,7 +578,9 @@ export function plan(input: PlanInput): PlanResult {
     // きっかけの場面がない日（帰宅のない日など）には置かない
     const hasCue = (d: DayPlan) => !habit.cue || cueEnd(habit.cue, d) !== undefined;
     const doneBefore = (input.habitDoneDays?.[habit.id] ?? []).filter((t) => t < days[0].dayStart);
-    const target = chooseHabitDays(habit, days, free, windowOf, hasKept, energyOn, doneBefore, s.tzOffsetMinutes).filter((d) => hasCue(d) && windowOf(d).end > now);
+    const target = chooseHabitDays(habit, days, free, windowOf, hasKept, energyOn, doneBefore, s.tzOffsetMinutes).filter(
+      (d) => hasCue(d) && windowOf(d).end > (pastOk(habit, d) ? d.wake : now),
+    );
     for (const d of target) {
       if (!tryPlaceOn(d)) skippedHabits.push({ habitId: habit.id, dayStart: d.dayStart, reason: "no_room" });
     }

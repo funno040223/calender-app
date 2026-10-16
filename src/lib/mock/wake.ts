@@ -1,5 +1,6 @@
 import { MIN } from "./jst";
 import { dateKeyOf, type DateKey, type MockData, type WakeLog } from "./model";
+import { nightOf } from "./night";
 
 /** 予定の起床からこれより遅れて「起きた」を押すときは、いつ起きたかを聞く（押し忘れ・寝坊） */
 export const ASK_WAKE_AFTER_MINUTES = 30;
@@ -70,8 +71,12 @@ export function markOpened(d: MockData, now: number, window: { wake: number; end
   return { ...d, wakeLogs: [...d.wakeLogs.filter((l) => l.date !== date), next].sort((a, b) => a.date.localeCompare(b.date)) };
 }
 
-/** 起きていると分かった最初の時刻（「起きた」・朝ルーティン・アプリを開いた・ヘルスケアの目覚め）。通知を止めるのをやめる合図 */
-export function awakeSince(log: Pick<WakeLog, "wokeAt" | "routineStartedAt" | "openedAt"> | undefined, healthEnd?: number): number | undefined {
-  const times = [log?.wokeAt, log?.routineStartedAt, log?.openedAt, healthEnd].filter((t): t is number => typeof t === "number" && Number.isFinite(t));
+/**
+ * 起きていると分かった最初の時刻（起きた記録・朝ルーティン・アプリを開いた・ヘルスケアの目覚め）。通知を止めるのをやめる合図。
+ * healthEnd は、届いたばかりのヘルスケアの目覚め（app_state にまだないもの）
+ */
+export function awakeSince(data: Partial<Pick<MockData, "sleepLogs" | "wakeLogs">>, date: DateKey, healthEnd?: number): number | undefined {
+  const log = data.wakeLogs?.find((l) => l.date === date);
+  const times = [nightOf(data, date).up?.at, log?.routineStartedAt, log?.openedAt, healthEnd].filter((t): t is number => typeof t === "number" && Number.isFinite(t));
   return times.length ? Math.min(...times) : undefined;
 }

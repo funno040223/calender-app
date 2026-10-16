@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cleanNotices, heldUntilAwake, isDue, sendPush, type PushTarget } from "@/lib/push/send";
 import { awakeSince } from "@/lib/mock/wake";
-import type { WakeLog } from "@/lib/mock/model";
+import { fromStoredV2 } from "@/lib/mock/state";
 import { authorized } from "@/lib/push/cron";
 import { deliverNotice, deliveryLedger } from "@/lib/push/delivery";
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     // 寝坊した朝は、起きたと分かるまで習慣・タスクの通知を止める
     const dates = [...new Set(due.flatMap((n) => (n.wakeDate ? [n.wakeDate] : [])))];
     if (dates.length) {
-      const awake = await awakeTimes(db, row.user_id, dates);
+      const awake = await awakeTimes(db, row.user_id, dates, now);
       due = due.filter((n) => !heldUntilAwake(n, n.wakeDate ? awake.get(n.wakeDate) : undefined));
     }
     if (!due.length) continue;
@@ -56,19 +56,19 @@ export async function POST(request: Request) {
 }
 
 /** その朝に起きていると分かった最初の時刻（朝の記録とヘルスケアの目覚めから）。読めなければ、止めずに送る */
-async function awakeTimes(db: SupabaseClient, userId: string, dates: string[]): Promise<Map<string, number | undefined>> {
+async function awakeTimes(db: SupabaseClient, userId: string, dates: string[], now: number): Promise<Map<string, number | undefined>> {
   const [state, health] = await Promise.all([
     db.from("app_state").select("data").eq("user_id", userId).maybeSingle(),
     db.from("health_sleep").select("night, sleep_end").eq("user_id", userId).in("night", dates),
   ]);
   if (state.error) return new Map(dates.map((d) => [d, -Infinity]));
-  const logs: unknown = (state.data?.data as { wakeLogs?: unknown } | undefined)?.wakeLogs;
-  const list = Array.isArray(logs) ? (logs as Partial<WakeLog>[]) : [];
+  // アプリと同じ読み込み（古い形で保存された行も移して読む）
+  const data = fromStoredV2(state.data?.data, now) ?? {};
   return new Map(
     dates.map((d) => {
       const h = health.data?.find((x) => x.night === d);
       const end = h ? Date.parse(h.sleep_end) : undefined;
-      return [d, awakeSince(list.find((l) => l?.date === d), Number.isFinite(end) ? end : undefined)];
+      return [d, awakeSince(data, d, Number.isFinite(end) ? end : undefined)];
     }),
   );
 }

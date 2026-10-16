@@ -2,13 +2,10 @@ import type { Habit } from "@/lib/scheduler";
 import { DAY_MS, MIN, TZ } from "./jst";
 import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData, type RewardBank, type RewardSource } from "./model";
 import { usedSlotMinutes } from "./progress";
-import { ON_TIME_GRACE_MINUTES, allNights, bedOnTimeOf, bedTimeOf, upOnTime } from "./night";
+import { allNights, bedOnTimeOf, bedTimeOf, upOnTime } from "./night";
 
 type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" | "rewardSpends" | "rewardRates"> &
-  Partial<Pick<MockData, "bedLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings" | "rhythmResets" | "rewardBank">>;
-
-/** 「寝る」を押した夜が予定どおりか（おやすみのカードで、遅れを出すかどうか）。判定は夜の記録と同じ猶予 */
-export const bedOnTime = (l: { at: number; plannedBed: number }) => l.at <= l.plannedBed + ON_TIME_GRACE_MINUTES * MIN;
+  Partial<Pick<MockData, "sleepLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings" | "rewardBank">>;
 
 export interface BedNight {
   /** その夜の計画の日（寝る前の日） */
@@ -21,8 +18,8 @@ export interface BedNight {
 }
 
 /** 夜ごとの就寝。夜の記録（night.ts）の活動終了、なければヘルスケアの入眠で、予定の就寝と比べる */
-export function bedNights(data: Partial<Pick<MockData, "bedLogs" | "healthSleep" | "dayLogs" | "wakeLogs" | "settings" | "rhythmResets">>): BedNight[] {
-  const nights = allNights({ wakeLogs: data.wakeLogs ?? [], bedLogs: data.bedLogs ?? {}, ...data });
+export function bedNights(data: Partial<Pick<MockData, "sleepLogs" | "healthSleep" | "dayLogs" | "wakeLogs" | "settings">>): BedNight[] {
+  const nights = allNights(data);
   return nights.flatMap((n) => {
     const b = bedTimeOf(n);
     const wakeDay = dayStartOfKey(n.date);
@@ -59,7 +56,7 @@ export interface PeriodStats {
 function startsOf(data: Data) {
   const min = (xs: (number | undefined)[]) => Math.min(Infinity, ...xs.map((x) => x ?? Infinity));
   return {
-    wake: min(allNights({ bedLogs: {}, ...data }).filter((n) => n.plannedWake !== undefined).map((n) => dayStartOfKey(n.date))),
+    wake: min(allNights(data).filter((n) => n.plannedWake !== undefined).map((n) => dayStartOfKey(n.date))),
     routine: min(data.wakeLogs.map((l) => dayStartOfKey(l.date))),
     habit: min(Object.keys(data.habitLogs).map((k) => dayStartOfKey(k))),
     task: min(Object.values(data.taskBlockLog).map((b) => dayStartOfKey(dateKeyOf(b.start)))),
@@ -89,7 +86,7 @@ export function periodStats(data: Data, from: number, to: number, now: number): 
   }
   const blocks = Object.values(data.taskBlockLog).filter((b) => b.start >= from && b.start < to && b.start <= now);
   return {
-    wake: { done: allNights({ bedLogs: {}, ...data }).filter((n) => inRange(n.date) && upOnTime(n)).length, total: daysFrom(st.wake) },
+    wake: { done: allNights(data).filter((n) => inRange(n.date) && upOnTime(n)).length, total: daysFrom(st.wake) },
     routine: { done: logs.filter((l) => l.routineDoneAt !== undefined).length, total: daysFrom(st.routine) },
     habit: { done: habitDone, expected: Math.round(expected) },
     task: { done: blocks.filter((b) => b.doneAt !== undefined).length, total: blocks.length },
@@ -140,7 +137,7 @@ function rewardBreakdownOfLogs(data: Data, from: number, to: number): Record<Rew
   const inRange = (t: number | undefined) => t !== undefined && t >= from && t < to;
   const yen: Record<RewardSource, number> = { wake: 0, routine: 0, bed: 0, habit: 0, task: 0, log: 0 };
   // 予定どおり起きた：夜の記録の活動開始で見る（「起きた」か、押す前の朝ルーティンの最初のチェック）
-  for (const n of allNights({ bedLogs: {}, ...data })) if (upOnTime(n) && inRange(n.up?.at)) yen.wake += r.wake;
+  for (const n of allNights(data)) if (upOnTime(n) && inRange(n.up?.at)) yen.wake += r.wake;
   for (const l of data.wakeLogs) {
     if (inRange(l.routineDoneAt)) yen.routine += r.routine;
     // 記録をつけた（朝の疲れ・睡眠時間）。その日の分として数える
@@ -189,7 +186,7 @@ export function workMinutes(data: Pick<MockData, "taskBlockLog">, from: number, 
 
 /** 予定どおりに寝た夜の数。数えるのは記録を始めた日から、終わった夜（記録のない夜は翌日の昼から） */
 export function bedStats(
-  data: Pick<MockData, "bedLogs"> & Partial<Pick<MockData, "healthSleep" | "dayLogs" | "wakeLogs" | "settings">>,
+  data: Partial<Pick<MockData, "sleepLogs" | "healthSleep" | "dayLogs" | "wakeLogs" | "settings">>,
   from: number,
   to: number,
   now: number,
