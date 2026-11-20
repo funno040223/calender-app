@@ -24,6 +24,7 @@ export default function HomeExercise({ now }: { now: number }) {
         activity="strength"
         roundId={round.roundId}
         minutes={round.block && (round.block.end - round.block.start) / MIN}
+        compact
       />
     </>
   );

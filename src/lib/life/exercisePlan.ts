@@ -3,9 +3,13 @@ import { dateKeyOf, dayStartOfKey, type MockData } from "@/lib/mock/model";
 import { DAY_MS, weekdayOf } from "@/lib/mock/jst";
 import { LEGACY_EXERCISE_HABIT, type ExercisePlan, type LifeProjection } from "./model";
 
+/** 初めての計画は道のりの第1段階（週2回・10分・短め5分） */
 export function defaultExercisePlan(date: string): ExercisePlan {
-  return { enabled: true, normalMinutes: 15, shortMinutes: 5, weeklyTimes: 2, nonConsecutive: true, windowStart: 8 * 60, windowEnd: 21 * 60 + 30, enabledOn: date };
+  return { enabled: true, normalMinutes: 10, shortMinutes: 5, weeklyTimes: 2, nonConsecutive: true, windowStart: 8 * 60, windowEnd: 21 * 60 + 30, enabledOn: date, stage: 1 };
 }
+
+/** カレンダーと通知に出る枠の名前（中身は運動の画面の「今日」） */
+export const EXERCISE_TITLES = { normal: "筋トレ（全身）", short: "筋トレ（短め）" };
 
 /** 運動の回の ID（週の月曜と何回目か）。手で記録した分（manual:…）は回に数えない */
 const isRoundId = (id: string) => id.startsWith("strength-");
@@ -62,5 +66,6 @@ export function exerciseInputOf(projection: LifeProjection, habitLogs: MockData[
     choices,
     tiredDays,
     conflicts,
+    titles: EXERCISE_TITLES,
   };
 }

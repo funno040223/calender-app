@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { allRecipes, ingredientsFor, mealSuggestions } from "@/lib/life/catalog";
+import { allRecipes, consumptionsFor, findRecipe, lackingText, mealOptions, recipeLacking } from "@/lib/life/catalog";
 import { mealKey, type Meal, type MealPlan, type MealSlot } from "@/lib/life/model";
 import { useLife } from "@/lib/life/store";
 import { Card, btnPrimary, inputBase } from "@/components/ui/controls";
@@ -31,7 +31,9 @@ export function MealPanel({
   const plan = p.mealPlans[key]?.value;
   const recipes = allRecipes(p);
   const matching = recipes.filter((r) => r.slots.includes(slot));
-  const suggestions = mealSuggestions(p, date, slot, minutes ?? Infinity);
+  const suggestions = mealOptions(p, date, slot, minutes ?? Infinity);
+  const planned = plan?.method === "home" ? findRecipe(p, plan.recipeId) : undefined;
+  const plannedLacking = planned ? recipeLacking(planned, p, slot) : [];
   const [all, setAll] = useState(false);
   const [edit, setEdit] = useState(false);
   const habit = mealHabitOf(state.habits, slot);
@@ -42,7 +44,7 @@ export function MealPanel({
   };
   const ate = () => {
     if (!plan) return;
-    const recipe = plan.method === "home" ? recipes.find((r) => r.id === plan.recipeId) : undefined;
+    const recipe = planned;
     const servings = plan.servings ?? 1;
     life.recordMeal({
       date,
@@ -50,7 +52,7 @@ export function MealPanel({
       status: plan.method === "home" ? "eaten_home" : "eaten_out",
       ...(plan.method === "home" ? {} : { method: plan.method }),
       ...(recipe ? { recipe: { id: recipe.id, name: recipe.name, servings } } : {}),
-      consumptions: recipe ? ingredientsFor(recipe, servings, slot) : [],
+      consumptions: recipe ? consumptionsFor(recipe, servings, slot) : [],
     });
   };
   const conflict = p.conflicts["meal:" + key];
@@ -86,18 +88,23 @@ export function MealPanel({
           {slot !== "breakfast" && (
             <>
               <div className={choices}>
-                {(all ? matching : suggestions).map((r) => (
-                  <button
-                    type="button"
-                    key={r.id}
-                    aria-pressed={plan?.method === "home" && plan.recipeId === r.id}
-                    className={choice(plan?.method === "home" && plan.recipeId === r.id)}
-                    onClick={() => choose({ date, slot, method: "home", recipeId: r.id, servings: 1 })}
-                  >
-                    {r.name}
-                    {r.minutes !== undefined && <small className="block">家 · {r.minutes}分</small>}
-                  </button>
-                ))}
+                {(all ? matching.map((r) => ({ recipe: r, lacking: recipeLacking(r, p, slot) })) : suggestions).map(
+                  ({ recipe: r, lacking }) => (
+                    <button
+                      type="button"
+                      key={r.id}
+                      aria-pressed={plan?.method === "home" && plan.recipeId === r.id}
+                      className={choice(plan?.method === "home" && plan.recipeId === r.id) + " flex-col"}
+                      onClick={() => choose({ date, slot, method: "home", recipeId: r.id, servings: 1 })}
+                    >
+                      {r.name}
+                      <small className="block font-normal">
+                        {r.minutes !== undefined ? r.minutes + "分" : "家"}
+                        {lacking.length > 0 && " · " + lackingText(lacking, p)}
+                      </small>
+                    </button>
+                  ),
+                )}
                 {(["restaurant", "delivery"] as const).map((method, i) => (
                   <button
                     type="button"
@@ -126,6 +133,15 @@ export function MealPanel({
                   </select>
                 </label>
               )}
+              {plannedLacking.length > 0 && (
+                <p className="text-sm">
+                  足りないもの：{plannedLacking.map((q) => q.name).join("・")}（
+                  <Link href="/meals?view=shopping" className="underline">
+                    買い物
+                  </Link>
+                  に出ます）
+                </p>
+              )}
               {!suggestions.length && !all && (
                 <p className="text-sm text-muted">
                   家で作れるものがありません。
@@ -146,7 +162,7 @@ export function MealPanel({
                   <span role="status" className="text-sm">
                     予定 ·{" "}
                     {plan.method === "home"
-                      ? (recipes.find((r) => r.id === plan.recipeId)?.name ?? "家")
+                      ? (planned?.name ?? "家")
                       : plan.method === "delivery"
                         ? "宅配"
                         : "外で"}

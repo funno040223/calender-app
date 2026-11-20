@@ -306,9 +306,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           {schedule && (
             <div className="flex items-center justify-between border-b border-line bg-grouped px-3 pt-[env(safe-area-inset-top)]">
-              <nav aria-label="予定の表示" className="flex gap-1">
+              <nav aria-label="予定の表示" className="flex gap-2">
                 {([["/calendar", "カレンダー"], ["/tasks", "タスク"]] as const).map(([href, label]) => (
-                  <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg px-3 ${pathname === href ? "font-semibold text-fg" : "text-muted"}`}>{label}</Link>
+                  <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} className={`press my-1 inline-flex min-h-11 items-center rounded-full px-4 text-[15px] ${pathname === href ? "bg-tint font-semibold text-on-tint" : "bg-surface2 text-muted"}`}>{label}</Link>
                 ))}
               </nav>
               <SettingsLink />

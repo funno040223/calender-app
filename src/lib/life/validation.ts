@@ -34,7 +34,10 @@ const goal = (value: unknown) => enumOf(value, "outings", "shoulder", "pushups")
 const recipeInfo = (value: unknown) => record(value) && key(value.id) && label(value.name) && num(value.servings, 0.5, 100);
 const detail = (value: unknown) => record(value) && key(value.id) && optional(value.reps, (x) => integer(x, 0, 10_000))
   && optional(value.sets, (x) => integer(x, 0, 100)) && optional(value.loadKg, (x) => num(x, 0, 1_000))
-  && optional(value.minutes, (x) => num(x, 0, 1_440));
+  && optional(value.minutes, (x) => num(x, 0, 1_440))
+  && optional(value.seconds, (x) => integer(x, 0, 3_600)) && optional(value.level, (x) => integer(x, 1, 10));
+const levels = (value: unknown) => record(value) && Object.keys(value).length <= 20
+  && Object.entries(value).every(([id, n]) => key(id) && integer(n, 1, 10));
 
 function validEntry(kind: unknown, value: unknown): boolean {
   if (kind === "reviewGoal") return goal(value);
@@ -56,7 +59,8 @@ function validEntry(kind: unknown, value: unknown): boolean {
     case "exercise":
       return date(value.date) && key(value.roundId) && enumOf(value.variant, "normal", "short")
         && enumOf(value.activity, "walking", "strength", "mobility")
-        && optional(value.details, (x) => Array.isArray(x) && x.length <= 25 && x.every(detail));
+        && optional(value.details, (x) => Array.isArray(x) && x.length <= 25 && x.every(detail))
+        && optional(value.feel, (x) => enumOf(x, "easy", "ok", "hard"));
     case "recipe":
       return recipeInfo(value) && Array.isArray(value.slots) && value.slots.length > 0 && value.slots.length <= 3 && value.slots.every(slot)
         && quantities(value.ingredients) && optional(value.minutes, (x) => num(x, 1, 1_440))
@@ -69,7 +73,8 @@ function validEntry(kind: unknown, value: unknown): boolean {
       return typeof value.enabled === "boolean" && integer(value.normalMinutes, 5, 120) && integer(value.shortMinutes, 1, Number(value.normalMinutes))
         && integer(value.weeklyTimes, 1, 7) && typeof value.nonConsecutive === "boolean" && date(value.enabledOn)
         && integer(value.windowStart, 0, 1_439) && integer(value.windowEnd, Number(value.windowStart) + 1, 1_440)
-        && (!value.nonConsecutive || Number(value.weeklyTimes) <= 4);
+        && (!value.nonConsecutive || Number(value.weeklyTimes) <= 4)
+        && optional(value.stage, (x) => integer(x, 1, 4)) && optional(value.stageSince, date) && optional(value.levels, levels);
     case "exerciseChoice":
       return key(value.roundId) && enumOf(value.mode, "normal", "short", "skip")
         && (value.mode === "skip" ? value.start === undefined : optional(value.start, (x) => integer(x, 0, 9_999_999_999_999)))

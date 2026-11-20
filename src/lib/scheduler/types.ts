@@ -358,6 +358,8 @@ export interface ExerciseInput {
   tiredDays: number[];
   /** 別の端末の記録と食い違っている回（答えてもらうまで置かない） */
   conflicts: string[];
+  /** 枠の名前（なければ「家での運動」）。カレンダーと通知に出る */
+  titles?: { normal: string; short: string };
 }
 
 /** 運動の回を置ける別の時間（「予定を変える」で選べる） */

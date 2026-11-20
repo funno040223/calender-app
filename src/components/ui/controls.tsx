@@ -174,7 +174,7 @@ export function Segmented<T extends string | number>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={`min-w-0 flex-1 truncate rounded-md px-2.5 py-1 text-[14px] ${
-            value === o.value ? "bg-surface font-medium text-fg shadow-sm" : "text-muted"
+            value === o.value ? "bg-tint font-semibold text-on-tint" : "text-muted"
           }`}
         >
           {o.label}

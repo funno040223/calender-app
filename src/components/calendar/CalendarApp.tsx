@@ -253,7 +253,7 @@ export default function CalendarApp() {
                 setView(v.id);
               }}
               className={`rounded-md px-2.5 py-1 text-[13px] font-medium ${
-                view === v.id ? "bg-surface text-fg shadow-sm" : "text-muted"
+                view === v.id ? "bg-tint font-semibold text-on-tint" : "text-muted"
               }`}
             >
               {v.label}

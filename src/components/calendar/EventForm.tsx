@@ -156,7 +156,7 @@ export default function EventForm({
                 aria-checked={d.calendarId === c.id}
                 onClick={() => set("calendarId", c.id)}
                 className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-[14px] ${
-                  d.calendarId === c.id ? "bg-surface font-medium shadow-sm" : "text-muted"
+                  d.calendarId === c.id ? "bg-tint font-semibold text-on-tint" : "text-muted"
                 }`}
               >
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.colorVar }} />

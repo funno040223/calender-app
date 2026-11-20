@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { allRecipes } from "@/lib/life/catalog";
+import { allRecipes, knownIngredients } from "@/lib/life/catalog";
 import type { Quantity, Recipe } from "@/lib/life/model";
 import { useLife } from "@/lib/life/store";
 import { btnPrimary, inputBase } from "@/components/ui/controls";
@@ -14,9 +14,7 @@ export default function RecipeEditor({ recipe }: { recipe: Recipe }) {
   const [ingredients, setIngredients] = useState(recipe.ingredients);
   const [saved, setSaved] = useState(false);
   const known = new Map(
-    allRecipes(life.projection)
-      .flatMap((r) => r.ingredients)
-      .map((q) => [q.name, q]),
+    [...allRecipes(life.projection).flatMap((r) => r.ingredients), ...knownIngredients()].map((q) => [q.name, q]),
   );
   const update = (index: number, patch: Partial<Quantity>) =>
     setIngredients((current) => current.map((q, i) => (i === index ? { ...q, ...patch } : q)));

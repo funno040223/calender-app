@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allRecipes, ingredientsFor, mealSuggestions, pantryStatus, shoppingNeeds } from "./catalog";
+import { allRecipes, BREAKFAST_RECIPES, findRecipe, ingredientsFor, mealSuggestions, pantryStatus, shoppingNeeds } from "./catalog";
 import { quantityKey, type LifeEntry, type LifeEvent, type Meal, type Quantity } from "./model";
 import { projectLife } from "./projection";
 import { validateLifeBatch } from "./validation";
@@ -83,12 +83,13 @@ describe("meal selection", () => {
     expect(pantryStatus(egg, projection)).toBe("available");
     expect(pantryStatus({ ...egg, amount: 4 }, projection)).toBe("missing");
     expect(pantryStatus({ ...egg, ingredientId: "banana" }, projection)).toBe("unknown");
-    expect(mealSuggestions(projection, date, "breakfast", 15)).toEqual([]);
+    // 卵があれば、いつもある物（パックご飯・しょうゆ）と合わせて卵かけご飯が作れる
+    expect(mealSuggestions(projection, date, "breakfast", 15).map((recipe) => recipe.id)).toEqual(["tkg"]);
     const recipes = allRecipes(projection);
-    expect(recipes.filter((recipe) => recipe.slots.includes("breakfast"))).toHaveLength(3);
-    expect(recipes.filter((recipe) => recipe.slots.includes("lunch"))).toHaveLength(8);
-    expect(recipes.filter((recipe) => recipe.slots.includes("dinner"))).toHaveLength(8);
-    const food = recipes.find((recipe) => recipe.id === "tofu-egg-cheese")!;
+    expect(recipes.filter((recipe) => recipe.slots.includes("breakfast"))).toHaveLength(BREAKFAST_RECIPES.length);
+    // 前のカタログのレシピは一覧に出さないが、ID では引ける
+    expect(recipes.some((recipe) => recipe.id === "tofu-egg-cheese")).toBe(false);
+    const food = findRecipe(projection, "tofu-egg-cheese")!;
     expect(ingredientsFor(food, 0.5, "dinner")).toContainEqual({ ingredientId: "cooked-rice", name: "ご飯（炊飯済み）", amount: 100, unit: "g" });
     expect(shoppingNeeds(projection, [{ ...egg, amount: 2 }, { ...egg, amount: 2 }], [{ ...egg, amount: 4 }])).toEqual([{ ...egg, amount: 1 }]);
   });

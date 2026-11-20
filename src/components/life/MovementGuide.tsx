@@ -10,7 +10,9 @@ interface Movement {
   name: string;
   steps: string;
   poses: [Pose, Pose, Pose];
-  prop?: "wall" | "chair" | "bench" | "mat";
+  prop?: "wall" | "chair" | "bench" | "mat" | "desk";
+  /** 左右の図を切り替えられる（ふくらはぎ伸ばし） */
+  sides?: boolean;
 }
 const stand: Pose = [
   [48, 12],
@@ -142,6 +144,25 @@ const stretch: Pose = [
   [38, 64],
   [28, 81],
 ];
+// 2026-11-21 に足した姿勢（腕立ての段階・スクワット・体幹）。どれも右を向いた横から
+const deskUp: Pose = [[67, 27], [62, 34], [46, 56], [67, 44], [72, 54], [37, 69], [28, 81], [65, 44], [70, 54], [36, 69], [26, 81]];
+const deskDown: Pose = [[74, 36], [68, 43], [49, 61], [61, 47], [72, 54], [38, 71], [28, 81], [59, 47], [70, 54], [37, 71], [26, 81]];
+const floorUp: Pose = [[78, 52], [70, 57], [44, 68], [70, 69], [70, 81], [30, 73], [16, 80], [67, 69], [67, 81], [30, 74], [17, 81]];
+const floorDown: Pose = [[77, 68], [69, 71], [43, 75], [61, 66], [70, 81], [30, 77], [16, 80], [58, 66], [67, 81], [30, 78], [17, 81]];
+const kneeUp: Pose = [[77, 53], [70, 58], [50, 71], [70, 70], [70, 81], [36, 80], [23, 72], [67, 70], [67, 81], [37, 81], [24, 73]];
+const kneeDown: Pose = [[76, 69], [69, 72], [50, 77], [61, 67], [70, 81], [36, 80], [23, 72], [58, 67], [67, 81], [37, 81], [24, 73]];
+const plank: Pose = [[76, 62], [68, 67], [42, 70], [68, 80], [80, 80], [29, 73], [16, 79], [66, 80], [78, 80], [29, 74], [17, 80]];
+const plankHold: Pose = [[76, 63], [68, 67], [42, 69], [68, 80], [80, 80], [29, 73], [16, 79], [66, 80], [78, 80], [29, 74], [17, 80]];
+const kneePlank: Pose = [[76, 62], [68, 67], [50, 72], [68, 80], [80, 80], [36, 80], [23, 72], [66, 80], [78, 80], [37, 81], [24, 73]];
+const kneePlankHold: Pose = [[76, 63], [68, 67], [50, 71], [68, 80], [80, 80], [36, 80], [23, 72], [66, 80], [78, 80], [37, 81], [24, 73]];
+const standArms: Pose = [[48, 12], [48, 25], [48, 48], [58, 26], [68, 26], [48, 65], [50, 81], [56, 27], [66, 27], [44, 66], [43, 81]];
+const squatLow: Pose = [[56, 30], [50, 40], [35, 60], [60, 40], [70, 40], [55, 60], [50, 81], [58, 41], [68, 41], [52, 61], [45, 81]];
+const splitUp: Pose = [[48, 10], [48, 23], [47, 46], [50, 34], [50, 44], [57, 63], [62, 81], [45, 34], [45, 44], [38, 63], [29, 80]];
+const splitDown: Pose = [[47, 24], [47, 37], [46, 59], [49, 48], [49, 58], [62, 64], [62, 81], [44, 48], [44, 58], [40, 78], [28, 80]];
+const bugTable: Pose = [[19, 70], [30, 72], [51, 74], [31, 62], [32, 52], [52, 58], [65, 58], [29, 62], [30, 52], [50, 59], [63, 59]];
+const bugReach: Pose = [[19, 70], [30, 72], [51, 74], [22, 64], [11, 66], [52, 58], [65, 58], [29, 62], [30, 52], [64, 70], [78, 73]];
+const lieLeg: Pose = [[19, 70], [30, 72], [51, 74], [38, 76], [47, 77], [67, 53], [79, 78], [39, 73], [47, 74], [66, 66], [81, 58]];
+const bridgeLeg: Pose = [[19, 70], [30, 72], [50, 58], [38, 76], [47, 77], [67, 49], [79, 78], [39, 73], [47, 74], [66, 50], [82, 42]];
 const guides: Record<string, Movement> = {
   march: {
     name: "軽い足踏み",
@@ -206,6 +227,59 @@ const guides: Record<string, Movement> = {
     prop: "wall",
     steps: "壁に手を添え、片脚を後ろへ引きます。後ろの踵を床につけ、反動をつけずに保ちます。左右を交代します。",
     poses: [lean, stretch, lean],
+    sides: true,
+  },
+  "desk-push": {
+    name: "机で腕立て",
+    prop: "desk",
+    steps: "動かない机の縁に手をつき、体を一直線にしたまま胸を近づけて、押して戻ります。",
+    poses: [deskUp, deskDown, deskUp],
+  },
+  "knee-push": {
+    name: "ひざつき腕立て",
+    prop: "mat",
+    steps: "ひざをつき、ひざから頭までを一直線にしたまま胸を床に近づけて、押して戻ります。",
+    poses: [kneeUp, kneeDown, kneeUp],
+  },
+  "floor-push": {
+    name: "腕立て伏せ",
+    prop: "mat",
+    steps: "つま先と手で支え、頭からかかとまで一直線のまま胸を床に近づけて、押して戻ります。",
+    poses: [floorUp, floorDown, floorUp],
+  },
+  plank: {
+    name: "プランク",
+    prop: "mat",
+    steps: "ひじを肩の真下につき、頭からかかとまで一直線のまま止めます。息は止めません。",
+    poses: [plank, plankHold, plank],
+  },
+  "knee-plank": {
+    name: "ひざつきプランク",
+    prop: "mat",
+    steps: "ひじを肩の真下につき、ひざをついたまま、ひざから頭までを一直線にして止めます。",
+    poses: [kneePlank, kneePlankHold, kneePlank],
+  },
+  squat: {
+    name: "スクワット",
+    steps: "腕を前に伸ばし、お尻を後ろに引いてしゃがみ、かかとで床を押して立ちます。",
+    poses: [standArms, squatLow, standArms],
+  },
+  split: {
+    name: "スプリットスクワット",
+    steps: "足を前後に開き、後ろのひざを床に近づけるようにまっすぐ下がって、戻ります。",
+    poses: [splitUp, splitDown, splitUp],
+  },
+  deadbug: {
+    name: "デッドバグ",
+    prop: "mat",
+    steps: "仰向けで腕を上げ、ひざを曲げて上げます。腰を床につけたまま、片腕と反対の脚を伸ばして戻ります。",
+    poses: [bugTable, bugReach, bugTable],
+  },
+  "single-bridge": {
+    name: "片脚ブリッジ",
+    prop: "mat",
+    steps: "片脚を伸ばして浮かせ、もう片方の足で床を押してお尻を上げ、ゆっくり下ろします。",
+    poses: [lieLeg, bridgeLeg, lieLeg],
   },
 };
 const limbs = [
@@ -227,6 +301,7 @@ function Figure({ guide, index, moving }: { guide: Movement; index: number; movi
         {guide.prop === "wall" && <path d="M83 8v75" />}
         {guide.prop === "chair" && <path d="M25 37v23h26m-24 0v21m21-21v21" />}
         {guide.prop === "bench" && <path d="M69 54h21m-18 0v28m15-28v28" />}
+        {guide.prop === "desk" && <path d="M62 55h28m-25 0v28m22-28v28" />}
       </g>
       <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3">
         <circle cx={pose[0][0]} cy={pose[0][1]} r="5">
@@ -272,7 +347,7 @@ function Figure({ guide, index, moving }: { guide: Movement; index: number; movi
   );
 }
 
-function Guide({ guide }: { guide: Movement }) {
+function Guide({ guide, bare = false }: { guide: Movement; bare?: boolean }) {
   const [playing, setPlaying] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [frame, setFrame] = useState(0);
@@ -301,24 +376,24 @@ function Guide({ guide }: { guide: Movement }) {
     return () => mq.removeEventListener("change", update);
   }, []);
   return (
-    <div className="border-t border-line py-3">
-      <h3 className="font-medium">{guide.name}</h3>
+    <div className={bare ? "" : "border-t border-line py-3"}>
+      {!bare && <h3 className="font-medium">{guide.name}</h3>}
       <div
-        className={`my-2 flex max-w-sm rounded-xl bg-surface2 p-2 ${guide === guides.calf && alternate ? "-scale-x-100" : ""}`}
+        className={`my-2 flex max-w-sm rounded-xl bg-surface2 p-2 ${guide.sides && alternate ? "-scale-x-100" : ""}`}
         aria-hidden="true"
       >
         {(playing && !manual ? [0] : manual ? [frame] : [0, 1, 2]).map((i) => (
           <Figure key={i} index={i} guide={shown} moving={playing && !manual} />
         ))}
       </div>
-      <p className="text-sm">{guide.steps}</p>
+      {!bare && <p className="text-sm">{guide.steps}</p>}
       <div className={choices}>
         {guide.prop === "bench" && (
           <button type="button" className={choice(false)} onClick={() => setAlternate(!alternate)}>
             {alternate ? "横から見る" : "斜め後ろから見る"}
           </button>
         )}
-        {guide === guides.calf && (
+        {guide.sides && (
           <button type="button" className={choice(false)} onClick={() => setAlternate(!alternate)}>
             {alternate ? "左脚の図を見る" : "右脚の図を見る"}
           </button>
@@ -341,27 +416,42 @@ function Guide({ guide }: { guide: Movement }) {
     </div>
   );
 }
+/** 図があるか */
+export const hasFigure = (id: string | undefined) => !!id && id in guides;
+
+/** 1つの動きの図だけ（名前と説明は呼ぶ側で出す） */
+export function MoveDemo({ id }: { id: string }) {
+  const guide = guides[id];
+  return guide ? <Guide guide={guide} bare /> : null;
+}
+
 export default function MovementGuide({
   activity,
   short,
+  ids,
 }: {
   activity: "walking" | "strength" | "mobility";
   short: boolean;
+  /** 見せる動き（なければ種類から決める） */
+  ids?: string[];
 }) {
-  const ids =
-    activity === "walking"
+  const shown =
+    ids ??
+    (activity === "walking"
       ? ["march"]
       : activity === "mobility"
         ? ["calf"]
         : short
           ? ["march", "push", "chair", "calf"]
-          : ["march", "push", "row", "chair", "bridge", "calf"];
+          : ["march", "push", "row", "chair", "bridge", "calf"]);
   return (
     <div>
       <p className="py-2 text-sm text-muted">痛みや普段と異なる息苦しさがあれば中止してください。</p>
-      {ids.map((id) => (
-        <Guide key={id} guide={guides[id]} />
-      ))}
+      {shown
+        .filter((id) => id in guides)
+        .map((id) => (
+          <Guide key={id} guide={guides[id]} />
+        ))}
     </div>
   );
 }

@@ -33,7 +33,7 @@ export default function MealCard({ today, now }: { today: number; now: number })
       if (!on) (where === "home" ? h : o).add(id);
       return { ...d, mealsAtHome: { ...d.mealsAtHome, [key]: [...h] }, habitSkips: { ...d.habitSkips, [key]: [...o] } };
     });
-  const seg = (on: boolean) => `press rounded-md px-3 py-1 text-[13px] ${on ? "bg-surface font-semibold text-fg shadow-sm" : "text-muted"}`;
+  const seg = (on: boolean) => `press rounded-md px-3 py-1 text-[13px] ${on ? "bg-tint font-semibold text-on-tint" : "text-muted"}`;
   return (
     <Card title="今日の食事">
       <ul className="flex flex-col pt-0.5 pb-2">

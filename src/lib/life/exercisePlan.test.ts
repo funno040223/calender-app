@@ -74,6 +74,17 @@ describe("運動の回（配置エンジンの中で置く）", () => {
     expect(r?.options.some((o) => o.mode === "skip")).toBe(true);
   });
 
+  it("枠の名前は筋トレ（全身）／（短め）で、回の ID は前と同じ（週の月曜と何回目か）", () => {
+    const on = planWith(life());
+    const blocks = exerciseBlocks(on);
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const b of blocks) expect(["筋トレ（全身）", "筋トレ（短め）"]).toContain(b.title);
+    expect(on.result.exerciseRounds?.map((r) => r.roundId)).toContain(round1);
+    // 道のりの段階を入れた計画でも同じように置ける
+    const staged = planWith(life({}, { stage: 4, weeklyTimes: 3, normalMinutes: 20, levels: { push: 2 } }));
+    expect((staged.result.exerciseRounds ?? []).filter((r) => r.roundId.startsWith(`strength-${monday}`))).toHaveLength(3);
+  });
+
   it("組み直しは1回だけで済む（前より大きく遅くならない）", () => {
     const t0 = performance.now();
     planWith(projectLife([]));

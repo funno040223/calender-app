@@ -48,7 +48,10 @@ export interface Exercise {
   roundId: string;
   variant: "normal" | "short";
   activity: "walking" | "strength" | "mobility";
-  details?: { id: string; reps?: number; sets?: number; loadKg?: number; minutes?: number }[];
+  /** 種目ごとのくわしい記録。level（種目の段階）と seconds は 2026-11-21 に足した（前の記録にはない） */
+  details?: { id: string; reps?: number; sets?: number; loadKg?: number; minutes?: number; seconds?: number; level?: number }[];
+  /** やってみてどうだったか（任意。段階を上げるかの目安） */
+  feel?: "easy" | "ok" | "hard";
 }
 
 export interface ExercisePlan {
@@ -60,6 +63,12 @@ export interface ExercisePlan {
   windowStart: number;
   windowEnd: number;
   enabledOn: string;
+  /** 道のりの段階（1〜4。なければ1）。週数では上げず、本人が選ぶ */
+  stage?: number;
+  /** 今の段階にした日 */
+  stageSince?: string;
+  /** 種目ごとの段階（種目の ID → 1から）。なければ1 */
+  levels?: Record<string, number>;
 }
 
 export interface ExerciseChoice {

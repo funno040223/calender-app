@@ -49,13 +49,13 @@ export function Segments<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap gap-1 rounded-xl bg-line/70 p-1">
+    <div role="group" aria-label={label} className="flex flex-wrap gap-1 rounded-xl bg-surface2 p-1">
       {options.map((item) => (
         <button
           key={item}
           type="button"
           aria-pressed={item === selected}
-          className={`press min-h-11 flex-1 rounded-lg px-2 py-1 text-sm ${item === selected ? "bg-surface font-semibold shadow-sm" : "text-fg"}`}
+          className={`press min-h-11 flex-1 rounded-lg px-2 py-1 text-sm ${item === selected ? "bg-tint font-semibold text-on-tint" : "text-muted"}`}
           onClick={() => onChange(item)}
         >
           {item}

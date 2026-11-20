@@ -2,7 +2,7 @@
 
 import { useLife } from "@/lib/life/store";
 import Link from "next/link";
-import { BREAKFAST_RECIPES } from "@/lib/life/catalog";
+import { BREAKFAST_RECIPES, consumptionsFor } from "@/lib/life/catalog";
 import { Card } from "@/components/ui/controls";
 import { choice, choices, inset } from "./Controls";
 
@@ -10,7 +10,11 @@ const foodPaths: Record<string, string> = {
   toast: "M5 11C0 6 6 3 12 3s12 3 7 8v9H5z",
   "banana-yogurt": "M4 8h16l-2 12H6zM3 5h18",
   "onigiri-egg": "M9 4q3-3 6 0l6 12q2 5-4 5H7q-6 0-4-5zM9 16h6v5H9z",
+  tkg: "M3 11h18a9 8 0 0 1-18 0zM9 8a3 3 0 0 1 6 0",
+  "cocoa-banana": "M5 8h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4zM16 10h2a2 2 0 0 1 0 4h-2",
+  "banana-shake": "M7 5h10l-1.5 15h-7zM12 5l2-3",
 };
+const bowl = "M3 11h18a9 8 0 0 1-18 0z";
 
 export default function Breakfast({ date }: { date: string }) {
   const life = useLife();
@@ -46,7 +50,7 @@ export default function Breakfast({ date }: { date: string }) {
                     slot: "breakfast",
                     status: "eaten_home",
                     recipe: { id: recipe.id, name: recipe.name, servings: 1 },
-                    consumptions: recipe.ingredients,
+                    consumptions: consumptionsFor(recipe, 1),
                   })
                 }
               >
@@ -60,7 +64,7 @@ export default function Breakfast({ date }: { date: string }) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d={foodPaths[recipe.id]} />
+                  <path d={foodPaths[recipe.id] ?? bowl} />
                 </svg>
                 {recipe.name}
               </button>

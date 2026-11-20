@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Meal, MealSlot, Recipe } from "@/lib/life/model";
-import { ingredientsFor } from "@/lib/life/catalog";
+import { consumptionsFor } from "@/lib/life/catalog";
 import { useLife } from "@/lib/life/store";
 import { btnPrimary, inputBase } from "@/components/ui/controls";
 import { choice, choices, field } from "./Controls";
@@ -45,7 +45,7 @@ export default function MealActual({
   const quantities = sameRecipe
     ? existing.consumptions
     : recipe
-      ? ingredientsFor(recipe, recipe.servings, slot)
+      ? consumptionsFor(recipe, recipe.servings, slot)
       : [];
   const baseServings = sameRecipe ? existing.recipe!.servings : (recipe?.servings ?? 1);
   const [saved, setSaved] = useState(false);

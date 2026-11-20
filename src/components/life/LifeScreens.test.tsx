@@ -64,8 +64,9 @@ it("人分を直すと実際に保存していた材料量を基準に換算す�
 });
 it("一括購入は連続して押しても再送せず、取り消すともう一度買える", () => {
   render(<Shopping date="2026-11-24" />);
-  fireEvent.change(screen.getByLabelText("いつもの買い物"), { target: { value: "breakfast-3" } });
+  fireEvent.click(screen.getByRole("button", { name: "週の買い足し" }));
   const buy = screen.getByRole("button", { name: /買った/ });
+  expect(screen.getByLabelText("卵の買う量")).toHaveProperty("value", "10");
   fireEvent.click(buy);
   fireEvent.click(buy);
   expect(actions.buy).toHaveBeenCalledTimes(1);

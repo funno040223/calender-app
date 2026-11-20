@@ -72,7 +72,7 @@ export function exercisePlacer(ctx: Context) {
 
   const statusOf = (round: Round, block: Block): ExerciseRound["status"] =>
     dayOfTime(block.start) !== round.preferred ? "postponed" : block.end - block.start < lengthOf("normal") ? "short" : "normal";
-  const titleOf = (mode: "normal" | "short") => (mode === "short" ? "家での運動（短め）" : "家での運動");
+  const titleOf = (mode: "normal" | "short") => input.titles?.[mode] ?? (mode === "short" ? "家での運動（短め）" : "家での運動");
   const place = (round: Round, mode: "normal" | "short", start: number, reason?: string) => {
     const block: Block = { kind: "habit", refId: exerciseRefOf(round.roundId), title: titleOf(mode), start, end: start + lengthOf(mode) };
     ctx.take(block);
