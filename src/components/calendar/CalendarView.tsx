@@ -21,7 +21,6 @@ import type { CalendarId } from "@/lib/mock/calendars";
 import type { MockState } from "@/lib/mock/store";
 import { DAY_MS, MIN, WEEKDAY_JA, formatTime, fromFc, toFc } from "@/lib/mock/jst";
 import { allEventRefs, eventIndex, formatEventShort, groupKeyOf, tasksByEvent, travelBands, type EventRef, type EventSource } from "@/lib/mock/related";
-import { LinkIcon } from "@/components/app/icons";
 import { SMOKE_CUTOFF_MINUTES } from "@/lib/notify/build";
 
 export type { EventSource };
@@ -50,6 +49,11 @@ export interface CalendarHandle {
   next: () => void;
   today: () => void;
 }
+
+const PLUGINS = [dayGridPlugin, timeGridPlugin, interactionPlugin];
+const fcNow = () => toFc(Date.now());
+const SLOT_LABEL_FORMAT = { hour: "numeric", minute: "2-digit", hour12: false } as const;
+const emptyLabel = () => "";
 
 /** 横に並べておく日数と、今見ている日の前に置く日数。端に近づいたら並べ直す */
 const STRIP_DAYS = 42;
@@ -137,82 +141,67 @@ function eventToInput({ event: ev, source, calendarId, skipped }: EventRef, rela
   };
 }
 
-function RelatedBadge({ n }: { n: number }) {
-  return (
-    <span className="ev-link" aria-label={`関連するタスク${n}件`}>
-      <LinkIcon />
-      {n}
-    </span>
-  );
+// 予定の中身と日付の見出しは、React の部品ではなく、その場で作った要素で描く。
+// React で描くと FullCalendar が1件ずつ別の描画（portal）を作り、予定が多いと開くたびに重くなる
+const SVG_NS = "http://www.w3.org/2000/svg";
+const LINK_PATH = "M6.5 9.5l3-3M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1";
+const PIN_PATH = "M10.5 1.5 14.5 5.5l-1.4 1.4-.7-.7-2.6 2.6.3 2.9-1.4 1.4L6 10.4l-3.3 3.3-.7-.7L5.3 9.7 2.6 7l1.4-1.4 2.9.3 2.6-2.6-.7-.7z";
+
+function el(tag: string, className?: string, ...children: (Node | string | null | false | undefined)[]): HTMLElement {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  for (const c of children) if (c) e.append(c);
+  return e;
 }
 
-function PinIcon() {
-  return (
-    <svg className="ev-pin" viewBox="0 0 16 16" width="10" height="10" aria-label="固定" role="img">
-      <path
-        fill="currentColor"
-        d="M10.5 1.5 14.5 5.5l-1.4 1.4-.7-.7-2.6 2.6.3 2.9-1.4 1.4L6 10.4l-3.3 3.3-.7-.7L5.3 9.7 2.6 7l1.4-1.4 2.9.3 2.6-2.6-.7-.7z"
-      />
-    </svg>
-  );
+function svg(attrs: Record<string, string>, d: string): SVGSVGElement {
+  const s = document.createElementNS(SVG_NS, "svg");
+  for (const [k, v] of Object.entries(attrs)) s.setAttribute(k, v);
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", d);
+  if (attrs.fill !== "none") path.setAttribute("fill", "currentColor");
+  s.append(path);
+  return s;
+}
+
+function relatedBadge(n: number) {
+  const b = el("span", "ev-link", svg({ viewBox: "0 0 16 16", width: "10", height: "10", "aria-hidden": "true", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round" }, LINK_PATH), String(n));
+  b.setAttribute("aria-label", `関連するタスク${n}件`);
+  return b;
+}
+
+function pinIcon() {
+  return svg({ class: "ev-pin", viewBox: "0 0 16 16", width: "10", height: "10", "aria-label": "固定", role: "img" }, PIN_PATH);
 }
 
 function renderEventContent(arg: EventContentArg) {
   const ext = arg.event.extendedProps as Extended;
-  if (ext.type === "sleep") {
-    return <div className="sleep-label">{arg.event.title}</div>;
-  }
-  if (ext.type === "deadline") {
-    return (
-      <div className="ev-inner">
-        <div className="ev-title">〆 {arg.event.title}</div>
-      </div>
-    );
-  }
-  if (ext.type === "travel") {
-    return (
-      <div className="ev-inner">
-        <div className="ev-title">{arg.event.title}</div>
-      </div>
-    );
-  }
+  const title = arg.event.title;
+  const nodes = (n: HTMLElement) => ({ domNodes: [n] });
+  if (ext.type === "sleep") return nodes(el("div", "sleep-label", title));
+  if (ext.type === "deadline") return nodes(el("div", "ev-inner", el("div", "ev-title", `〆 ${title}`)));
+  if (ext.type === "travel") return nodes(el("div", "ev-inner", el("div", "ev-title", title)));
   const pinned = ext.type === "block" && ext.block.pinned;
-  const related = ext.type === "event" && ext.relatedCount ? <RelatedBadge n={ext.relatedCount} /> : null;
-  const isMonthDot = arg.view.type === "dayGridStrip" && !arg.event.allDay;
-  if (isMonthDot) {
-    return (
-      <div className="ev-dot-row">
-        <span className="ev-dot" />
-        <span className="ev-title">{arg.event.title}</span>
-        {pinned && <PinIcon />}
-        {related}
-        <span className="ev-dot-time">{arg.timeText}</span>
-      </div>
-    );
+  const related = ext.type === "event" && ext.relatedCount ? relatedBadge(ext.relatedCount) : null;
+  if (arg.view.type === "dayGridStrip" && !arg.event.allDay) {
+    return nodes(el("div", "ev-dot-row", el("span", "ev-dot"), el("span", "ev-title", title), pinned && pinIcon(), related, el("span", "ev-dot-time", arg.timeText)));
   }
-  return (
-    <div className="ev-inner">
-      <div className="ev-title">
-        {pinned && <PinIcon />}
-        {arg.event.title}
-        {related}
-      </div>
-      {ext.type === "block" && ext.relatedLabel && <div className="ev-rel">→ {ext.relatedLabel}</div>}
-      {!arg.event.allDay && arg.timeText && <div className="ev-time">{arg.timeText}</div>}
-      {ext.type === "event" && ext.location && !arg.event.allDay && <div className="ev-loc">{ext.location}</div>}
-    </div>
+  return nodes(
+    el(
+      "div",
+      "ev-inner",
+      el("div", "ev-title", pinned && pinIcon(), title, related),
+      ext.type === "block" && ext.relatedLabel && el("div", "ev-rel", `→ ${ext.relatedLabel}`),
+      !arg.event.allDay && arg.timeText && el("div", "ev-time", arg.timeText),
+      ext.type === "event" && ext.location && !arg.event.allDay && el("div", "ev-loc", ext.location),
+    ),
   );
 }
 
 function renderDayHeader(arg: DayHeaderContentArg) {
   const wd = WEEKDAY_JA[arg.date.getUTCDay()];
-  if (arg.view.type === "dayGridStrip") return <span className="dh-wd">{wd}</span>;
-  return (
-    <div className="dh">
-      <span className="dh-wd">{wd}</span>
-      <span className={`dh-num${arg.isToday ? " is-today" : ""}`}>{arg.date.getUTCDate()}</span>
-    </div>
-  );
+  if (arg.view.type === "dayGridStrip") return { domNodes: [el("span", "dh-wd", wd)] };
+  return { domNodes: [el("div", "dh", el("span", "dh-wd", wd), el("span", `dh-num${arg.isToday ? " is-today" : ""}`, String(arg.date.getUTCDate())))] };
 }
 
 export default function CalendarView(props: CalendarViewProps) {
@@ -237,6 +226,15 @@ export default function CalendarView(props: CalendarViewProps) {
   const pendingRow = useRef<number | null>(MONTH_LEAD);
   const visible = mode === "week" ? 7 : 3;
   const fcRef = useRef<FullCalendar>(null);
+  const selectedRef = useRef(props.selectedId);
+  selectedRef.current = props.selectedId;
+  useEffect(() => {
+    const root = wrapRef.current ?? monthRef.current;
+    if (!root) return;
+    for (const el of root.querySelectorAll<HTMLElement>(".fc-event[data-eid]")) {
+      el.classList.toggle("is-selected", !!props.selectedId && el.dataset.eid === props.selectedId);
+    }
+  }, [props.selectedId]);
   const wrapRef = useRef<HTMLDivElement>(null);
   const api = () => fcRef.current?.getApi();
 
@@ -603,9 +601,11 @@ export default function CalendarView(props: CalendarViewProps) {
     monthTitleAt(row);
   }, [monthMode, rowH, mAnchor, monthTitleAt]);
 
+  // 月のカレンダーは高さを測ってから置くので、置いたときにも合わせる
+  const monthPlaced = rowH > 0;
   useEffect(() => {
     if (monthMode) api()?.gotoDate(new Date(mAnchor));
-  }, [monthMode, mAnchor]);
+  }, [monthMode, mAnchor, monthPlaced]);
 
   const monthScrollEnd = useRef<number | undefined>(undefined);
   const handleMonthScroll = () => {
@@ -677,7 +677,7 @@ export default function CalendarView(props: CalendarViewProps) {
           });
         }
       }
-      return out.map((e) => (e.id && e.id === props.selectedId ? { ...e, classNames: [...((e.classNames as string[]) ?? []), "is-selected"] } : e));
+      return out;
     }
 
     const relatedOfTask = new Map<string, EventRef>();
@@ -753,8 +753,8 @@ export default function CalendarView(props: CalendarViewProps) {
         });
       }
     }
-    return out.map((e) => (e.id && e.id === props.selectedId ? { ...e, classNames: [...((e.classNames as string[]) ?? []), "is-selected"] } : e));
-  }, [state, hidden, props.selectedId, mode]);
+    return out;
+  }, [state, hidden, mode]);
 
   /** 月表示：日ごとの時刻の予定の件数（日付の下に点で出す） */
   const timedCount = useMemo(() => {
@@ -811,6 +811,9 @@ export default function CalendarView(props: CalendarViewProps) {
   const handleMount = (arg: EventMountArg) => {
     const g = (arg.event.extendedProps as Extended).group;
     if (g) arg.el.dataset.g = g;
+    // 選んだ印は、カレンダーを描き直さずに付け外しする（描き直しは重い）
+    arg.el.dataset.eid = arg.event.id;
+    arg.el.classList.toggle("is-selected", !!arg.event.id && arg.event.id === selectedRef.current);
   };
   const handleEnter = (arg: EventHoveringArg) => {
     const g = (arg.event.extendedProps as Extended).group;
@@ -821,20 +824,42 @@ export default function CalendarView(props: CalendarViewProps) {
   const nowFc = toFc(Date.now());
   const scrollTime = `${String(Math.max(0, nowFc.getUTCHours() - 1)).padStart(2, "0")}:00:00`;
 
-  const calendar = (
+  // FullCalendar は描き直しのたびに設定を丸ごと読み直す（1回で数百ミリ秒）。画面の幅や目盛りを測り直しただけの描き直しで
+  // 読み直さないように、渡すものは変わらない値にし、カレンダー自体も中身（予定・表示の種類）が変わったときだけ作り直す。
+  // 押したときの処理は最新のものを呼ぶ
+  const latest = useRef({ handleSelect, handleDateClick, handleClick, handleChange, handleMount, handleEnter, handleLeave });
+  latest.current = { handleSelect, handleDateClick, handleClick, handleChange, handleMount, handleEnter, handleLeave };
+  const stable = useMemo(
+    () => ({
+      select: (a: DateSelectArg) => latest.current.handleSelect(a),
+      dateClick: (a: DateClickArg) => latest.current.handleDateClick(a),
+      eventClick: (a: EventClickArg) => latest.current.handleClick(a),
+      eventChange: (a: EventDropArg | EventResizeDoneArg) => latest.current.handleChange(a),
+      eventDidMount: (a: EventMountArg) => latest.current.handleMount(a),
+      eventMouseEnter: (a: EventHoveringArg) => latest.current.handleEnter(a),
+      eventMouseLeave: () => latest.current.handleLeave(),
+    }),
+    [],
+  );
+  const firstDate = useRef(new Date(strip ? anchor : mAnchor));
+  const views = useMemo(
+    () => ({
+      timeGridStrip: { type: "timeGrid", duration: { days: STRIP_DAYS } },
+      dayGridStrip: { type: "dayGrid", duration: { weeks: MONTH_WEEKS } },
+    }),
+    [],
+  );
+  const calendar = useMemo(() => (
     <FullCalendar
       ref={fcRef}
-      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+      plugins={PLUGINS}
       locale={jaLocale}
       timeZone="UTC"
-      now={() => toFc(Date.now())}
+      now={fcNow}
       firstDay={1}
       initialView={strip ? "timeGridStrip" : "dayGridStrip"}
-      initialDate={new Date(strip ? anchor : mAnchor)}
-      views={{
-        timeGridStrip: { type: "timeGrid", duration: { days: STRIP_DAYS } },
-        dayGridStrip: { type: "dayGrid", duration: { weeks: MONTH_WEEKS } },
-      }}
+      initialDate={firstDate.current}
+      views={views}
       headerToolbar={false}
       // 3日・週は高さいっぱいにして、時刻の欄を FullCalendar 自身に縦に動かさせる（横は外側の枠）。月は外側の枠で縦に動かす
       height={strip ? "100%" : "auto"}
@@ -849,16 +874,11 @@ export default function CalendarView(props: CalendarViewProps) {
         // 週が途切れずに続くので、1日には月も出す
         const label = arg.date.getUTCDate() === 1 ? `${arg.date.getUTCMonth() + 1}/1` : num;
         const n = timedCount.get(arg.date.toISOString().slice(0, 10)) ?? 0;
-        return (
-          <span className="mc">
-            <span className={`mc-num${arg.date.getUTCDate() === 1 ? " is-first" : ""}`}>{label}</span>
-            {/* 点がない日も同じ高さを取り、日付の位置をそろえる */}
-            <span className="mc-dots" aria-label={n > 0 ? `予定${n}件` : undefined} aria-hidden={n > 0 ? undefined : true}>
-              {"•".repeat(Math.min(n, 4))}
-              {n > 4 ? "+" : ""}
-            </span>
-          </span>
-        );
+        // 点がない日も同じ高さを取り、日付の位置をそろえる
+        const dots = el("span", "mc-dots", "•".repeat(Math.min(n, 4)) + (n > 4 ? "+" : ""));
+        if (n > 0) dots.setAttribute("aria-label", `予定${n}件`);
+        else dots.setAttribute("aria-hidden", "true");
+        return { domNodes: [el("span", "mc", el("span", `mc-num${arg.date.getUTCDate() === 1 ? " is-first" : ""}`, label), dots)] };
       }}
       nowIndicator
       selectable
@@ -871,26 +891,26 @@ export default function CalendarView(props: CalendarViewProps) {
       snapDuration="00:15:00"
       slotDuration="00:30:00"
       slotLabelInterval="01:00"
-      slotLabelFormat={{ hour: "numeric", minute: "2-digit", hour12: false }}
-      eventTimeFormat={{ hour: "numeric", minute: "2-digit", hour12: false }}
+      slotLabelFormat={SLOT_LABEL_FORMAT}
+      eventTimeFormat={SLOT_LABEL_FORMAT}
       scrollTime={scrollTime}
       scrollTimeReset={false}
       // 3日・週の時刻と「終日」は、横に流れないように外に出した目盛りに書く
       allDayText={strip ? "" : "終日"}
-      slotLabelContent={strip ? () => "" : undefined}
+      slotLabelContent={strip ? emptyLabel : undefined}
       dayMaxEventRows={2}
       fixedWeekCount={false}
       expandRows={false}
-      select={handleSelect}
-      dateClick={handleDateClick}
-      eventClick={handleClick}
-      eventDrop={handleChange}
-      eventResize={handleChange}
-      eventDidMount={handleMount}
-      eventMouseEnter={handleEnter}
-      eventMouseLeave={handleLeave}
+      select={stable.select}
+      dateClick={stable.dateClick}
+      eventClick={stable.eventClick}
+      eventDrop={stable.eventChange}
+      eventResize={stable.eventChange}
+      eventDidMount={stable.eventDidMount}
+      eventMouseEnter={stable.eventMouseEnter}
+      eventMouseLeave={stable.eventMouseLeave}
     />
-  );
+  ), [strip, events, timedCount, scrollTime, views, stable]);
 
   if (monthMode) {
     return (
