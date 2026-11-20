@@ -28,7 +28,9 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/ical/feed/[
   // その場で組み直す。Google カレンダーを読めなかったときは、アプリが最後に保存した配置を使う
   const p = await planOnServer(db, feed.user_id, row.data, now);
   const source = p.ok ? p.state : p.data;
-  if (!source) return notFound();
+  if (!source) return !p.ok && p.reason !== "data"
+    ? new Response("Schedule temporarily unavailable", { status: 503, headers: { "Cache-Control": "private, no-store" } })
+    : notFound();
   const classEvents = p.ok ? p.state.classEvents : buildClassEvents(source.courses, source.periods);
 
   const ics = buildIcs(feedEvents({ blocks: source.blocks, events: source.events, classEvents, now }), "リズム カレンダー", now);

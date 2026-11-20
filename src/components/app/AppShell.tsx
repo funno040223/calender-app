@@ -13,20 +13,24 @@ import { fetchNotionRows } from "@/lib/sync/notion";
 import { loadSleepNights, takeHealthAsked } from "@/lib/sync/health";
 import { dateKeyOf } from "@/lib/mock/model";
 import { markOpened } from "@/lib/mock/wake";
+import { withLifeExerciseRewards } from "@/lib/mock/stats";
 import { applyNotionRows, deleteTask as removeTask } from "@/lib/mock/notion";
 import QuickAddBar from "@/components/calendar/QuickAddBar";
 import TaskForm from "@/components/tasks/TaskForm";
 import { warningCount } from "@/components/today/Notices";
 import { AppContext, type AppContextValue } from "./StoreProvider";
 import OfflineNotice from "./OfflineNotice";
-import { CalendarIcon, SettingsIcon, StatsIcon, TasksIcon, TodayIcon } from "./icons";
+import { CalendarIcon, StatsIcon, MealIcon, ExerciseIcon, SettingsIcon, TodayIcon } from "./icons";
+import { SettingsLink } from "@/components/life/Controls";
+import { planLifeExercise } from "@/lib/life/placement";
+import { useLife } from "@/lib/life/store";
 
 const TABS = [
-  { href: "/", label: "今日", Icon: TodayIcon },
-  { href: "/calendar", label: "カレンダー", Icon: CalendarIcon },
-  { href: "/tasks", label: "タスク", Icon: TasksIcon },
+  { href: "/", label: "ホーム", Icon: TodayIcon },
+  { href: "/calendar", label: "予定", Icon: CalendarIcon },
+  { href: "/meals", label: "料理", Icon: MealIcon },
+  { href: "/exercise", label: "運動", Icon: ExerciseIcon },
   { href: "/stats", label: "記録", Icon: StatsIcon },
-  { href: "/settings", label: "設定", Icon: SettingsIcon },
 ] as const;
 
 /** 天気予報を取り直す間隔 */
@@ -34,7 +38,7 @@ const WEATHER_REFRESH_MS = 3 * 60 * 60 * 1000;
 /** 天気・Notion を取れなかったときに、次に試すまで */
 const RETRY_MS = 10 * 60 * 1000;
 
-const isActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+const isActive = (pathname: string, href: string) => pathname === href || (href === "/calendar" && pathname === "/tasks");
 
 /** お知らせを出しておく時間 */
 const TOAST_MS = 5000;
@@ -76,7 +80,8 @@ function Badge({ n }: { n: number }) {
 }
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const store = useMockStore();
+  const life = useLife();
+  const store = useMockStore(life);
   const pathname = usePathname();
   const [editingTask, setEditingTask] = useState<{ id?: string } | null>(null);
   const [toast, setToast] = useState<{ text: string; taskId?: string; habitId?: string; at: number }>();
@@ -107,9 +112,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
     },
     [storePatch],
   );
-  const ctx = useMemo<AppContextValue>(() => ({ ...store, update, patch, openTask, notify }), [store, update, patch, openTask, notify]);
-
   const { state } = store;
+  const { exercise } = life.projection;
+  const displayState = useMemo(() => withLifeExerciseRewards(state, { exercise }), [state, exercise]);
+  const lifeSchedule = useMemo(() => planLifeExercise(state, life.projection), [state, life.projection]);
+  const ctx = useMemo<AppContextValue>(
+    () => ({ ...store, state: displayState, lifeSchedule, update, patch, openTask, notify }),
+    [store, displayState, lifeSchedule, update, patch, openTask, notify],
+  );
   const warnings = warningCount(state);
 
   // その朝に最初に開いた時刻を残す（「いつ起きた？」の候補と、起きるまで止める通知に使う）
@@ -220,7 +230,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
     }
   }, [state.calendarColors]);
   // タスクを足すのは、今日・カレンダー・タスクの画面だけ
-  const showQuickAdd = !pathname.startsWith("/settings") && !pathname.startsWith("/stats");
+  const schedule = pathname === "/calendar" || pathname === "/tasks";
+  const showQuickAdd = schedule || pathname === "/";
   const task = editingTask?.id ? state.tasks.find((t) => t.id === editingTask.id) : undefined;
 
   const addTask = (t: Task) => {
@@ -276,6 +287,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={href}
                 href={href}
+                prefetch={href === "/meals" || href === "/exercise" ? false : undefined}
                 aria-current={on ? "page" : undefined}
                 className={`flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[11px] lg:flex-row lg:gap-3 lg:px-3 lg:text-[15px] ${
                   on ? "bg-surface font-semibold text-tint shadow-sm" : "text-muted hover:bg-surface/60"
@@ -289,9 +301,22 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          <Link href="/settings" onClick={() => {
+            if (!pathname.startsWith("/settings")) sessionStorage.setItem("settings-origin", location.pathname + location.search + location.hash);
+          }} aria-current={pathname.startsWith("/settings") ? "page" : undefined} className="mt-auto mb-3 flex min-h-11 flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs text-muted hover:bg-surface lg:flex-row lg:gap-3 lg:text-[15px]"><SettingsIcon />設定</Link>
         </nav>
 
         <div className="flex min-w-0 flex-1 flex-col">
+          {schedule && (
+            <div className="flex items-center justify-between border-b border-line bg-grouped px-3 pt-[env(safe-area-inset-top)]">
+              <nav aria-label="予定の表示" className="flex gap-1">
+                {([["/calendar", "カレンダー"], ["/tasks", "タスク"]] as const).map(([href, label]) => (
+                  <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg px-3 ${pathname === href ? "font-semibold text-fg" : "text-muted"}`}>{label}</Link>
+                ))}
+              </nav>
+              <SettingsLink />
+            </div>
+          )}
           <div className="relative min-h-0 flex-1">
             {children}
             {toast && (
@@ -333,6 +358,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     key={href}
                     href={href}
+                    prefetch={href === "/meals" || href === "/exercise" ? false : undefined}
                     aria-current={on ? "page" : undefined}
                     className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 pt-1.5 pb-1 text-[10px] ${
                       on ? "font-semibold text-tint" : "font-medium text-muted/80"

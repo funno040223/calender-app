@@ -5,6 +5,9 @@ import { currentUserId, loadRemote, saveRemote } from "@/lib/sync/remote";
 import { syncImports, type SyncResult } from "@/lib/sync/ical";
 import { saveSchedule } from "@/lib/sync/push";
 import { closeGoneTaskNotices } from "@/lib/notify/close";
+import { LIFE_STORAGE_PREFIX, resetLifeLocalSession, type useLife } from "@/lib/life/store";
+import { planLifeExercise } from "@/lib/life/placement";
+import { LOCAL_DEBUG } from "@/lib/localDebug";
 import { buildNotices } from "@/lib/notify/build";
 import type { Block, CalendarEvent } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
@@ -20,8 +23,15 @@ const KEY_PREFIX = "task-rhythm:";
 
 /** ログアウトしたときに、この端末の控えを消す（次に開いた人に見えないように） */
 export function clearLocalData() {
+  resetLifeLocalSession();
+  clearStoredData();
+}
+
+function clearStoredData(legacyOnly = false) {
   try {
-    for (const k of Object.keys(window.localStorage)) if (k.startsWith(KEY_PREFIX)) window.localStorage.removeItem(k);
+    for (const k of Object.keys(window.localStorage)) {
+      if (k.startsWith(KEY_PREFIX) && !(legacyOnly && k.startsWith(LIFE_STORAGE_PREFIX))) window.localStorage.removeItem(k);
+    }
   } catch {
     // 消せない環境では何もしない
   }
@@ -188,7 +198,10 @@ function writeEditedAt(ms: number) {
  * 開いたときにサーバーの内容を読み、変えたら少し待ってから保存する。
  * 別の端末で変えた内容は、アプリに戻ってきたときに読み直す（後から保存したほうが残る）。
  */
-export function useMockStore() {
+export function useMockStore(life?: Pick<ReturnType<typeof useLife>, "projection" | "syncStatus" | "rememberExerciseChoices">) {
+  const lifeProjection = life?.projection;
+  const lifeSyncStatus = life?.syncStatus;
+  const rememberExerciseChoices = life?.rememberExerciseChoices;
   const [state, setState] = useState<MockState>(initialState);
   const [sync, setSync] = useState<SyncStatus>("loading");
   const [initialLoaded, setInitialLoaded] = useState(false);
@@ -257,7 +270,7 @@ export function useMockStore() {
         const uid = await currentUserId();
         const owner = readOwner();
         if (uid && owner && owner !== uid) {
-          clearLocalData();
+          clearStoredData(true);
           const now = Date.now();
           const fresh = replan(sampleData(now), [], now);
           stateRef.current = fresh;
@@ -357,18 +370,28 @@ export function useMockStore() {
     };
   }, [pull, refreshImports]);
 
+  useEffect(() => {
+    if (!ready.current || sync === "loading") return;
+    void closeGoneTaskNotices(new Set(state.tasks.map((task) => task.id)));
+  }, [state.tasks, sync]);
+
   // 組み直すたびに、これから送る通知の一覧をサーバーに置く（送るのはサーバーの定期実行）
   const noticesSent = useRef("");
   useEffect(() => {
     if (!ready.current || sync === "loading") return;
+    if (lifeSyncStatus && lifeSyncStatus !== "saved" && lifeSyncStatus !== "local") return;
     const save = () => {
       if (pulling.current) {
         t = window.setTimeout(save, NOTICE_DELAY_MS);
         return;
       }
+      const schedule = lifeProjection ? planLifeExercise(state, lifeProjection) : undefined;
+      if (schedule?.failed) return;
+      if (schedule?.automaticChoices.length && rememberExerciseChoices?.(schedule.automaticChoices)) return;
+      if (LOCAL_DEBUG) return;
       const items = buildNotices({
         now: Date.now(),
-        result: state.result,
+        result: schedule?.result ?? state.result,
         events: planEvents(state, state.classEvents, state.googleEvents),
         places: state.places,
         settings: state.settings,
@@ -376,7 +399,6 @@ export function useMockStore() {
         travelAsks: travelAsks(state, Date.now()),
         contactDays: contactDaysFor(state, Date.now()).map((c) => c.dayStart),
       });
-      void closeGoneTaskNotices(new Set(state.tasks.map((t) => t.id)));
       const json = JSON.stringify(items);
       if (json === noticesSent.current) return;
       saveSchedule(items).then(
@@ -386,7 +408,7 @@ export function useMockStore() {
     };
     let t = window.setTimeout(save, NOTICE_DELAY_MS);
     return () => window.clearTimeout(t);
-  }, [state, sync]);
+  }, [state, sync, lifeProjection, lifeSyncStatus, rememberExerciseChoices]);
 
   // 朝に開き直したときなど、古い「今」のままにしない
   useEffect(() => {

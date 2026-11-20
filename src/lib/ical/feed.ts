@@ -1,6 +1,7 @@
 import type { Block } from "@/lib/scheduler";
 import { classEventsForPlan, type ClassEvent, type OwnEvent } from "@/lib/mock/model";
 import type { ExportEvent } from "./export";
+import { LIFE_EXERCISE_PREFIX } from "@/lib/life/model";
 
 const DAY_MS = 24 * 60 * 60_000;
 /** 配信する範囲。先は配置する日数（14日）に合わせる */
@@ -19,7 +20,8 @@ export function feedEvents(input: { blocks: Block[]; events: OwnEvent[]; classEv
   const out: ExportEvent[] = [];
   for (const b of input.blocks.filter(inRange)) {
     out.push({
-      uid: `block-${b.kind}-${b.refId}-${b.start}@task-rhythm-app`,
+      uid: b.refId.startsWith(LIFE_EXERCISE_PREFIX) ? `block-${b.kind}-${b.refId}@task-rhythm-app`
+        : `block-${b.kind}-${b.refId}-${b.start}@task-rhythm-app`,
       title: b.title,
       start: b.start,
       end: b.end,

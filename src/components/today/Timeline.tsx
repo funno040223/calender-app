@@ -31,18 +31,19 @@ interface TimelineItem {
   record?: { mark?: HabitMark; five: boolean; onMark: (m: HabitMark) => void };
 }
 
-export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: number; limit?: number }) {
-  const { state, openTask, update, notify } = useApp();
+export default function Timeline({ now, dayEnd, limit, fullDay = false }: { now: number; dayEnd: number; limit?: number; fullDay?: boolean }) {
+  const { state, openTask, update, notify, lifeSchedule } = useApp();
   // 狭い画面では、いまと次のいくつかだけ。残りは押すと出す
   const [all, setAll] = useState(false);
   const events = eventIndex(state);
   const related = tasksByEvent(state.tasks, events);
   const items: TimelineItem[] = [];
   const today = dayStartOf(now);
+  const startsAt = fullDay ? today : now;
 
   for (const r of allEventRefs(state)) {
     const ev = r.event;
-    if (ev.allDay || ev.end <= now || ev.start >= dayEnd) continue;
+    if (ev.allDay || ev.end <= startsAt || ev.start >= dayEnd) continue;
     items.push({
       key: `${r.source}:${ev.id}`,
       title: ev.title,
@@ -84,7 +85,7 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
     update((d) => missHabitBlock(d, b));
     notify("記録しました", { habitId: b.refId });
   };
-  const blocks = [...state.result.blocks].sort((a, b) => a.start - b.start);
+  const blocks = [...(lifeSchedule?.calendarBlocks ?? state.result.blocks)].sort((a, b) => a.start - b.start);
   for (const b of blocks) {
     if (b.start >= dayEnd) continue;
     const habit = b.kind === "habit" ? state.habits.find((h) => h.id === b.refId) : undefined;
@@ -94,7 +95,7 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
     const m = tracked ? state.habitLogs[day]?.[b.refId] : undefined;
     // 終わった枠は出さない。ただし、今日の記録する習慣でまだ押していないものは残す
     const past = b.end <= now;
-    if (past && !(tracked && m === undefined && b.start >= today)) continue;
+    if (past && !(fullDay && b.end > today) && !(tracked && m === undefined && b.start >= today)) continue;
     const task = b.kind === "task" ? state.tasks.find((t) => t.id === b.refId) : undefined;
     const rainSwap = habit?.rainAlternative && day === todayKey && b.start > now;
     const rel = task?.relatedEventId ? events.get(task.relatedEventId) : undefined;
@@ -124,12 +125,12 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
   }
   // 外出の前後の移動
   for (const t of travelBands(state)) {
-    if (t.end <= now || t.start >= dayEnd) continue;
+    if (t.end <= startsAt || t.start >= dayEnd) continue;
     items.push({ key: `travel:${t.start}`, title: "移動", start: t.start, end: t.end, color: "var(--cal-travel)" });
   }
   // 枠を外して空けた時間。押すと、また自動で入るように戻せる
   for (const k of state.keepFree ?? []) {
-    if (k.end <= now || k.start >= dayEnd) continue;
+    if (k.end <= startsAt || k.start >= dayEnd) continue;
     items.push({
       key: `free:${k.id}`,
       title: "空けた時間",
@@ -156,10 +157,10 @@ export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: 
   items.sort((a, b) => a.start - b.start || a.end - b.end);
   const nextIdx = items.findIndex((i) => i.start > now && !i.dim);
   const shown = all || !limit ? items : items.slice(0, Math.max(limit, nextIdx + 1));
-  const allDay = allEventRefs(state).filter((r) => r.event.allDay && r.event.start < dayEnd && r.event.end > now);
+  const allDay = allEventRefs(state).filter((r) => r.event.allDay && r.event.start < dayEnd && r.event.end > startsAt);
 
   return (
-    <Card title="今日の流れ">
+    <Card title={fullDay ? "一日の予定" : "今日の流れ"}>
       {allDay.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 pt-1 pb-2.5">
           {allDay.map((r) => (

@@ -21,7 +21,7 @@ function fakeDb(lastEvents: unknown) {
       return { eq: async () => ({ error: null }) };
     },
   };
-  return { db: { from: () => table }, updates };
+  return { db: { from: () => table, rpc: async () => ({ data: { revision: 0, events: [] } }) }, updates };
 }
 
 beforeEach(() => {
@@ -42,4 +42,10 @@ it("失敗して、前回の結果もなければ組み直さない", async () =
   const { db } = fakeDb(null);
   const r = await planOnServer(db as never, "u", sampleData(now), now);
   expect(r).toMatchObject({ ok: false, reason: "ical" });
+});
+
+it("生活の運動予定が取得できないときは、空の予定で配信データを上書きしない", async () => {
+  const { db } = fakeDb(last);
+  const unavailable = { ...db, rpc: async () => ({ data: null, error: { code: "timeout" } }) };
+  expect(await planOnServer(unavailable as never, "u", sampleData(now), now)).toEqual({ ok: false, reason: "life" });
 });

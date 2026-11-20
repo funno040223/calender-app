@@ -51,7 +51,10 @@ export default function SettingsScreen() {
 
   return (
     <div className="h-full overflow-y-auto bg-grouped">
-      <ScreenHeader title="設定" />
+      <ScreenHeader title="設定" right={<button type="button" className="press min-h-11 px-3 font-medium" onClick={() => {
+        const origin = sessionStorage.getItem("settings-origin") ?? "/";
+        router.push(["/", "/tasks", "/calendar", "/meals", "/exercise", "/stats"].includes(origin.split(/[?#]/)[0]) ? origin : "/");
+      }}>戻る</button>} />
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 pb-10 sm:px-6">
         {groups.map((g) => (
           <Group key={g.title} title={g.title}>

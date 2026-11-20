@@ -44,7 +44,10 @@ it('next Monday from Friday must not jump two calendar weeks', () => {
 
 it('server planning must work without imported calendars', async () => {
   const now = jst(2026,10,1,13);
-  const db = {from:()=>({select:()=>({eq:async()=>({data:[],error:null})})})};
+  const db = {
+    from: () => ({ select: () => ({ eq: async () => ({ data: [], error: null }) }) }),
+    rpc: async () => ({ data: { revision: 0, events: [] }, error: null }),
+  };
   const r = await planOnServer(db as never, 'test-user', sampleData(now), now);
   expect(r.ok).toBe(true);
 });

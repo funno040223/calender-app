@@ -1,6 +1,6 @@
 // 電波がなくても画面を開けるようにする。データは localStorage の控えから出るので、ここでは画面の部品だけを持つ
 // 中身を変えたら VERSION を上げる（古い控えを消すため）
-const VERSION = "v17";
+const VERSION = "v18";
 // 電波がなくても移れるように、開いたときにまとめて控える画面
 const SHELL = ["/", "/calendar", "/tasks", "/stats", "/settings", "/settings/basic", "/settings/routine", "/settings/habits", "/settings/places", "/settings/timetable", "/settings/avoid", "/settings/treats", "/settings/calendars", "/settings/notifications", "/settings/feed", "/settings/tags", "/settings/colors", "/settings/weather", "/settings/notion", "/settings/rewards", "/settings/health"];
 const PAGES = `pages-${VERSION}`;
@@ -21,24 +21,27 @@ self.addEventListener("activate", (event) => {
 
 // 画面から「warm」が来たら、主な画面とその部品を控え直す（公開し直すと部品の名前が変わるため、毎回）
 // ログイン前は控えられないので、画面が切り替わるたびに頼まれる。うまくいったら10分は控え直さない
-let warmedAt = 0;
-let warming = null;
+const warmedAt = new Map();
+const warming = new Map();
 self.addEventListener("message", (event) => {
-  if (event.data !== "warm" || Date.now() - warmedAt < 10 * 60 * 1000) return;
-  warming ??= warm().finally(() => (warming = null));
-  event.waitUntil(warming);
+  const key = event.data;
+  // 料理と運動は、初回表示でカタログまで取りに行かないよう、開かれた画面だけを控える
+  const paths = key === "warm" ? SHELL : key === "/meals" || key === "/exercise" ? [key] : null;
+  if (!paths || Date.now() - (warmedAt.get(key) ?? 0) < 10 * 60 * 1000) return;
+  if (!warming.has(key)) warming.set(key, warm(paths, key).finally(() => warming.delete(key)));
+  event.waitUntil(warming.get(key));
 });
 
-async function warm() {
+async function warm(paths, key) {
   const pages = await caches.open(PAGES);
   const assets = await caches.open(ASSETS);
-  for (const path of SHELL) {
+  for (const path of paths) {
     try {
       const res = await fetch(path, { credentials: "same-origin" });
       if (!res.ok || res.redirected) continue; // ログインが切れているときは控えない
       const html = await res.clone().text();
       await pages.put(path, res);
-      warmedAt = Date.now();
+      warmedAt.set(key, Date.now());
       const parts = new Set(html.match(/\/_next\/static\/[^"'\s)]+/g) ?? []);
       for (const part of parts) {
         if (await assets.match(part)) continue;

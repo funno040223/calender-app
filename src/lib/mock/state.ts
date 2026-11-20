@@ -1,7 +1,7 @@
 import { RESET_KEEP_DAYS, bedtimeSleeps, manualSleeps, reconcileBedtime } from "./bedtime";
 import { nightOf, recordReset, sleepSessions } from "./night";
 import { captureTaskBlocks, planTagsOf } from "./progress";
-import { DEFAULT_SETTINGS, computeDayPlans, buildOutlook, contactDays, plan, wakingDayStart, type CalendarEvent, type EveningEnergy, type Habit, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
+import { DEFAULT_SETTINGS, computeDayPlans, buildOutlook, contactDays, plan, wakingDayStart, type CalendarEvent, type EveningEnergy, type Habit, type Interval, type PlanResult, type Settings, type Tag } from "@/lib/scheduler";
 import { buildClassEvents, classEventsForPlan, dateKeyOf, dayStartOfKey, type ClassEvent, type Course, type ContactAnswer, type DoneTask, RAIN_THRESHOLD, type HabitMark, type TaskCheck, type DayLog, type HealthSleep, type MockData, type RewardBank, type RewardRates, type RewardSpend, type SleepLog, type SleepMark, type TiredPause, type WakeLog, type TaskBlockLog, CONTACT_ANSWERS, DEFAULT_REWARD_RATES, HABIT_MARKS } from "./model";
 import { EMPTY_REWARD_BANK, bankRewards } from "./stats";
 import { DAY_MS, MIN, dayStartOf } from "./jst";
@@ -638,7 +638,7 @@ export function planEvents(data: Pick<MockData, "events" | "importedTravel">, cl
 }
 
 /** エンジンで組み直す。配置のロジックはすべて plan() に任せる */
-export function replan(data: MockData, googleEvents: CalendarEvent[], now: number): MockState {
+export function replan(data: MockData, googleEvents: CalendarEvent[], now: number, exercise?: { legacyHabitId: string; reservations: Interval[] }): MockState {
   const classEvents = buildClassEvents(data.courses, data.periods);
   const events = planEvents(data, classEvents, googleEvents);
   // 「寝る」「起きた」の記録から見積もった睡眠（自分で入れた立て直しのほうが優先）
@@ -730,6 +730,7 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
   }
   const result = plan({
     now,
+    ...(exercise ? { includeExerciseGaps: true } : {}),
     rhythmResets: [...resets, ...sleeps],
     // 朝ルーティンを始めた時刻（最初のチェック）。起床の直後でなく、ここから置く
     routineStarts: Object.fromEntries(
@@ -738,18 +739,20 @@ export function replan(data: MockData, googleEvents: CalendarEvent[], now: numbe
         return l.routineStartedAt !== undefined && day !== undefined ? [[day, l.routineStartedAt]] : [];
       }),
     ),
-    keepFree: data.keepFree,
+    keepFree: exercise ? [...(data.keepFree ?? []), ...exercise.reservations] : data.keepFree,
     settings: data.settings,
     events,
     places: data.places,
-    habits: data.habits,
+    habits: exercise ? data.habits.map((habit) => habit.id === exercise.legacyHabitId
+      ? { ...habit, frequency: { type: "weekly", times: 0 } } : habit) : data.habits,
     tags: planTags,
     tasks: data.tasks,
     avoidWindows: data.avoidWindows,
     recoveryOptions: SAMPLE_RECOVERY_OPTIONS,
     habitLastDone,
     habitDoneDays: doneForPlan,
-    previousBlocks: data.blocks.filter((b) => !isSkipped(b) && !dropped.has(b)),
+    previousBlocks: data.blocks.filter((b) => !isSkipped(b) && !dropped.has(b)
+      && (!exercise || b.refId !== exercise.legacyHabitId || b.pinned || b.start <= now)),
     ...(anchor ? { anchor: { dayStart: anchor.dayStart, keep: anchor.keep, relayout: anchor.relayout } } : {}),
     eveningEnergy: Object.fromEntries(
       Object.entries(data.eveningEnergy).flatMap(([k, v]) => {

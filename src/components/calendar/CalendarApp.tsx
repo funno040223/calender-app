@@ -1,4 +1,5 @@
 "use client";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
 
@@ -9,13 +10,20 @@ import type { CalendarId } from "@/lib/mock/calendars";
 import { useApp } from "@/components/app/StoreProvider";
 import { eventIndex, formatEventShort, groupKeyOf, tasksByEvent } from "@/lib/mock/related";
 import { allowsFive, dateKeyOf, parseClassEventId, type HabitMark } from "@/lib/mock/model";
-import { formatDate, newId } from "@/lib/mock/jst";
+import { formatDate, MIN, newId } from "@/lib/mock/jst";
 import { keepBlockFree, missHabitBlock } from "@/lib/mock/state";
+import type { ExerciseRound } from "@/lib/life/placement";
+import { mealSlotOf } from "@/components/life/mealSlot";
 import CalendarView, { type CalendarHandle, type CalendarMode, type EventSource } from "./CalendarView";
 import CalendarToggles from "./CalendarToggles";
 import EventForm from "./EventForm";
 import { BlockSheet, ReadonlyEventSheet, RelatedTasks } from "./InfoSheet";
 import Sheet from "@/components/ui/Sheet";
+
+const LoadingDetail = () => <p role="status" className="text-sm text-muted">読み込み中…</p>;
+const MealPanel = dynamic(() => import("@/components/life/Meals").then((m) => m.MealPanel), { loading: LoadingDetail });
+const ExercisePanel = dynamic(() => import("@/components/life/Exercise").then((m) => m.ExercisePanel), { loading: LoadingDetail });
+const ExerciseRoundChoices = dynamic(() => import("@/components/life/ExerciseRoundChoices"), { loading: LoadingDetail });
 
 // 1日だけの表示は横長で見にくいので、最小は3日表示にする
 const VIEWS: { id: CalendarMode; label: string }[] = [
@@ -25,7 +33,12 @@ const VIEWS: { id: CalendarMode; label: string }[] = [
 ];
 
 type Editing = { event: OwnEvent; isNew: boolean };
-type Viewing = { kind: "block"; block: Block } | { kind: "event"; source: EventSource; eventId: string };
+type Viewing =
+  | { kind: "block"; block: Block }
+  | { kind: "exercise"; round: ExerciseRound; block: Block }
+  | { kind: "event"; source: EventSource; eventId: string };
+
+const LEGACY_EXERCISE_REFS = new Set(["habit-home-exercise", "habit-walk"]);
 
 
 /** これより早い2回目のタップは、同じタップの重なりとみなす */
@@ -44,7 +57,13 @@ function FocusStyle({ group }: { group?: string }) {
 }
 
 export default function CalendarApp() {
-  const { state, update, setHidden, openTask } = useApp();
+  const { state, lifeSchedule, update, setHidden, openTask } = useApp();
+  const exerciseByRef = useMemo(() => {
+    const rounds = new Map<string, ExerciseRound>();
+    for (const round of lifeSchedule?.rounds ?? []) if (round.block) rounds.set(round.block.refId, round);
+    return rounds;
+  }, [lifeSchedule]);
+  const readOnlyBlockRefs = useMemo(() => new Set(exerciseByRef.keys()), [exerciseByRef]);
   const calRef = useRef<CalendarHandle>(null);
   const [phone] = useState(() => window.matchMedia("(max-width: 639px)").matches);
   const [view, setView] = useState<CalendarMode>(phone ? "day3" : "week");
@@ -78,6 +97,7 @@ export default function CalendarApp() {
   const events = useMemo(() => eventIndex(state), [state]);
   const related = useMemo(() => tasksByEvent(state.tasks, events), [state.tasks, events]);
   const api = () => calRef.current;
+  const mealSlotForBlock = (block: Block) => block.kind === "habit" ? mealSlotOf(state.habits.find((habit) => habit.id === block.refId)) : undefined;
 
   /** 押した予定・枠が属するまとまり（関連するタスクがなければなし） */
   const groupOfEvent = (eventId: string) => (related.has(eventId) ? groupKeyOf(eventId) : undefined);
@@ -166,6 +186,11 @@ export default function CalendarApp() {
 
   const viewingEvent = viewing?.kind === "event" ? events.get(viewing.eventId)?.event : undefined;
   const viewingClass = viewing?.kind === "event" && viewing.source === "class" ? state.classEvents.find((e) => e.id === viewing.eventId) : undefined;
+  const viewingMealSlot = viewing?.kind === "block" ? mealSlotForBlock(viewing.block) : undefined;
+  const viewingExerciseRound = viewing?.kind === "exercise"
+    ? lifeSchedule?.rounds.find((round) => round.roundId === viewing.round.roundId) ?? viewing.round
+    : undefined;
+  const wakingDate = dateKeyOf(wakingDayStart(state.plannedAt, state.result.dayPlans, state.settings.tzOffsetMinutes));
   const relatedList = (eventId: string) => (
     <RelatedTasks tasks={related.get(eventId) ?? []} blocks={state.result.blocks} onOpenTask={editTask} />
   );
@@ -243,6 +268,8 @@ export default function CalendarApp() {
             }}
             onDeadlineClick={editTask}
             state={state}
+            blocks={lifeSchedule?.calendarBlocks ?? state.result.blocks}
+            readOnlyBlockRefs={readOnlyBlockRefs}
             hidden={hidden}
             onCreate={(start, end, allDay) =>
               setEditing({ event: { id: "", title: "", start, end, ...(allDay ? { allDay } : {}) }, isNew: true })
@@ -256,6 +283,13 @@ export default function CalendarApp() {
             }}
             onOwnEventChange={moveEvent}
             onBlockClick={(block) => {
+              const round = exerciseByRef.get(block.refId);
+              if (round || mealSlotForBlock(block) || (block.kind === "habit" && LEGACY_EXERCISE_REFS.has(block.refId))) {
+                setFocusGroup(undefined);
+                setSelected(undefined);
+                setViewing(round ? { kind: "exercise", round, block } : { kind: "block", block });
+                return;
+              }
               setFocusGroup(groupOfBlock(block));
               if (!tapOpens(`block:${block.kind}:${block.refId}:${block.start}`)) return;
               setViewing({ kind: "block", block });
@@ -296,8 +330,35 @@ export default function CalendarApp() {
           onEditTask={editTask}
           onClose={() => setViewing(null)}
         >
-          <BlockRecord block={viewing.block} onSkipped={() => setViewing(null)} />
+          {viewingMealSlot ? (
+            <>
+              <MealPanel
+                date={dateKeyOf(wakingDayStart(viewing.block.start, state.result.dayPlans, state.settings.tzOffsetMinutes))}
+                slot={viewingMealSlot}
+                minutes={(viewing.block.end - viewing.block.start) / MIN}
+              />
+              <details className="rounded-xl bg-surface2 px-3 py-2">
+                <summary className="cursor-pointer text-sm text-muted">習慣としての記録・予定の変更</summary>
+                <div className="mt-2"><BlockRecord block={viewing.block} onSkipped={() => setViewing(null)} /></div>
+              </details>
+            </>
+          ) : <BlockRecord block={viewing.block} onSkipped={() => setViewing(null)} />}
         </BlockSheet>
+      )}
+      {viewing?.kind === "exercise" && viewingExerciseRound && (
+        <Sheet title={viewing.block.title} onClose={() => setViewing(null)}>
+          <div className="flex flex-col gap-3">
+            <ExerciseRoundChoices round={viewingExerciseRound} />
+            {viewingExerciseRound.date === wakingDate && (
+              <ExercisePanel
+                date={wakingDate}
+                activity={viewingExerciseRound.activity}
+                roundId={viewingExerciseRound.roundId}
+                minutes={viewingExerciseRound.block && (viewingExerciseRound.block.end - viewingExerciseRound.block.start) / MIN}
+              />
+            )}
+          </div>
+        </Sheet>
       )}
       {viewingEvent && viewing?.kind === "event" && (
         <ReadonlyEventSheet

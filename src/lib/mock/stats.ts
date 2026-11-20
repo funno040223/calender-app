@@ -1,11 +1,37 @@
 import type { Habit } from "@/lib/scheduler";
+import { LEGACY_EXERCISE_HABIT, type Exercise, type LifeProjection } from "@/lib/life/model";
 import { DAY_MS, MIN, TZ } from "./jst";
 import { dateKeyOf, dayStartOfKey, type HabitMark, type MockData, type RewardBank, type RewardSource } from "./model";
 import { usedSlotMinutes } from "./progress";
 import { allNights, bedOnTimeOf, bedTimeOf, upOnTime } from "./night";
 
 type Data = Pick<MockData, "wakeLogs" | "habitLogs" | "habits" | "taskBlockLog" | "rewardSpends" | "rewardRates"> &
-  Partial<Pick<MockData, "sleepLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings" | "rewardBank">>;
+  Partial<Pick<MockData, "sleepLogs" | "eveningEnergy" | "healthSleep" | "dayLogs" | "settings" | "rewardBank">> &
+  { lifeExercise?: readonly Exercise[] };
+
+export function withLifeExerciseRewards<T extends Data>(data: T, projection: Pick<LifeProjection, "exercise">) {
+  return { ...data, lifeExercise: Object.values(projection.exercise).map(({ value }) => value) };
+}
+
+const EXERCISE_REWARD_IDS: Record<Exercise["activity"], string> = {
+  strength: LEGACY_EXERCISE_HABIT,
+  walking: "habit-walk",
+  mobility: "life-mobility",
+};
+
+function exerciseReward(data: Data, from: number, to: number) {
+  const credited = new Set<string>();
+  for (const exercise of data.lifeExercise ?? []) {
+    const day = dayStartOfKey(exercise.date);
+    if (day === undefined || day < from || day >= to) continue;
+    const id = EXERCISE_REWARD_IDS[exercise.activity];
+    const mark = data.habitLogs[exercise.date]?.[id];
+    const habit = data.habits.find((item) => item.id === id);
+    if (mark && (!habit || habit.track && !habit.meal)) continue;
+    credited.add(exercise.date + ":" + id);
+  }
+  return credited.size * data.rewardRates.habit;
+}
 
 export interface BedNight {
   /** その夜の計画の日（寝る前の日） */
@@ -116,6 +142,8 @@ const BANK_LAG_DAYS = 21;
 export function rewardBreakdown(data: Data, from = -Infinity, to = Infinity): Record<RewardSource, number> {
   const bank = data.rewardBank ?? EMPTY_REWARD_BANK;
   const yen = rewardBreakdownOfLogs(data, Math.max(from, bank.until), to);
+  // Life exercise history remains in its ledger and is never written to the legacy bank.
+  yen.habit += exerciseReward(data, from, to);
   if (from === -Infinity) for (const k of Object.keys(yen) as RewardSource[]) yen[k] += bank.yen[k] ?? 0;
   return yen;
 }

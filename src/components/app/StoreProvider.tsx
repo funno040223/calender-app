@@ -1,9 +1,11 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { LifeSchedule } from "@/lib/life/placement";
 import type { MockStore } from "@/lib/mock/store";
 
 export interface AppContextValue extends MockStore {
+  lifeSchedule?: LifeSchedule;
   /** タスクの編集シートを開く（id なしで新規） */
   openTask: (id?: string) => void;
   /** 画面の下に短いお知らせを出す（数秒で消える。直前の操作を元に戻せる）。taskId・habitId を渡すと、次に入った時刻も出す */

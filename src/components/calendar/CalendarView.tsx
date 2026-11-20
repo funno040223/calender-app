@@ -92,6 +92,8 @@ const firstOfMonth = (dayFc: number) => {
 
 export interface CalendarViewProps {
   state: MockState;
+  blocks: readonly Block[];
+  readOnlyBlockRefs: ReadonlySet<string>;
   hidden: Set<CalendarId>;
   mode: CalendarMode;
   /** 見出しに出す年と月（見ている範囲の最初の日） */
@@ -686,7 +688,7 @@ export default function CalendarView(props: CalendarViewProps) {
       if (ref) relatedOfTask.set(t.id, ref);
     }
 
-    for (const b of state.result.blocks) {
+    for (const b of props.blocks) {
       const cal = BLOCK_CAL[b.kind];
       if (hidden.has(cal)) continue;
       const rel = b.kind === "task" ? relatedOfTask.get(b.refId) : undefined;
@@ -697,8 +699,8 @@ export default function CalendarView(props: CalendarViewProps) {
         start: toFc(b.start),
         end: toFc(b.end),
         allDay: false,
-        // 朝ルーティンは起床時刻から決まるので動かせない
-        editable: b.kind !== "routine",
+        // 朝ルーティンは起床時刻で決まり、新しい運動枠の変更は詳細で候補を確認して行う
+        editable: b.kind !== "routine" && !props.readOnlyBlockRefs.has(b.refId),
         classNames: ["ev", `cal-${cal}`, "is-block", b.pinned ? "is-pinned" : "", rel ? `rel-${rel.calendarId}` : ""],
         extendedProps: {
           type: "block",
@@ -754,7 +756,7 @@ export default function CalendarView(props: CalendarViewProps) {
       }
     }
     return out.map((e) => (e.id && e.id === props.selectedId ? { ...e, classNames: [...((e.classNames as string[]) ?? []), "is-selected"] } : e));
-  }, [state, hidden, props.selectedId, mode]);
+  }, [state, hidden, props.blocks, props.readOnlyBlockRefs, props.selectedId, mode]);
 
   /** 月表示：日ごとの時刻の予定の件数（日付の下に点で出す） */
   const timedCount = useMemo(() => {

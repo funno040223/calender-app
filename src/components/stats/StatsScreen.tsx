@@ -1,5 +1,8 @@
 "use client";
 
+import LifeStats from "@/components/life/LifeStats";
+import { SettingsLink } from "@/components/life/Controls";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/components/app/StoreProvider";
@@ -515,11 +518,12 @@ function Smoking() {
 export default function StatsScreen() {
   return (
     <div className="h-full overflow-y-auto bg-grouped">
-      <ScreenHeader title="記録" width="max-w-5xl" />
+      <ScreenHeader title="記録" width="max-w-5xl" right={<SettingsLink />} />
       <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">
           <Insights />
           <Summary />
+          <LifeStats />
           <Reward />
           <Habits />
         </div>

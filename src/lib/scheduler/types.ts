@@ -337,6 +337,8 @@ export interface SkippedHabit {
 }
 
 export interface PlanInput {
+  /** Include the full short-gap view when comparing optional exercise reservations. */
+  includeExerciseGaps?: boolean;
   rhythmResets?: RhythmReset[];
   /** 朝ルーティンを始めた時刻（その日の 0:00 → 時刻）。起床の直後でなく、ここから朝ルーティンを置く */
   routineStarts?: Record<number, number>;
@@ -375,6 +377,7 @@ export interface PlanInput {
 }
 
 export interface PlanResult {
+  exerciseGaps?: { beforeTasks: Interval[]; afterTasks: Interval[] };
   rhythmResets?: RhythmReset[];
   movedBlocks?: Block[];
   dayPlans: DayPlan[];

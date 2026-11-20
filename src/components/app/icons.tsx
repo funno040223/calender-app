@@ -38,6 +38,14 @@ export function TasksIcon() {
   );
 }
 
+export function MealIcon() {
+  return <svg {...base}><path d="M3 12h18a9 9 0 0 1-18 0ZM7 8c-1-2 2-3 1-5m4 5c-1-2 2-3 1-5m4 5c-1-2 2-3 1-5" /></svg>;
+}
+
+export function ExerciseIcon() {
+  return <svg {...base}><path d="M3 8v8m4-11v14m0-7h10m0-7v14m4-11v8" /></svg>;
+}
+
 export function StatsIcon() {
   return (
     <svg {...base}>
