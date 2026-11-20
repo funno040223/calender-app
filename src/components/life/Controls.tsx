@@ -8,9 +8,10 @@ import { ScreenHeader } from "@/components/ui/controls";
 export const content = "mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-6";
 export const inset = "flex flex-col gap-3 px-4 pt-2 pb-4";
 export const choices = "flex flex-wrap items-center gap-2";
+export const summary = "press flex min-h-11 cursor-pointer items-center text-[15px]";
 export const field = "flex min-w-0 flex-col gap-1 text-sm";
 export const choice = (on: boolean) =>
-  `press min-h-11 rounded-xl px-3 py-2 text-sm font-medium ${on ? "bg-tint text-on-tint" : "bg-surface2 text-fg"}`;
+  `press inline-flex min-h-11 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium ${on ? "bg-tint text-on-tint" : "bg-surface2 text-fg"}`;
 
 export function SettingsLink() {
   return (

@@ -26,9 +26,18 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
     const recipe = recipes.find((r) => r.id === m.recipeId);
     return recipe ? ingredientsFor(recipe, m.servings ?? 1, m.slot) : [];
   });
+  const known = [
+    ...recipes.flatMap((r) => r.ingredients),
+    ...SHOPPING_TEMPLATES.flatMap((t) => t.ingredients),
+    ...Object.values(p.inventory),
+  ];
+  // 「ない」にした食材は、予定がなくても買うものに戻す（量は材料の標準の量）
+  const missing = [...new Map(known.map((q) => [q.ingredientId, q])).values()].filter(
+    (q) => p.presence[q.ingredientId]?.value === "missing" && !needed.some((n) => n.ingredientId === q.ingredientId),
+  );
   const templateRows = SHOPPING_TEMPLATES.find((t) => t.id === template)?.ingredients ?? [];
   const templateKeys = new Set(templateRows.map(quantityKey));
-  const list = shoppingNeeds(p, needed, templateRows).filter(
+  const list = shoppingNeeds(p, [...needed, ...missing], templateRows).filter(
     (q) => templateKeys.has(quantityKey(q)) || p.presence[q.ingredientId]?.value !== "available",
   );
   const selected = list
@@ -45,7 +54,7 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
     setEdit({ ...edit, [quantityKey(q)]: { ...edit[quantityKey(q)], ...patch } });
   return (
     <>
-      <Card title="買い物リスト">
+      <Card title="買い物">
         <form
           className={inset}
           onSubmit={(event) => {
@@ -64,7 +73,7 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
           }}
         >
           <label className={field}>
-            まとめ買い
+            いつもの買い物
             <select
               className={inputBase}
               value={template}
@@ -82,7 +91,7 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
               ))}
             </select>
           </label>
-          {!list.length && <p className="text-sm text-muted">買い足すものはありません。</p>}
+          {!list.length && <p className="text-sm text-muted">買うものはありません。</p>}
           {list.map((q) => {
             const key = quantityKey(q);
             const row = { ...q, ...edit[key] };
@@ -99,7 +108,7 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
                   </label>
                   <label>
                     <input
-                      aria-label={q.name + "の購入量"}
+                      aria-label={q.name + "の買う量"}
                       className={inputBase + " w-20"}
                       disabled={checked[key] === false}
                       required
@@ -113,10 +122,10 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
                   </label>
                 </div>
                 <details>
-                  <summary className="cursor-pointer py-2 text-sm text-muted">期限を入力</summary>
+                  <summary className="cursor-pointer py-2 text-sm text-muted">期限</summary>
                   <div className={choices}>
                     <select
-                      aria-label={q.name + "の期限種別"}
+                      aria-label={q.name + "の期限の種類"}
                       className={inputBase}
                       value={row.expiryKind ?? "use-by"}
                       onChange={(e) => update(q, { expiryKind: e.target.value as Quantity["expiryKind"] })}
@@ -142,11 +151,11 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
             );
           })}
           <button disabled={!life.ready || !selected.length || !!last} className={btnPrimary}>
-            購入を一括反映{selected.length > 0 && "（" + selected.length + "品）"}
+            買った{selected.length > 0 && "（" + selected.length + "品）"}
           </button>
           {last && (
             <div role="status" className={choices}>
-              購入済みにしました
+              買ったことにしました
               <button
                 type="button"
                 className={choice(false)}
@@ -157,7 +166,7 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
                   }
                 }}
               >
-                購入を取り消す
+                取り消す
               </button>
               <button
                 type="button"
@@ -167,7 +176,7 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
                   submitted.current = false;
                 }}
               >
-                次の買い物
+                続けて買う
               </button>
             </div>
           )}
@@ -181,12 +190,12 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
             className={choice(false)}
             onClick={() => setShowPantry(!showPantry)}
           >
-            {showPantry ? "食材を閉じる" : "在庫を確認"}
+            {showPantry ? "閉じる" : "家にあるものを見る"}
           </button>
           {showPantry && (
             <>
               <label className={field}>
-                食材を探す
+                探す
                 <input
                   type="search"
                   className={inputBase}
@@ -215,12 +224,12 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
                             aria-pressed={s === status}
                             onClick={() => life.setPresence(q.ingredientId, s)}
                           >
-                            {["家にある", "不足", "不明"][i]}
+                            {["家にある", "ない", "不明"][i]}
                           </button>
                         ))}
                       </div>
                       <details>
-                        <summary className="cursor-pointer py-2 text-sm">在庫量を訂正</summary>
+                        <summary className="cursor-pointer py-2 text-sm">量を直す</summary>
                         <form
                           className={choices}
                           onSubmit={(e) => {
@@ -235,7 +244,7 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
                           }}
                         >
                           <label className={field}>
-                            {q.name}の実在庫（{q.unit}）
+                            {q.name}の量（{q.unit}）
                             <input
                               required
                               className={inputBase + " w-28"}
@@ -248,7 +257,7 @@ export default function Shopping({ date, pantry = false }: { date: string; pantr
                             />
                           </label>
                           <button disabled={!life.ready} className={choice(false)}>
-                            在庫量を保存
+                            保存
                           </button>
                         </form>
                       </details>

@@ -31,10 +31,12 @@ interface TimelineItem {
   record?: { mark?: HabitMark; five: boolean; onMark: (m: HabitMark) => void };
 }
 
-export default function Timeline({ now, dayEnd, limit, fullDay = false }: { now: number; dayEnd: number; limit?: number; fullDay?: boolean }) {
-  const { state, openTask, update, notify, lifeSchedule } = useApp();
+export default function Timeline({ now, dayEnd, limit }: { now: number; dayEnd: number; limit?: number }) {
+  const { state, openTask, update, notify } = useApp();
   // 狭い画面では、いまと次のいくつかだけ。残りは押すと出す
   const [all, setAll] = useState(false);
+  // 終わった分も見る（朝からの一日）
+  const [fullDay, setFullDay] = useState(false);
   const events = eventIndex(state);
   const related = tasksByEvent(state.tasks, events);
   const items: TimelineItem[] = [];
@@ -85,7 +87,7 @@ export default function Timeline({ now, dayEnd, limit, fullDay = false }: { now:
     update((d) => missHabitBlock(d, b));
     notify("記録しました", { habitId: b.refId });
   };
-  const blocks = [...(lifeSchedule?.calendarBlocks ?? state.result.blocks)].sort((a, b) => a.start - b.start);
+  const blocks = [...state.result.blocks].sort((a, b) => a.start - b.start);
   for (const b of blocks) {
     if (b.start >= dayEnd) continue;
     const habit = b.kind === "habit" ? state.habits.find((h) => h.id === b.refId) : undefined;
@@ -156,11 +158,18 @@ export default function Timeline({ now, dayEnd, limit, fullDay = false }: { now:
   }
   items.sort((a, b) => a.start - b.start || a.end - b.end);
   const nextIdx = items.findIndex((i) => i.start > now && !i.dim);
-  const shown = all || !limit ? items : items.slice(0, Math.max(limit, nextIdx + 1));
+  const shown = all || fullDay || !limit ? items : items.slice(0, Math.max(limit, nextIdx + 1));
   const allDay = allEventRefs(state).filter((r) => r.event.allDay && r.event.start < dayEnd && r.event.end > startsAt);
 
   return (
-    <Card title={fullDay ? "一日の予定" : "今日の流れ"}>
+    <Card
+      title="今日の流れ"
+      right={
+        <button type="button" aria-pressed={fullDay} onClick={() => setFullDay((v) => !v)} className="press min-h-11 px-1 text-[14px] font-medium text-tint">
+          {fullDay ? "いまから" : "朝から"}
+        </button>
+      }
+    >
       {allDay.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 pt-1 pb-2.5">
           {allDay.map((r) => (

@@ -1,5 +1,6 @@
 "use client";
 
+import { flushLifeBeforeSignOut } from "@/lib/life/store";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/app/StoreProvider";
 import { DangerButton, Group, Row, ScreenHeader } from "@/components/ui/controls";
@@ -68,6 +69,9 @@ export default function SettingsScreen() {
           <DangerButton
             confirm="ログアウトします。次に開くときは、もう一度ログインが必要です。よろしいですか？"
             onClick={async () => {
+              // 送れていない食事・運動の記録は、ログアウトすると消える。先に送ってみて、残れば確かめる
+              const unsent = await flushLifeBeforeSignOut();
+              if (unsent > 0 && !window.confirm(`まだ送れていない食事・運動の記録が${unsent}件あります。ログアウトすると消えます。それでもログアウトしますか？`)) return;
               // この端末には通知を送らないようにし、端末の控えも消す
               await unsubscribePush().catch(() => undefined);
               await signOut();

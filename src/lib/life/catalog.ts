@@ -102,11 +102,11 @@ export const EXTRA_RECIPES = [
 
 export const SHOPPING_TEMPLATES = [
   { id: "breakfast-3", name: "いつもの朝食・軽食（3日）", ingredients: [
-    bread(3), banana(3), yogurt(450), egg(3), item("rice-pack", "パックご飯（200g）", 2, "個"),
+    bread(3), banana(3), yogurt(450), egg(3), rice(400),
   ] },
   { id: "home-3", name: "丼と自炊おかず（3食）", ingredients: [
-    item("rice-pack", "パックご飯（200g）", 3, "個"), chicken(100), onion(1), egg(2), tofu(300), thickTofu(150),
-    misoMackerel(1), item("tomato-can-pack", "カットトマト缶（未開封）", 1, "缶"), item("whole-cabbage", "キャベツ", 0.25, "玉"), ginger(1),
+    rice(600), chicken(100), onion(1), egg(2), tofu(300), thickTofu(150),
+    misoMackerel(1), tomatoCan(400), cabbage(300), ginger(1),
   ] },
 ];
 

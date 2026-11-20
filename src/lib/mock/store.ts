@@ -1,19 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { currentUserId, loadRemote, saveRemote } from "@/lib/sync/remote";
 import { syncImports, type SyncResult } from "@/lib/sync/ical";
 import { saveSchedule } from "@/lib/sync/push";
 import { closeGoneTaskNotices } from "@/lib/notify/close";
-import { LIFE_STORAGE_PREFIX, resetLifeLocalSession, type useLife } from "@/lib/life/store";
-import { planLifeExercise } from "@/lib/life/placement";
+import { LIFE_STORAGE_PREFIX, resetLifeLocalSession } from "@/lib/life/store";
+import { exerciseInputOf } from "@/lib/life/exercisePlan";
+import type { LifeProjection } from "@/lib/life/model";
 import { LOCAL_DEBUG } from "@/lib/localDebug";
 import { buildNotices } from "@/lib/notify/build";
-import type { Block, CalendarEvent } from "@/lib/scheduler";
+import type { Block, CalendarEvent, ExerciseInput } from "@/lib/scheduler";
 import type { CalendarId } from "./calendars";
 import type { MockData } from "./model";
 import { fingerprints, mergeConflict, type Fingerprints } from "./merge";
-import { contactDaysFor, travelAsks, fromStoredV2, keepLocalSleep, migrateV1, planEvents, replan, sampleData, toData, type MockState } from "./state";
+import { contactDaysFor, travelAsks, fromStoredV2, keepLocalSleep, migrateV1, planEvents, replan as replanData, sampleData, toData, type MockState } from "./state";
 
 export type { OwnEvent } from "./model";
 export { TAGS, fromStoredV2, migrateV1, planEvents, sampleData, toData, type MockState } from "./state";
@@ -75,6 +76,10 @@ function saveData(d: MockData) {
     // 保存できない環境（プライベートモードなど）では、そのまま使えるようにする
   }
 }
+
+/** 運動のプラン（生活記録から作る）。組み直すたびに配置エンジンへ渡す */
+let exerciseInput: ExerciseInput | undefined;
+const replan = (data: MockData, googleEvents: CalendarEvent[], now: number) => replanData(data, googleEvents, now, exerciseInput);
 
 function initialState(): MockState {
   const now = Date.now();
@@ -198,11 +203,20 @@ function writeEditedAt(ms: number) {
  * 開いたときにサーバーの内容を読み、変えたら少し待ってから保存する。
  * 別の端末で変えた内容は、アプリに戻ってきたときに読み直す（後から保存したほうが残る）。
  */
-export function useMockStore(life?: Pick<ReturnType<typeof useLife>, "projection" | "syncStatus" | "rememberExerciseChoices">) {
-  const lifeProjection = life?.projection;
-  const lifeSyncStatus = life?.syncStatus;
-  const rememberExerciseChoices = life?.rememberExerciseChoices;
+export function useMockStore(life?: { projection: LifeProjection; ready: boolean }) {
   const [state, setState] = useState<MockState>(initialState);
+  // 生活記録（運動のプラン・やった回・選んだ時間）が変わったら組み直す
+  const lifeProjection = life?.projection;
+  const lifeReady = life?.ready ?? true;
+  const exercise = useMemo(() => (lifeProjection ? exerciseInputOf(lifeProjection, state.habitLogs) : undefined), [lifeProjection, state.habitLogs]);
+  const exerciseKey = JSON.stringify(exercise ?? null);
+  useEffect(() => {
+    if (exerciseKey === JSON.stringify(exerciseInput ?? null)) return;
+    exerciseInput = exercise;
+    setState((prev) => replan(prev, prev.googleEvents, Date.now()));
+    // exercise は exerciseKey と同じ内容
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exerciseKey]);
   const [sync, setSync] = useState<SyncStatus>("loading");
   const [initialLoaded, setInitialLoaded] = useState(false);
   const undoData = useRef<MockData | undefined>(undefined);
@@ -379,19 +393,17 @@ export function useMockStore(life?: Pick<ReturnType<typeof useLife>, "projection
   const noticesSent = useRef("");
   useEffect(() => {
     if (!ready.current || sync === "loading") return;
-    if (lifeSyncStatus && lifeSyncStatus !== "saved" && lifeSyncStatus !== "local") return;
+    // 生活記録を読み終えるまで待つ（運動の枠が入る前の一覧を送らない）。同期できなくても、端末の控えで送る
+    if (!lifeReady) return;
     const save = () => {
       if (pulling.current) {
         t = window.setTimeout(save, NOTICE_DELAY_MS);
         return;
       }
-      const schedule = lifeProjection ? planLifeExercise(state, lifeProjection) : undefined;
-      if (schedule?.failed) return;
-      if (schedule?.automaticChoices.length && rememberExerciseChoices?.(schedule.automaticChoices)) return;
       if (LOCAL_DEBUG) return;
       const items = buildNotices({
         now: Date.now(),
-        result: schedule?.result ?? state.result,
+        result: state.result,
         events: planEvents(state, state.classEvents, state.googleEvents),
         places: state.places,
         settings: state.settings,
@@ -408,7 +420,7 @@ export function useMockStore(life?: Pick<ReturnType<typeof useLife>, "projection
     };
     let t = window.setTimeout(save, NOTICE_DELAY_MS);
     return () => window.clearTimeout(t);
-  }, [state, sync, lifeProjection, lifeSyncStatus, rememberExerciseChoices]);
+  }, [state, sync, lifeReady]);
 
   // 朝に開き直したときなど、古い「今」のままにしない
   useEffect(() => {

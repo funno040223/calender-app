@@ -5,7 +5,8 @@ import { parseIcs } from "@/lib/ical/import";
 import { nightsFromRows } from "@/lib/health/sleep";
 import { dateKeyOf } from "@/lib/mock/model";
 import { fromStoredV2, replan, type MockState } from "@/lib/mock/state";
-import { planLifeExercise } from "@/lib/life/placement";
+import { exerciseInputOf } from "@/lib/life/exercisePlan";
+import { isExerciseRef } from "@/lib/scheduler";
 import { projectLife } from "@/lib/life/projection";
 import { validateLifeEvent } from "@/lib/life/validation";
 
@@ -13,7 +14,7 @@ const DAY_MS = 24 * 60 * 60_000;
 
 export type ServerPlan =
   | { ok: true; state: MockState }
-  | { ok: false; reason: "data" | "ical" | "life"; data?: ReturnType<typeof fromStoredV2> };
+  | { ok: false; reason: "data" | "ical"; data?: ReturnType<typeof fromStoredV2> };
 
 /**
  * サーバーで、あるユーザーの配置を組み直す（定期実行と iCal 配信から使う）。
@@ -25,12 +26,12 @@ export async function planOnServer(db: SupabaseClient, userId: string, raw: unkn
   if (!stored) return { ok: false, reason: "data" };
   // ヘルスケアの睡眠は health_sleep にだけ届く。アプリを開く前でも寝坊に合わせて組み直せるように、直近の夜を重ねる
   const [nights, life] = await Promise.all([recentNights(db, userId, now), lifeSchedule(db, userId)]);
-  if (!life) return { ok: false, reason: "life" };
   const data = nights ? { ...stored, healthSleep: { ...stored.healthSleep, ...nights } } : stored;
-  const fallback = life.exercisePlan?.value.enabled ? undefined : data;
+  // 生活記録を読めなくても組み直しは止めない（運動の回だけ置かず、前の「家での運動」の習慣も戻さない）
+  const exercise = life ? exerciseInputOf(life, data.habitLogs) : data.blocks.some((b) => isExerciseRef(b.refId)) ? "unknown" : undefined;
 
   const { data: sources, error } = await db.from("ical_sources").select("id, url").eq("user_id", userId);
-  if (error || !sources) return { ok: false, reason: "ical", data: fallback };
+  if (error || !sources) return { ok: false, reason: "ical", data };
 
   const events: CalendarEvent[] = [];
   let failed = false;
@@ -52,11 +53,8 @@ export async function planOnServer(db: SupabaseClient, userId: string, raw: unkn
       else failed = true;
     }
   }
-  if (failed) return { ok: false, reason: "ical", data: fallback };
-  const state = replan(data, events, now);
-  const schedule = planLifeExercise(state, life, now);
-  if (schedule.failed) return { ok: false, reason: "life" };
-  return { ok: true, state: { ...state, blocks: schedule.calendarBlocks, result: schedule.result } };
+  if (failed) return { ok: false, reason: "ical", data };
+  return { ok: true, state: replan(data, events, now, exercise) };
 }
 
 async function lifeSchedule(db: SupabaseClient, userId: string) {

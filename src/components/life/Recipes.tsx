@@ -15,7 +15,7 @@ export default function Recipes() {
   const [filter, setFilter] = useState("");
   return (
     <>
-      <Card title="レシピを追加">
+      <Card title="レシピを足す">
         <form
           className={inset}
           onSubmit={(e) => {
@@ -38,14 +38,14 @@ export default function Recipes() {
             <input className={inputBase} required value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <button className={btnPrimary} disabled={!life.ready || !name.trim()}>
-            登録
+            足す
           </button>
         </form>
       </Card>
       <Card title="レシピ一覧">
         <div className={inset}>
           <label className={field}>
-            料理名・食材で検索
+            料理名・食材で探す
             <input
               className={inputBase}
               type="search"
@@ -71,7 +71,7 @@ export default function Recipes() {
                           {q.name} {q.amount}
                           {q.unit} ·{" "}
                           {
-                            { available: "家にある", missing: "不足", unknown: "不明" }[
+                            { available: "家にある", missing: "ない", unknown: "不明" }[
                               pantryStatus(q, life.projection)
                             ]
                           }
@@ -79,14 +79,14 @@ export default function Recipes() {
                       ))}
                     </ul>
                   ) : (
-                    <p>材料は未登録です。</p>
+                    <p>材料は未登録</p>
                   )}
                   {r.steps?.map((step) => (
                     <p key={step}>{step}</p>
                   ))}
                   {r.source && (
                     <a className="underline" href={r.source} target="_blank" rel="noreferrer">
-                      レシピの参照元
+                      参照元
                     </a>
                   )}
                   <RecipeEditor key={life.projection.recipes[r.id]?.eventId ?? r.id} recipe={r} />
@@ -95,7 +95,7 @@ export default function Recipes() {
                     className={choice(false)}
                     onClick={() => life.saveRecipe({ ...r, hidden: true })}
                   >
-                    候補から外す
+                    おすすめから外す
                   </button>
                 </div>
               </details>
@@ -109,7 +109,7 @@ export default function Recipes() {
                 className={choice(false)}
                 onClick={() => life.saveRecipe({ ...r, hidden: false })}
               >
-                {r.name}を候補に戻す
+                {r.name}をおすすめに戻す
               </button>
             ))}
         </div>

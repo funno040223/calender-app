@@ -66,7 +66,7 @@ export function ExercisePanel({
       <div className={inset}>
         {conflict ? (
           <>
-            <p>同じ運動の記録が複数あります。残す内容を選んでください。</p>
+            <p>記録が食い違っています。残すほうを選んでください。</p>
             {conflict.entries.map(({ eventId, value }) => {
               const exercise = value as Exercise;
               return (
@@ -77,7 +77,7 @@ export function ExercisePanel({
                   onClick={() => life.resolveExercise(exercise)}
                 >
                   {exercise.date} · {activityLabels[exercise.activity]} ·{" "}
-                  {exercise.variant === "normal" ? "通常" : "短縮"}{" "}
+                  {exercise.variant === "normal" ? "ふつう" : "短め"}{" "}
                   {exercise.details
                     ?.map(
                       (d) =>
@@ -99,7 +99,7 @@ export function ExercisePanel({
           </>
         ) : actual ? (
           <div role="status" className={choices}>
-            <strong>完了 · {actual.variant === "normal" ? "通常版" : "短縮版"}</strong>
+            <strong>やった · {actual.variant === "normal" ? "ふつう" : "短め"}</strong>
             <button className={choice(false)} onClick={() => life.undoExercise(roundId)}>
               取り消す
             </button>
@@ -108,7 +108,7 @@ export function ExercisePanel({
           <>
             <p className="text-sm">
               {activity === "strength"
-                ? "通常は全身4種目。短縮版は壁腕立てと椅子から立つ運動です。"
+                ? "ふつうは全身4種目。短めは壁腕立てと椅子から立つ運動です。"
                 : activity === "walking"
                   ? "外を歩くか、室内で足踏みします。"
                   : "ふくらはぎを左右交互に伸ばします。"}
@@ -120,7 +120,7 @@ export function ExercisePanel({
                 className={btnPrimary}
                 onClick={() => complete("normal")}
               >
-                通常で完了 · {normalMinutes}分
+                ふつうにやった · {normalMinutes}分
               </button>
               <button
                 type="button"
@@ -128,14 +128,14 @@ export function ExercisePanel({
                 className={choice(false)}
                 onClick={() => complete("short")}
               >
-                {shortMinutes}分版で完了
+                短め（{shortMinutes}分）でやった
               </button>
             </div>
           </>
         )}
         <div className={choices}>
           <button type="button" className={choice(guide)} aria-expanded={guide} onClick={() => setGuide(!guide)}>
-            種目の見本
+            やり方
           </button>
           {!conflict && (
             <button
@@ -148,7 +148,7 @@ export function ExercisePanel({
                 setVariant(actual?.variant ?? "normal");
               }}
             >
-              詳細入力
+              くわしく記録
             </button>
           )}
         </div>
@@ -157,7 +157,7 @@ export function ExercisePanel({
             {activity === "strength" && (
               <label className="flex min-h-11 items-center gap-2">
                 <input type="checkbox" checked={short} onChange={(e) => setShort(e.target.checked)} />
-                短縮版の種目
+                短めの種目
               </label>
             )}
             <MovementGuide activity={activity} short={short} />
@@ -191,14 +191,14 @@ export function ExercisePanel({
               </p>
             )}
             <label className={field}>
-              実施したメニュー
+              やったもの
               <select
                 className={inputBase}
                 value={variant}
                 onChange={(e) => setVariant(e.target.value as Exercise["variant"])}
               >
-                <option value="normal">通常</option>
-                <option value="short">短縮</option>
+                <option value="normal">ふつう</option>
+                <option value="short">短め</option>
               </select>
             </label>
             {exercises[activity]
@@ -228,7 +228,7 @@ export function ExercisePanel({
                 </fieldset>
               ))}
             <button type="submit" disabled={!life.ready} className={btnPrimary}>
-              運動の実績を保存
+              保存
             </button>
           </form>
         )}

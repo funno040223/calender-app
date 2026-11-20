@@ -22,7 +22,7 @@ export default function RecipeEditor({ recipe }: { recipe: Recipe }) {
     setIngredients((current) => current.map((q, i) => (i === index ? { ...q, ...patch } : q)));
   return (
     <details>
-      <summary className="cursor-pointer py-2">料理名・材料を編集</summary>
+      <summary className="cursor-pointer py-2">料理名・材料を直す</summary>
       <form
         className="flex flex-col gap-2"
         onChange={() => setSaved(false)}
@@ -32,7 +32,11 @@ export default function RecipeEditor({ recipe }: { recipe: Recipe }) {
             ...q,
             name: q.name.trim(),
             unit: q.unit.trim(),
-            ingredientId: known.get(q.name.trim())?.ingredientId ?? q.ingredientId,
+            // 名前を変えて知らない食材になったら新しい ID にする（もとの食材の在庫と混ざらないように）
+            ingredientId:
+              recipe.ingredients.find((o) => o.ingredientId === q.ingredientId)?.name === q.name.trim()
+                ? q.ingredientId
+                : (known.get(q.name.trim())?.ingredientId ?? crypto.randomUUID()),
           }));
           if (new Set(rows.map((q) => q.ingredientId)).size !== rows.length) {
             event.currentTarget.reportValidity();
@@ -125,10 +129,10 @@ export default function RecipeEditor({ recipe }: { recipe: Recipe }) {
             材料を追加
           </button>
           <button disabled={!life.ready || !name.trim()} className={btnPrimary}>
-            レシピを保存
+            保存
           </button>
         </div>
-        {saved && <p role="status">レシピを保存しました</p>}
+        {saved && <p role="status">保存しました</p>}
       </form>
     </details>
   );

@@ -8,6 +8,7 @@ import { validateLifeEvent } from "@/lib/life/validation";
 import Breakfast from "./Breakfast";
 import MealActual from "./MealActual";
 import Shopping from "./Shopping";
+import { applyMealChoice, mealDayOf, slotAtMinutes } from "./mealSlot";
 import MovementGuide from "./MovementGuide";
 import { ExercisePanel } from "./Exercise";
 
@@ -56,30 +57,30 @@ it("人分を直すと実際に保存していた材料量を基準に換算す�
     />,
   );
   fireEvent.change(screen.getByLabelText("食べた量（人分）"), { target: { value: "1" } });
-  fireEvent.click(screen.getByRole("button", { name: "実食を訂正" }));
+  fireEvent.click(screen.getByRole("button", { name: "記録を直す" }));
   expect(actions.recordMeal).toHaveBeenCalledWith(
     expect.objectContaining({ consumptions: [{ ...quantity, amount: 1.5 }] }),
   );
 });
-it("一括購入は連続して押しても再送せず、取り消すと次の確定が可能", () => {
+it("一括購入は連続して押しても再送せず、取り消すともう一度買える", () => {
   render(<Shopping date="2026-11-24" />);
-  fireEvent.change(screen.getByLabelText("まとめ買い"), { target: { value: "breakfast-3" } });
-  const buy = screen.getByRole("button", { name: /購入を一括反映/ });
+  fireEvent.change(screen.getByLabelText("いつもの買い物"), { target: { value: "breakfast-3" } });
+  const buy = screen.getByRole("button", { name: /買った/ });
   fireEvent.click(buy);
   fireEvent.click(buy);
   expect(actions.buy).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole("button", { name: "購入を取り消す" }));
+  fireEvent.click(screen.getByRole("button", { name: "取り消す" }));
   expect(actions.undoPurchase).toHaveBeenCalledWith(actions.buy.mock.calls[0]?.[1]);
   fireEvent.click(buy);
   expect(actions.buy).toHaveBeenCalledTimes(2);
 });
 it("種目別の回数・負荷を保存可能なIDで実績に渡す", () => {
   render(<ExercisePanel date="2026-11-24" activity="strength" roundId="manual:2026-11-24:strength" />);
-  fireEvent.click(screen.getByRole("button", { name: "詳細入力" }));
+  fireEvent.click(screen.getByRole("button", { name: "くわしく記録" }));
   const row = within(screen.getByRole("group", { name: "リュックを引く" }));
   fireEvent.change(row.getByLabelText("回数"), { target: { value: "8" } });
   fireEvent.change(row.getByLabelText("負荷（kg）"), { target: { value: "2" } });
-  fireEvent.click(screen.getByRole("button", { name: "運動の実績を保存" }));
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
   expect(actions.completeExercise).toHaveBeenCalledTimes(1);
   const payload = actions.completeExercise.mock.calls[0]?.[0];
   expect(payload).toMatchObject({ details: [{ id: "row", reps: 8, loadKg: 2 }] });
@@ -101,4 +102,25 @@ it("動きを減らす設定では静止姿勢を手で送れる", () => {
   fireEvent.click(screen.getByRole("button", { name: "次の姿勢（1/3）" }));
   expect(screen.getByRole("button", { name: "次の姿勢（2/3）" })).toBeTruthy();
   expect(container.querySelector("animate")).toBeNull();
+});
+
+it("食事の選択を組み直しの項目（家で・外で）に伝える", () => {
+  const base: { mealsAtHome: Record<string, string[]>; habitSkips: Record<string, string[]> } = { mealsAtHome: {}, habitSkips: { d: ["lunch"] } };
+  const home = applyMealChoice(base, "d", "lunch", "home");
+  expect(home.mealsAtHome.d).toEqual(["lunch"]);
+  expect(home.habitSkips.d).toEqual([]);
+  const out = applyMealChoice(home, "d", "lunch", "delivery");
+  expect(out.mealsAtHome.d).toEqual([]);
+  expect(out.habitSkips.d).toEqual(["lunch"]);
+});
+it("0時を過ぎても夕食までは前の日の食事の日", () => {
+  const day = 1_700_000_000_000;
+  const days = [{ dayStart: day, wake: day + 7 * 3600_000, bed: day + 25 * 3600_000 }];
+  const late = mealDayOf(day + 24.5 * 3600_000, days, 540);
+  expect(late.dayStart).toBe(day);
+  expect(slotAtMinutes(late.minutes)).toBe("dinner");
+});
+it("料理を選ぶまで食べたものを記録できない", () => {
+  render(<MealActual date="2026-11-24" slot="lunch" recipes={[BREAKFAST_RECIPES[0]]} />);
+  expect((screen.getByRole("button", { name: "記録する" }) as HTMLButtonElement).disabled).toBe(true);
 });

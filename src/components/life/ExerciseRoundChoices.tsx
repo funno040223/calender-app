@@ -1,59 +1,64 @@
 "use client";
 
 import { useLife } from "@/lib/life/store";
-import type { ExerciseRound } from "@/lib/life/placement";
+import type { ExerciseRound } from "@/lib/scheduler";
 import { formatTime } from "@/lib/mock/jst";
 import { Card } from "@/components/ui/controls";
-import { choice, inset } from "./Controls";
+import { choice, inset, summary } from "./Controls";
 
-const statusLabels = {
-  normal: "通常",
-  short: "短縮",
-  postponed: "振替",
-  skipped: "見送り",
-  confirm: "要確認",
-  completed: "完了",
+const statusLabels: Record<ExerciseRound["status"], string> = {
+  normal: "予定どおり",
+  short: "短め",
+  postponed: "別の日に移しました",
+  skipped: "今週は休み",
+  confirm: "選んでください",
+  completed: "やった",
+};
+
+const dayLabel = (date: string) => {
+  const d = new Date(date + "T00:00:00+09:00");
+  return `${d.getMonth() + 1}/${d.getDate()}（${"日月火水木金土"[d.getDay()]}）`;
 };
 
 export default function ExerciseRoundChoices({ round }: { round: ExerciseRound }) {
   const life = useLife();
-  const chosen = life.projection.exerciseChoices[round.roundId];
+  const chosen = life.projection.exerciseChoices[round.roundId]?.value;
+  const own = chosen && !chosen.automatic;
   return (
     <Card title="運動の予定">
       <div className={inset}>
         <strong>
-          {round.block && formatTime(round.block.start) + " · "}筋トレ · {statusLabels[round.status]}
+          {round.block && formatTime(round.block.start) + " · "}
+          {own && round.block ? "選んだ時間" : statusLabels[round.status]}
         </strong>
-        {round.reason && <p className="text-sm">{round.reason}</p>}
-        {round.status !== "completed" && (
-          <details>
-            <summary className="cursor-pointer py-2">予定を変更</summary>
+        {round.reason && <p className="text-sm text-muted">{round.reason}</p>}
+        {round.status !== "completed" && round.options.length > 0 && (
+          <details open={round.status === "confirm"}>
+            <summary className={summary}>時間を変える</summary>
             <div className="flex flex-col gap-2">
-              {round.alternatives.map((a, i) => (
-                <button
-                  type="button"
-                  className={choice(false) + " disabled:opacity-50"}
-                  key={i}
-                  disabled={!life.ready || a.available === false}
-                  onClick={() => life.setExerciseChoice({ roundId: round.roundId, mode: a.mode, start: a.start })}
-                >
-                  {a.mode === "skip"
-                    ? "今回は見送る"
-                    : a.date +
-                      " " +
-                      (a.start ? formatTime(a.start) + " " : "") +
-                      (a.mode === "normal" ? "通常版" : "短縮版")}
-                  {a.shortfallMinutes > 0 && " · 作業が" + a.shortfallMinutes + "分不足"}
-                  {a.movedBlocks > 0 && " · " + a.movedBlocks + "枠を" + a.movedMinutes + "分移動"}
-                  {a.available === false && " · 既存の予定や締切を守るため選択不可"}
-                </button>
-              ))}
+              {round.options.map((a) => {
+                const current = !!round.block && a.start === round.block.start && a.end === round.block.end;
+                return (
+                  <button
+                    type="button"
+                    className={choice(current) + " disabled:opacity-50"}
+                    key={`${a.mode}:${a.date}:${a.start ?? ""}`}
+                    disabled={!life.ready || current}
+                    aria-pressed={current}
+                    onClick={() => life.setExerciseChoice({ roundId: round.roundId, mode: a.mode, start: a.start })}
+                  >
+                    {a.mode === "skip"
+                      ? "今週は休む"
+                      : `${dayLabel(a.date)} ${a.start !== undefined ? formatTime(a.start) : ""} ${a.mode === "normal" ? "ふつう" : "短め"}（${Math.round(((a.end ?? 0) - (a.start ?? 0)) / 60_000)}分）`}
+                  </button>
+                );
+              })}
             </div>
           </details>
         )}
-        {chosen && (
+        {own && (
           <button type="button" className={choice(false)} onClick={() => life.undoExerciseChoice(round.roundId)}>
-            変更を元に戻す
+            自動に戻す
           </button>
         )}
       </div>

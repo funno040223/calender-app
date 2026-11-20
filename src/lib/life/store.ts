@@ -44,6 +44,19 @@ const listen = (listener: () => void) => {
 const getSnapshot = () => snapshot;
 const getServerSnapshot = () => INITIAL;
 
+/**
+ * ログアウトの前に、まだ送れていない生活記録を送ってみる。送れなかった件数を返す（ログアウトで消えるので、確かめてもらう）
+ */
+export async function flushLifeBeforeSignOut(): Promise<number> {
+  if (!owner || LOCAL_DEBUG) return 0;
+  try {
+    if (readQueue().length) await sync();
+    return readQueue().reduce((n, packet) => n + packet.events.length, 0);
+  } catch {
+    return 0;
+  }
+}
+
 export function resetLifeLocalSession() {
   generation++;
   owner = undefined;
@@ -354,8 +367,6 @@ const actions = {
   },
   saveExercisePlan: (plan: ExercisePlan) => saveEntries([{ kind: "exercisePlan", value: plan }], { resolve: true }),
   setExerciseChoice: (choice: ExerciseChoice) => saveEntries([{ kind: "exerciseChoice", value: choice }], { resolve: true }),
-  rememberExerciseChoices: (choices: ExerciseChoice[]) => saveEntries(choices.map((value) => ({ kind: "exerciseChoice", value })),
-    { resolve: true, automaticOnly: true }),
   undoExerciseChoice: (roundId: string) => {
     const value = snapshot.projection.exerciseChoices[roundId]?.value;
     if (value?.automatic && value.previousStart !== undefined && value.previousMode) {

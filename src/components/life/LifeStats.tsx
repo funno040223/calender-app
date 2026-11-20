@@ -11,7 +11,8 @@ import { choice, choices, field, inset } from "./Controls";
 const goals = { outings: "外出後の余力", shoulder: "肩の楽さ", pushups: "腕立ての変化" };
 const answers = { easy: "楽", usual: "いつも通り", hard: "きつい", skip: "今回は飛ばす" };
 
-export default function LifeStats() {
+/** 2週間の見直し。home ではその日が来ていて、まだ答えていないときだけ出す */
+export function LifeReviewCard({ home = false }: { home?: boolean }) {
   const life = useLife();
   const p = life.projection;
   const today = dateKeyOf(useNow());
@@ -57,18 +58,8 @@ export default function LifeStats() {
       </div>
     </div>
   );
+  if (home && (!due || answer)) return null;
   return (
-    <>
-      <Card title="食事と運動">
-        <div className={inset}>
-          <Link prefetch={false} href="/meals?view=history" className={choice(false)}>
-            食事の記録 · {Object.keys(p.meals).length}件
-          </Link>
-          <Link prefetch={false} href="/exercise?view=history" className={choice(false)}>
-            運動の記録 · {Object.keys(p.exercise).length}件
-          </Link>
-        </div>
-      </Card>
       <Card title="2週間の見直し">
         {previous && (
           <p className="px-4 py-2 text-sm">
@@ -79,11 +70,30 @@ export default function LifeStats() {
           form
         ) : (
           <details>
-            <summary className="cursor-pointer px-4 py-3">今日の回答を入力・訂正</summary>
+            <summary className="flex min-h-11 cursor-pointer items-center px-4">今日の答えを入れる・直す</summary>
             {form}
           </details>
         )}
       </Card>
+  );
+}
+
+export default function LifeStats() {
+  const life = useLife();
+  const p = life.projection;
+  return (
+    <>
+      <Card title="食事と運動">
+        <div className={inset}>
+          <Link href="/meals?view=history" className={choice(false)}>
+            食事の記録 · {Object.keys(p.meals).length}件
+          </Link>
+          <Link href="/exercise?view=history" className={choice(false)}>
+            運動の記録 · {Object.keys(p.exercise).length}件
+          </Link>
+        </div>
+      </Card>
+      <LifeReviewCard />
     </>
   );
 }

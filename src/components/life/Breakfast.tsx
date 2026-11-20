@@ -17,13 +17,12 @@ export default function Breakfast({ date }: { date: string }) {
   const actual = life.projection.meals[`${date}:breakfast`]?.value;
   if (life.projection.conflicts[`meal:${date}:breakfast`])
     return (
-      <Card title="朝食の記録を確認">
+      <Card title="朝食の記録">
         <Link
           className="min-h-11 px-4 py-3 underline"
           href={`/meals?view=history&slot=breakfast&date=${date}`}
-          prefetch={false}
         >
-          異なる実食記録を確認
+          食い違う記録を見る
         </Link>
       </Card>
     );
@@ -88,7 +87,7 @@ export default function Breakfast({ date }: { date: string }) {
         <p role="status" className="px-4 pb-3 text-sm">
           {life.error}{" "}
           <button className={choice(false)} onClick={life.retry}>
-            再試行
+            もう一度
           </button>
         </p>
       )}

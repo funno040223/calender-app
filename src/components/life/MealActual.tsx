@@ -8,7 +8,7 @@ import { btnPrimary, inputBase } from "@/components/ui/controls";
 import { choice, choices, field } from "./Controls";
 
 export function actualName(meal: Meal) {
-  if (meal.status === "skipped") return "欠食";
+  if (meal.status === "skipped") return "食べない";
   if (meal.status === "eaten_out") return meal.method === "delivery" ? "宅配" : "外食";
   return meal.recipe?.name ?? "自宅";
 }
@@ -34,7 +34,7 @@ export default function MealActual({
       ? "skipped"
       : existing?.status === "eaten_out"
         ? (existing.method ?? "restaurant")
-        : (existing?.recipe?.id ?? suggested ?? recipes[0]?.id ?? "home"),
+        : (existing?.recipe?.id ?? suggested ?? ""),
   );
   const [servings, setServings] = useState(String(existing?.recipe?.servings ?? plannedServings ?? 1));
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
@@ -90,6 +90,9 @@ export default function MealActual({
             setSaved(false);
           }}
         >
+          <option value="" disabled>
+            選んでください
+          </option>
           {recipes.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
@@ -98,10 +101,10 @@ export default function MealActual({
           {existing?.recipe && !recipes.some((r) => r.id === existing.recipe?.id) && (
             <option value={existing.recipe.id}>{existing.recipe.name}</option>
           )}
-          <option value="home">自宅・料理名なし</option>
+          <option value="home">家（料理名なし）</option>
           <option value="restaurant">外食</option>
           <option value="delivery">宅配</option>
-          <option value="skipped">欠食</option>
+          <option value="skipped">食べない</option>
         </select>
       </label>
       {(recipe || existing?.recipe?.id === selection) && (
@@ -143,8 +146,8 @@ export default function MealActual({
         </>
       )}
       <div className={choices}>
-        <button className={btnPrimary} disabled={!life.ready}>
-          {existing ? "実食を訂正" : "実食を記録"}
+        <button className={btnPrimary} disabled={!life.ready || !selection}>
+          {existing ? "記録を直す" : "記録する"}
         </button>
         {existing && (
           <button type="button" className={choice(false)} onClick={() => life.undoMeal(date, slot)}>
@@ -154,7 +157,7 @@ export default function MealActual({
       </div>
       {saved && (
         <span role="status" className="text-sm">
-          実食を保存しました
+          保存しました
         </span>
       )}
     </form>

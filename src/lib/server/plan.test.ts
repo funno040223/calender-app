@@ -44,8 +44,13 @@ it("失敗して、前回の結果もなければ組み直さない", async () =
   expect(r).toMatchObject({ ok: false, reason: "ical" });
 });
 
-it("生活の運動予定が取得できないときは、空の予定で配信データを上書きしない", async () => {
+it("生活記録を読めなくても組み直しは止めない（運動のプランを使っていたら、前の「家での運動」も戻さない）", async () => {
   const { db } = fakeDb(last);
   const unavailable = { ...db, rpc: async () => ({ data: null, error: { code: "timeout" } }) };
-  expect(await planOnServer(unavailable as never, "u", sampleData(now), now)).toEqual({ ok: false, reason: "life" });
+  const plain = await planOnServer(unavailable as never, "u", sampleData(now), now);
+  expect(plain.ok).toBe(true);
+  const withPlan = { ...sampleData(now), blocks: [{ kind: "habit" as const, refId: "life-exercise:strength-x-1", title: "家での運動", start: now - 3_600_000, end: now - 2_700_000 }] };
+  const p = await planOnServer(unavailable as never, "u", withPlan, now);
+  expect(p.ok).toBe(true);
+  if (p.ok) expect(p.state.result.blocks.some((b) => b.refId === "habit-home-exercise")).toBe(false);
 });

@@ -5,7 +5,8 @@ import { useNow } from "./useNow";
 import { updateQuery, selectedDate } from "./navigation";
 import { useApp } from "@/components/app/StoreProvider";
 import { dateKeyOf } from "@/lib/mock/model";
-import { dayStartOf, MIN } from "@/lib/mock/jst";
+import { MIN } from "@/lib/mock/jst";
+import { wakingDayStart } from "@/lib/scheduler";
 import { MEAL_SLOTS, type MealSlot } from "@/lib/life/model";
 import { useLife } from "@/lib/life/store";
 import { Card, inputBase } from "@/components/ui/controls";
@@ -14,7 +15,7 @@ import { MealPanel } from "./Meals";
 import { actualName } from "./MealActual";
 import Shopping from "./Shopping";
 import Recipes from "./Recipes";
-import { mealLabels, mealSlotOf } from "./mealSlot";
+import { mealDayOf, mealLabels, mealSlotOf, slotAtMinutes } from "./mealSlot";
 
 const views = ["次の食事", "買い物", "レシピ", "履歴"] as const;
 const keys = ["next", "shopping", "recipes", "history"];
@@ -24,7 +25,8 @@ export default function MealsScreen() {
   const { state } = useApp();
   const life = useLife();
   const now = useNow();
-  const today = dateKeyOf(now);
+  const tz = state.settings.tzOffsetMinutes;
+  const { date: today, minutes } = mealDayOf(now, state.result.dayPlans, tz);
   const raw = query.get("view");
   const view = raw === "pantry" ? views[1] : views[Math.max(0, keys.indexOf(raw ?? ""))];
   const date = selectedDate(query.get("date"), today);
@@ -32,17 +34,16 @@ export default function MealsScreen() {
     .filter(
       (b) =>
         b.kind === "habit" &&
-        dateKeyOf(b.start) === date &&
+        dateKeyOf(wakingDayStart(b.start, state.result.dayPlans, tz)) === date &&
         mealSlotOf(state.habits.find((h) => h.id === b.refId)),
     )
     .sort((a, b) => a.start - b.start);
   const next = blocks.find((b) => b.end > now);
   const rawSlot = query.get("slot") as MealSlot;
-  const hour = (now - dayStartOf(now)) / MIN / 60;
   const slot = MEAL_SLOTS.includes(rawSlot)
     ? rawSlot
     : (mealSlotOf(state.habits.find((h) => h.id === next?.refId)) ??
-      (hour < 11 ? "breakfast" : hour < 15 ? "lunch" : "dinner"));
+      slotAtMinutes(minutes));
   const block = blocks.find((b) => mealSlotOf(state.habits.find((h) => h.id === b.refId)) === slot);
   const history = Object.values(life.projection.meals)
     .map((row) => row.value)
@@ -59,7 +60,7 @@ export default function MealsScreen() {
         <p role="status" className="text-sm">
           {life.error}{" "}
           <button type="button" className={choice(false)} onClick={life.retry}>
-            再試行
+            もう一度
           </button>
         </p>
       )}
@@ -69,28 +70,42 @@ export default function MealsScreen() {
         <Recipes />
       ) : (
         <>
-          <div className={choices}>
-            <label className={field}>
-              日付
-              <input
-                type="date"
-                className={inputBase}
-                value={date}
-                onChange={(e) => {
-                  if (e.target.value) updateQuery({ date: e.target.value });
-                }}
-              />
-            </label>
-            <label className={field}>
-              食事枠
-              <select className={inputBase} value={slot} onChange={(e) => updateQuery({ slot: e.target.value })}>
-                {MEAL_SLOTS.map((s) => (
-                  <option value={s} key={s}>
-                    {mealLabels[s]}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[15px] font-semibold">
+              {date === today ? "今日" : date} · {mealLabels[slot]}
+            </p>
+            <details className="text-sm">
+              <summary className="press flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-tint">
+                ほかの日・食事
+              </summary>
+              <div className={choices + " pb-2"}>
+                <label className={field}>
+                  日付
+                  <input
+                    type="date"
+                    className={inputBase + " min-h-11"}
+                    value={date}
+                    onChange={(e) => {
+                      if (e.target.value) updateQuery({ date: e.target.value });
+                    }}
+                  />
+                </label>
+                <label className={field}>
+                  食事
+                  <select
+                    className={inputBase + " min-h-11"}
+                    value={slot}
+                    onChange={(e) => updateQuery({ slot: e.target.value })}
+                  >
+                    {MEAL_SLOTS.map((s) => (
+                      <option value={s} key={s}>
+                        {mealLabels[s]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </details>
           </div>
           <MealPanel
             key={date + slot}
@@ -99,9 +114,9 @@ export default function MealsScreen() {
             minutes={block ? (block.end - block.start) / MIN : undefined}
           />
           {view === "履歴" && (
-            <Card title="食事の履歴">
+            <Card title="食べた記録">
               <div className={inset}>
-                {!history.length && <p>まだ記録がありません。</p>}
+                {!history.length && <p>まだありません。</p>}
                 {history.map((m) => (
                   <button
                     type="button"

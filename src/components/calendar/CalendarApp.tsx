@@ -12,7 +12,8 @@ import { eventIndex, formatEventShort, groupKeyOf, tasksByEvent } from "@/lib/mo
 import { allowsFive, dateKeyOf, parseClassEventId, type HabitMark } from "@/lib/mock/model";
 import { formatDate, MIN, newId } from "@/lib/mock/jst";
 import { keepBlockFree, missHabitBlock } from "@/lib/mock/state";
-import type { ExerciseRound } from "@/lib/life/placement";
+import { isExerciseRef, type ExerciseRound } from "@/lib/scheduler";
+import { useLife } from "@/lib/life/store";
 import { mealSlotOf } from "@/components/life/mealSlot";
 import CalendarView, { type CalendarHandle, type CalendarMode, type EventSource } from "./CalendarView";
 import CalendarToggles from "./CalendarToggles";
@@ -38,7 +39,6 @@ type Viewing =
   | { kind: "exercise"; round: ExerciseRound; block: Block }
   | { kind: "event"; source: EventSource; eventId: string };
 
-const LEGACY_EXERCISE_REFS = new Set(["habit-home-exercise", "habit-walk"]);
 
 
 /** これより早い2回目のタップは、同じタップの重なりとみなす */
@@ -57,13 +57,13 @@ function FocusStyle({ group }: { group?: string }) {
 }
 
 export default function CalendarApp() {
-  const { state, lifeSchedule, update, setHidden, openTask } = useApp();
+  const { state, update, setHidden, openTask } = useApp();
+  const life = useLife();
   const exerciseByRef = useMemo(() => {
     const rounds = new Map<string, ExerciseRound>();
-    for (const round of lifeSchedule?.rounds ?? []) if (round.block) rounds.set(round.block.refId, round);
+    for (const round of state.result.exerciseRounds ?? []) if (round.block) rounds.set(round.block.refId, round);
     return rounds;
-  }, [lifeSchedule]);
-  const readOnlyBlockRefs = useMemo(() => new Set(exerciseByRef.keys()), [exerciseByRef]);
+  }, [state.result.exerciseRounds]);
   const calRef = useRef<CalendarHandle>(null);
   const [phone] = useState(() => window.matchMedia("(max-width: 639px)").matches);
   const [view, setView] = useState<CalendarMode>(phone ? "day3" : "week");
@@ -165,6 +165,15 @@ export default function CalendarApp() {
 
   // ---- 枠（タスク・習慣） ----
   const moveBlock = (block: Block, start: number, end: number) => {
+    // 運動の回は、動かした時刻を自分で選んだことにする（長さは ふつう・短め のどちらか近いほう）
+    const round = exerciseByRef.get(block.refId);
+    const plan = life.projection.exercisePlan?.value;
+    if (round && plan) {
+      const minutes = (end - start) / MIN;
+      const mode = Math.abs(minutes - plan.shortMinutes) < Math.abs(minutes - plan.normalMinutes) ? "short" : "normal";
+      life.setExerciseChoice({ roundId: round.roundId, mode, start });
+      return;
+    }
     update((d) => ({
       ...d,
       blocks: d.blocks.map((b) => (sameBlock(b, block) ? { ...b, start, end, pinned: true } : b)),
@@ -188,7 +197,7 @@ export default function CalendarApp() {
   const viewingClass = viewing?.kind === "event" && viewing.source === "class" ? state.classEvents.find((e) => e.id === viewing.eventId) : undefined;
   const viewingMealSlot = viewing?.kind === "block" ? mealSlotForBlock(viewing.block) : undefined;
   const viewingExerciseRound = viewing?.kind === "exercise"
-    ? lifeSchedule?.rounds.find((round) => round.roundId === viewing.round.roundId) ?? viewing.round
+    ? state.result.exerciseRounds?.find((round) => round.roundId === viewing.round.roundId) ?? viewing.round
     : undefined;
   const wakingDate = dateKeyOf(wakingDayStart(state.plannedAt, state.result.dayPlans, state.settings.tzOffsetMinutes));
   const relatedList = (eventId: string) => (
@@ -268,8 +277,6 @@ export default function CalendarApp() {
             }}
             onDeadlineClick={editTask}
             state={state}
-            blocks={lifeSchedule?.calendarBlocks ?? state.result.blocks}
-            readOnlyBlockRefs={readOnlyBlockRefs}
             hidden={hidden}
             onCreate={(start, end, allDay) =>
               setEditing({ event: { id: "", title: "", start, end, ...(allDay ? { allDay } : {}) }, isNew: true })
@@ -283,16 +290,10 @@ export default function CalendarApp() {
             }}
             onOwnEventChange={moveEvent}
             onBlockClick={(block) => {
-              const round = exerciseByRef.get(block.refId);
-              if (round || mealSlotForBlock(block) || (block.kind === "habit" && LEGACY_EXERCISE_REFS.has(block.refId))) {
-                setFocusGroup(undefined);
-                setSelected(undefined);
-                setViewing(round ? { kind: "exercise", round, block } : { kind: "block", block });
-                return;
-              }
               setFocusGroup(groupOfBlock(block));
               if (!tapOpens(`block:${block.kind}:${block.refId}:${block.start}`)) return;
-              setViewing({ kind: "block", block });
+              const round = isExerciseRef(block.refId) ? exerciseByRef.get(block.refId) : undefined;
+              setViewing(round ? { kind: "exercise", round, block } : { kind: "block", block });
             }}
             onBlockChange={moveBlock}
             onEmptyClick={() => {
@@ -352,7 +353,7 @@ export default function CalendarApp() {
             {viewingExerciseRound.date === wakingDate && (
               <ExercisePanel
                 date={wakingDate}
-                activity={viewingExerciseRound.activity}
+                activity="strength"
                 roundId={viewingExerciseRound.roundId}
                 minutes={viewingExerciseRound.block && (viewingExerciseRound.block.end - viewingExerciseRound.block.start) / MIN}
               />

@@ -20,10 +20,7 @@ export default function ServiceWorker() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
     if (pathname === "/login" || !navigator.onLine) return;
-    void navigator.serviceWorker.ready.then((reg) => {
-      reg.active?.postMessage("warm");
-      if (pathname === "/meals" || pathname === "/exercise") reg.active?.postMessage(pathname);
-    });
+    void navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage("warm"));
   }, [pathname]);
 
   return null;

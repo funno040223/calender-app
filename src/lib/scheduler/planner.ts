@@ -21,6 +21,7 @@ import { intersect, lengthMinutes, merge, subtract } from "./intervals";
 import { computeDayPlans, latestWakeOfDay, wakingDayStart } from "./rhythm";
 import { resolveTravel } from "./travel";
 import { dayLoadOf } from "./dayload";
+import { exercisePlacer, isExerciseRef } from "./exercise";
 
 const FALLBACK_TASK_MINUTES = 60;
 const FALLBACK_TAG: Omit<Tag, "id" | "name"> = {
@@ -187,7 +188,7 @@ export function plan(input: PlanInput): PlanResult {
   // 消えたタスク・習慣の枠は、始まっていても固定していても残さない
   const taskIds = new Set(input.tasks.map((t) => t.id));
   const habitIds = new Set(input.habits.map((h) => h.id));
-  const exists = (b: Block) => (b.kind === "task" ? taskIds.has(b.refId) : habitIds.has(b.refId));
+  const exists = (b: Block) => (b.kind === "task" ? taskIds.has(b.refId) : habitIds.has(b.refId) || (!!input.exercise && isExerciseRef(b.refId)));
   let kept = previous.filter((b) => (b.start <= now || b.pinned) && exists(b));
 
   // ---- 行動ポイント ----
@@ -471,6 +472,27 @@ export function plan(input: PlanInput): PlanResult {
   /** 「今日は飛ばす」にした日 */
   const skipped = (habit: Habit, d: DayPlan) => (input.skipHabitDays?.[habit.id]?.includes(d.dayStart) ?? false) || (habit.skippable && pauses.some((r) => r.start < d.bed && r.end > Math.max(now, d.wake)));
 
+  // ---- 運動の回 ----
+  // 自分で時刻を選んだ回は、予定と同じく先に置く。残りの回はタスクのあと（締切の作業時間を奪わない）
+  const exercise = input.exercise
+    ? exercisePlacer({
+        input: input.exercise,
+        now,
+        days,
+        settings: s,
+        free: () => free,
+        take: (block) => {
+          blocks.push(block);
+          free = subtract(free, [block]);
+          pastFree = subtract(pastFree, [block]);
+        },
+        kept,
+        movable,
+        hasShortfall: () => shortfalls.length > 0,
+      })
+    : undefined;
+  exercise?.placeChosen();
+
   // ---- 習慣 ----
   // 飛ばせないものから置く。待ち時間に入れる子の習慣は最後
   // 朝ルーティンのあとの習慣（朝食）は最初に置き、昼食がそのあと3時間あけて入るようにする。
@@ -601,7 +623,6 @@ export function plan(input: PlanInput): PlanResult {
     return true;
   };
 
-  const beforeTasks = input.includeExerciseGaps ? [...free] : undefined;
   // ---- タスク ----
   const avoidWindows = input.avoidWindows ?? [];
   const focusZonesOf = (d: DayPlan) => ({
@@ -797,6 +818,8 @@ export function plan(input: PlanInput): PlanResult {
     }
   }
 
+  const exerciseRounds = exercise?.placeAuto();
+
   // ---- 余裕のある日だけの習慣（自炊など） ----
   for (const habit of energyHabits) {
     const dur = habit.durationMinutes * MIN;
@@ -863,7 +886,7 @@ export function plan(input: PlanInput): PlanResult {
     return entry;
   });
 
-  return { lastNight: { dayStart: prevDay.dayStart, bed: prevDay.bed }, rhythmResets: resets, movedBlocks: movable.filter((b) => b.start >= now && b.start < firstDay + DAY_MS && !blocks.some((x) => x.kind === b.kind && x.refId === b.refId && x.start === b.start && x.end === b.end)), dayPlans: days, blocks, skippedHabits, shortfalls, travelQuestions, freeGaps, dayEnergy, ...(beforeTasks ? { exerciseGaps: { beforeTasks, afterTasks: free } } : {}) };
+  return { lastNight: { dayStart: prevDay.dayStart, bed: prevDay.bed }, rhythmResets: resets, movedBlocks: movable.filter((b) => b.start >= now && b.start < firstDay + DAY_MS && !blocks.some((x) => x.kind === b.kind && x.refId === b.refId && x.start === b.start && x.end === b.end)), dayPlans: days, blocks, skippedHabits, shortfalls, travelQuestions, freeGaps, dayEnergy, ...(exerciseRounds ? { exerciseRounds } : {}) };
 }
 
 function chooseHabitDays(

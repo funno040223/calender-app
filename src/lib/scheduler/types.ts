@@ -336,9 +336,52 @@ export interface SkippedHabit {
   reason: "no_room" | "deadline";
 }
 
+/** 運動のプラン（生活管理の「運動」）。週に何回かの「回」を、タスクのあとの空きに置く */
+export interface ExerciseInput {
+  normalMinutes: number;
+  shortMinutes: number;
+  weeklyTimes: number;
+  /** 続けての日を避ける */
+  nonConsecutive: boolean;
+  /** 置いてよい時間帯（その日の 0:00 からの分） */
+  windowStart: number;
+  windowEnd: number;
+  /** プランを始めた日（その日の 0:00） */
+  since: number;
+  /** やった回（回の ID → やった日の 0:00） */
+  done: Record<string, number>;
+  /** 回に数えない筋トレをした日（その日の 0:00）。続けての日を避けるのに使う */
+  doneDays: number[];
+  /** 自分で選んだ回。時刻があればそこに置き、なければ長さだけ */
+  choices: Record<string, { mode: "normal" | "short" | "skip"; start?: number }>;
+  /** 疲れが強いと答えた日（その日の 0:00）。短いほうだけ置く */
+  tiredDays: number[];
+  /** 別の端末の記録と食い違っている回（答えてもらうまで置かない） */
+  conflicts: string[];
+}
+
+/** 運動の回を置ける別の時間（「予定を変える」で選べる） */
+export interface ExerciseOption {
+  mode: "normal" | "short" | "skip";
+  /** 日付（YYYY-MM-DD） */
+  date: string;
+  start?: number;
+  end?: number;
+}
+
+export interface ExerciseRound {
+  roundId: string;
+  /** 置いた日（置いていなければ、もともとの日）。YYYY-MM-DD */
+  date: string;
+  block?: Block;
+  status: "normal" | "short" | "postponed" | "skipped" | "confirm" | "completed";
+  reason?: string;
+  options: ExerciseOption[];
+}
+
 export interface PlanInput {
-  /** Include the full short-gap view when comparing optional exercise reservations. */
-  includeExerciseGaps?: boolean;
+  /** 運動のプラン。あれば運動の回を置く */
+  exercise?: ExerciseInput;
   rhythmResets?: RhythmReset[];
   /** 朝ルーティンを始めた時刻（その日の 0:00 → 時刻）。起床の直後でなく、ここから朝ルーティンを置く */
   routineStarts?: Record<number, number>;
@@ -377,7 +420,8 @@ export interface PlanInput {
 }
 
 export interface PlanResult {
-  exerciseGaps?: { beforeTasks: Interval[]; afterTasks: Interval[] };
+  /** 運動のプランがあるとき、今週から先の運動の回 */
+  exerciseRounds?: ExerciseRound[];
   rhythmResets?: RhythmReset[];
   movedBlocks?: Block[];
   dayPlans: DayPlan[];

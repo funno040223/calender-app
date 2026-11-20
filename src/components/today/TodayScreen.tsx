@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useSearchParams } from "next/navigation";
-import { Segments, SettingsLink } from "@/components/life/Controls";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { SettingsLink } from "@/components/life/Controls";
 import HomeMeal from "@/components/life/HomeMeal";
+import { LifeReviewCard } from "@/components/life/LifeStats";
 import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS, dayStartOf, formatDate, formatTime, newId } from "@/lib/mock/jst";
 import { Card, ScreenHeader } from "@/components/ui/controls";
@@ -67,14 +67,6 @@ export default function TodayScreen() {
   const day = idx >= 0 ? days[idx] : undefined;
   const dayEnd = Math.max(day?.bed ?? 0, today + DAY_MS);
   const wide = useWide();
-  const page = useSearchParams()?.get("view") === "day" ? "一日" : "いま";
-  const touch = useRef<{x: number; y: number} | null>(null);
-  const choosePage = (value: "いま" | "一日") => {
-    const url = new URL(window.location.href);
-    if (value === "一日") url.searchParams.set("view", "day");
-    else url.searchParams.delete("view");
-    window.history.replaceState(null, "", url);
-  };
   const morning = isMorning(state, day, now);
   // 寝る前は「おやすみ」だけにする（起床・就寝と「今から何する？」は出さない）
   const bedtime = !!bedDayOf(state.result, now, state.settings.windDownMinutes);
@@ -91,6 +83,7 @@ export default function TodayScreen() {
     <>
       <ProgressCard now={now} />
       <ReviewCard today={today} />
+      <LifeReviewCard home />
       {hasNotices(state) && (
         <Card title="お知らせ">
           <Notices
@@ -140,23 +133,11 @@ export default function TodayScreen() {
   );
 
   return (
-    <div className="h-full overflow-y-auto bg-grouped" onTouchStart={event => {
-      const p = event.touches[0];
-      const interactive = (event.target as Element).closest('input, button, select, textarea, a, [role="slider"]');
-      touch.current = event.touches.length === 1 && !interactive && p.clientX > 30 && p.clientX < window.innerWidth - 30 ? {x: p.clientX, y: p.clientY} : null;
-    }} onTouchCancel={() => { touch.current = null; }} onTouchEnd={event => {
-      const start = touch.current;
-      touch.current = null;
-      if (!start || event.touches.length) return;
-      const dx = event.changedTouches[0].clientX - start.x;
-      const dy = event.changedTouches[0].clientY - start.y;
-      if (Math.abs(dx) > 75 && Math.abs(dx) > Math.abs(dy) * 2) choosePage(dx < 0 ? "一日" : "いま");
-    }}>
+    <div className="h-full overflow-y-auto bg-grouped">
       <ScreenHeader title={headerDate(today)} width="max-w-5xl" right={<SettingsLink />} />
-      <div className="mx-auto max-w-5xl px-4 pb-3 sm:px-6"><Segments label="ホームの表示" options={["いま", "一日"] as const} selected={page} onChange={choosePage} /></div>
       {!!state.result.movedBlocks?.length && <div role="status" className="mx-auto max-w-5xl px-4 pb-2 text-[13px] text-muted">予定に合わせて今日の自動枠を{state.result.movedBlocks.length}件変更しました。{state.result.movedBlocks.slice(0, 3).map((b) => `${formatTime(b.start)} ${b.title}`).join("、")}</div>}
       <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-6 lg:grid lg:grid-cols-2 lg:items-start">
-        {page === "一日" ? <div className="lg:col-span-2"><Timeline now={now} dayEnd={dayEnd} fullDay /></div> : wide ? (
+        {wide ? (
           <>
             <div className="flex flex-col gap-4">
               {top}

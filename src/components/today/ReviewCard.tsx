@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import type { Habit } from "@/lib/scheduler";
+import { useLife } from "@/lib/life/store";
+import { LEGACY_EXERCISE_HABIT } from "@/lib/life/model";
 import { useApp } from "@/components/app/StoreProvider";
 import { DAY_MS } from "@/lib/mock/jst";
 import { dateKeyOf, dayStartOfKey, type HabitMark } from "@/lib/mock/model";
@@ -22,8 +24,11 @@ function countMarks(logs: Record<string, Record<string, HabitMark>>, habit: Habi
 /** 少しずつ増やす習慣（家での運動）：2週間たったら記録を見て、増やすか・きっかけを変えるかを聞く */
 export default function ReviewCard({ today }: { today: number }) {
   const { state, update, notify } = useApp();
+  // 運動のプランを使うあいだは、前の「家での運動」の習慣は聞かない（長さは運動の画面で決める）
+  const exercisePlanOn = !!useLife().projection.exercisePlan?.value.enabled;
   const key = dateKeyOf(today);
   const habit = state.habits.find((h) => {
+    if (exercisePlanOn && h.id === LEGACY_EXERCISE_HABIT) return false;
     const from = h.progression && dayStartOfKey(h.progression.reviewFrom);
     return from !== undefined && today >= from + 14 * DAY_MS;
   });

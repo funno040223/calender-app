@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/components/app/StoreProvider";
 import { Card, btnPrimary, inputBase } from "@/components/ui/controls";
 import { dateKeyOf } from "@/lib/mock/model";
 import { MIN } from "@/lib/mock/jst";
-import { defaultExercisePlan, planLifeExercise } from "@/lib/life/placement";
+import { defaultExercisePlan } from "@/lib/life/exercisePlan";
 import { type Exercise, type ExercisePlan } from "@/lib/life/model";
 import { useLife } from "@/lib/life/store";
-import { LifeScreen, Segments, choice, choices, field, inset } from "./Controls";
+import { LifeScreen, Segments, choice, choices, field, inset, summary } from "./Controls";
 import { ExercisePanel, activityLabels } from "./Exercise";
 import { useNow } from "./useNow";
 import { updateQuery, selectedDate } from "./navigation";
@@ -22,11 +22,9 @@ function PlanSettings({ date }: { date: string }) {
   const previous = life.projection.exercisePlan?.value;
   const [edits, setEdits] = useState<Partial<ExercisePlan>>({});
   const draft = { ...(previous ?? defaultExercisePlan(date)), ...edits };
-  const [confirm, setConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
   const edit = (patch: Partial<ExercisePlan>) => {
     setEdits((current) => ({ ...current, ...patch }));
-    setConfirm(false);
     setSaved(false);
   };
   const asTime = (m: number) =>
@@ -36,22 +34,17 @@ function PlanSettings({ date }: { date: string }) {
     return h * 60 + m;
   };
   return (
-    <Card title="運動プラン">
+    <Card title="筋トレの計画">
       <details className={inset}>
-        <summary className="cursor-pointer py-2">
-          {previous?.enabled ? "配置の設定を変更" : "筋トレの自動配置を設定"}
+        <summary className={summary}>
+          {previous?.enabled ? "計画を変える" : "自動で組む"}
         </summary>
         <form
           className="flex flex-col gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!confirm) {
-              setConfirm(true);
-              return;
-            }
             if (life.saveExercisePlan({ ...draft, enabled: true, enabledOn: previous?.enabledOn ?? date })) {
               setEdits({});
-              setConfirm(false);
               setSaved(true);
             }
           }}
@@ -59,7 +52,7 @@ function PlanSettings({ date }: { date: string }) {
           <div className={choices}>
             {(["normalMinutes", "shortMinutes", "weeklyTimes"] as const).map((k, i) => (
               <label key={k} className={field}>
-                {["通常（分）", "短縮（分）", "週の回数"][i]}
+                {["ふつう（分）", "短め（分）", "週に何回"][i]}
                 <input
                   required
                   type="number"
@@ -83,7 +76,7 @@ function PlanSettings({ date }: { date: string }) {
           <div className={choices}>
             {(["windowStart", "windowEnd"] as const).map((k, i) => (
               <label key={k} className={field}>
-                {["開始時刻", "終了時刻"][i]}
+                {["何時から", "何時まで"][i]}
                 <input
                   required
                   type="time"
@@ -102,15 +95,10 @@ function PlanSettings({ date }: { date: string }) {
               checked={draft.nonConsecutive}
               onChange={(e) => edit({ nonConsecutive: e.target.checked })}
             />
-            連続する日を避ける
+            続けての日は空ける
           </label>
-          {confirm && (
-            <p role="status">
-              週{draft.weeklyTimes}回、通常{draft.normalMinutes}分のプランを適用します。
-            </p>
-          )}
           <button disabled={!life.ready || draft.windowEnd <= draft.windowStart} className={btnPrimary}>
-            {confirm ? "確認して適用" : "内容を確認"}
+            保存
           </button>
           {previous?.enabled && (
             <button
@@ -118,10 +106,10 @@ function PlanSettings({ date }: { date: string }) {
               className={choice(false)}
               onClick={() => life.saveExercisePlan({ ...previous, enabled: false })}
             >
-              自動配置を停止
+              止める
             </button>
           )}
-          {saved && <span role="status">プランを保存しました</span>}
+          {saved && <span role="status">保存しました</span>}
         </form>
       </details>
     </Card>
@@ -130,7 +118,7 @@ function PlanSettings({ date }: { date: string }) {
 
 const views = ["今日", "メニュー", "履歴"] as const;
 export default function ExerciseScreen() {
-  const { state, lifeSchedule } = useApp();
+  const { state } = useApp();
   const life = useLife();
   const query = useSearchParams();
   const requested = query.get("view");
@@ -145,10 +133,7 @@ export default function ExerciseScreen() {
   const activity: Exercise["activity"] =
     selectedActivity === "walking" || selectedActivity === "mobility" ? selectedActivity : "strength";
   const picked = query.get("round");
-  const plan = useMemo(
-    () => lifeSchedule ?? planLifeExercise(state, life.projection, now),
-    [lifeSchedule, state, life.projection, now],
-  );
+  const plan = { rounds: state.result.exerciseRounds ?? [] };
 
   const round = plan.rounds.find((r) => r.date === today);
   const entries = Object.values(life.projection.exercise)
@@ -159,7 +144,7 @@ export default function ExerciseScreen() {
   const manual = (
     <>
       <label className={field}>
-        実施日
+        日付
         <input
           type="date"
           className={inputBase}
@@ -196,22 +181,22 @@ export default function ExerciseScreen() {
         <p role="status" className="text-sm">
           {life.error}{" "}
           <button className={choice(false)} onClick={life.retry}>
-            再試行
+            もう一度
           </button>
         </p>
       )}
       {view === "履歴" ? (
         <>
-          <Card title="運動の履歴">
+          <Card title="やった記録">
             <div className={inset}>
-              {!entries.length && <p>まだ記録がありません。</p>}
+              {!entries.length && <p>まだありません。</p>}
               {entries.map((e) => (
                 <button
                   key={e.roundId}
                   className={choice(picked === e.roundId)}
                   onClick={() => updateQuery({ round: e.roundId })}
                 >
-                  {e.date} · {activityLabels[e.activity]} · {e.variant === "short" ? "短縮" : "通常"}
+                  {e.date} · {activityLabels[e.activity]} · {e.variant === "short" ? "短め" : "ふつう"}
                 </button>
               ))}
             </div>
@@ -236,9 +221,9 @@ export default function ExerciseScreen() {
           ) : (
             <Card title="今日の運動">
               <div className={inset}>
-                <p>今日は筋トレの予定枠がありません。</p>
+                <p>今日は筋トレの予定はありません。</p>
                 <button className={choice(false)} onClick={() => changeView("メニュー")}>
-                  メニューから実施を記録
+                  運動を記録
                 </button>
               </div>
             </Card>
@@ -252,7 +237,7 @@ export default function ExerciseScreen() {
                     key={v}
                     onClick={() => life.setFatigue(today, v)}
                   >
-                    {["軽い", "強い", "未入力"][i]}
+                    {["軽い", "強い", "わからない"][i]}
                   </button>
                 ))}
               </div>
@@ -261,8 +246,8 @@ export default function ExerciseScreen() {
         </>
       )}
       <PlanSettings date={today} />
-      <Link href="/settings/habits" className="min-h-11 px-2 py-2 underline">
-        既存の習慣の設定
+      <Link href="/settings/habits" className="press flex min-h-11 items-center px-2 text-tint underline">
+        習慣の設定
       </Link>
     </LifeScreen>
   );

@@ -1,4 +1,4 @@
-import { resolveTravel, type CalendarEvent, type Habit, type Place, type PlanResult, type Settings } from "@/lib/scheduler";
+import { isExerciseRef, resolveTravel, type CalendarEvent, type Habit, type Place, type PlanResult, type Settings } from "@/lib/scheduler";
 import { formatDate, formatTime } from "@/lib/mock/jst";
 import { dateKeyOf, type DateKey } from "@/lib/mock/model";
 
@@ -127,7 +127,7 @@ export function buildNotices(input: NoticeInput): Notice[] {
       title: b.title,
       body: b.kind === "habit" && cued.has(b.refId) ? "まず5分" : `${formatTime(b.start)}〜${formatTime(b.end)}`,
       // 通知を開くことと実行の確認は別にする
-      url: b.kind === "task" ? `/?task=${encodeURIComponent(`${b.refId}:${b.start}`)}` : "/",
+      url: b.kind === "task" ? `/?task=${encodeURIComponent(`${b.refId}:${b.start}`)}` : isExerciseRef(b.refId) ? "/exercise" : "/",
       ...holdUntilAwake(b.start),
     });
   }

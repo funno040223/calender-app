@@ -1,5 +1,5 @@
 export const MEAL_SLOTS = ["breakfast", "lunch", "dinner"] as const;
-export const LIFE_EXERCISE_PREFIX = "life-exercise:";
+export { EXERCISE_REF_PREFIX as LIFE_EXERCISE_PREFIX } from "@/lib/scheduler/exercise";
 export const LEGACY_EXERCISE_HABIT = "habit-home-exercise";
 export type MealSlot = (typeof MEAL_SLOTS)[number];
 

@@ -22,7 +22,6 @@ import { AppContext, type AppContextValue } from "./StoreProvider";
 import OfflineNotice from "./OfflineNotice";
 import { CalendarIcon, StatsIcon, MealIcon, ExerciseIcon, SettingsIcon, TodayIcon } from "./icons";
 import { SettingsLink } from "@/components/life/Controls";
-import { planLifeExercise } from "@/lib/life/placement";
 import { useLife } from "@/lib/life/store";
 
 const TABS = [
@@ -115,10 +114,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const { state } = store;
   const { exercise } = life.projection;
   const displayState = useMemo(() => withLifeExerciseRewards(state, { exercise }), [state, exercise]);
-  const lifeSchedule = useMemo(() => planLifeExercise(state, life.projection), [state, life.projection]);
   const ctx = useMemo<AppContextValue>(
-    () => ({ ...store, state: displayState, lifeSchedule, update, patch, openTask, notify }),
-    [store, displayState, lifeSchedule, update, patch, openTask, notify],
+    () => ({ ...store, state: displayState, update, patch, openTask, notify }),
+    [store, displayState, update, patch, openTask, notify],
   );
   const warnings = warningCount(state);
 
@@ -287,7 +285,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={href}
                 href={href}
-                prefetch={href === "/meals" || href === "/exercise" ? false : undefined}
                 aria-current={on ? "page" : undefined}
                 className={`flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[11px] lg:flex-row lg:gap-3 lg:px-3 lg:text-[15px] ${
                   on ? "bg-surface font-semibold text-tint shadow-sm" : "text-muted hover:bg-surface/60"
@@ -358,7 +355,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     key={href}
                     href={href}
-                    prefetch={href === "/meals" || href === "/exercise" ? false : undefined}
                     aria-current={on ? "page" : undefined}
                     className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 pt-1.5 pb-1 text-[10px] ${
                       on ? "font-semibold text-tint" : "font-medium text-muted/80"
