@@ -44,6 +44,7 @@
 - `src/lib/ical/` iCal の読み取り（ical.js。繰り返し・除外・変更回・終日・タイムゾーン）と書き出し、URL の許可リスト（Google・iCloud の https のみ）
 - `src/lib/mock/` 画面のデータ（`model.ts` 型、`state.ts` 読み込み・移行・組み直し（画面とサーバーで共通）、`store.ts` 画面用の保存と同期、`sample.ts` 初期データ）。データの移行は `state.ts` の MIGRATIONS で1回だけ
 - `src/lib/sync/` Supabase との同期（`remote.ts` app_state、`ical.ts` 取り込み元）
+- 生活管理（料理・運動。2026-11-21 に別の AI（Codex）が実装、`c9cc51e`）：画面は `/meals`・`/exercise`（`src/components/life/`）、データは `src/lib/life/`（記録はイベントの積み重ね `model.ts`・`store.ts`、運動枠の配置 `placement.ts`、初期レシピと見本 `catalog.ts`）。同期は app_state とは別に `/api/life/sync` → `life_events`・`life_sync_state`（`supabase/migrations/0009_life_events.sql`。**実行済みかは未確認**）。下のタブは ホーム・予定（カレンダー／タスク）・料理・運動・記録、設定は別の入口。要件と実装前の仕様は `docs/design/life-*.md`・`exercise-placement-spec.md`、実機の確認表は `calendar-regression-checklist.md`
 - `src/lib/supabase/` クライアント（ブラウザ用・サーバー用・`admin.ts` secret key 用）。`src/lib/server/plan.ts` サーバーでの組み直し（取り込みも）
 - `src/lib/notify/build.ts` 通知の一覧（予定の15分前・身支度の開始・枠の始まり・毎朝のまとめ・帰宅時の体力・就寝3時間前のタバコ・30分前の寝る準備。就寝〜起床は送らない）
 - `src/components/calendar/CalendarView.tsx`：3日・週は横に長く並べた日を指で動かす（1日ずつ止まる、端で並べ直す）。月は週を縦に途切れずに並べる（1週ずつ止まる、見渡し用：終日の予定と締切〆だけ文字、時刻の予定は点、日付を押すと3日表示へ）。ピンチ（Ctrl＋スクロール）で30分の高さ 20〜90px、予定も同時に伸び縮み。1回目のタップは選ぶだけ、同じものをもう1回で詳しく開く（iPhone は1タップで2回届くので500ms以内の2回目は無視）。iPhone の注意：指を置いている間に scrollLeft を変えると日付だけ入れ替わって何日も飛ぶ（並べ直し・日の境目へ寄せるのは指を離して止まってから）。overflow-x を切り替えると横の位置が0に戻ることがある（そのため今は、純正カレンダーと同じく横の枠（.cal-strip）の中に縦の枠（FullCalendar 自身の時刻の欄のスクロール）を入れ、向きの判定はしない。時刻の目盛りは外に出した .cal-axis を縦の枠に合わせて動かす）
